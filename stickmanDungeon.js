@@ -679,8 +679,10 @@ Player.prototype.update = function() {
 						else if(this.attackingWith.element === "air") {
 							roomInstances[inRoom].content.push(new WindBurst(weaponPos.x - this.worldX, weaponPos.y - this.worldY, this.facing));
 						}
-						else if(this.attackingWidth.element === "earth") {
-							roomInstances[inRoom].content.push(new Boulder(enemy.x, -50 - this.worldX));
+						else if(this.attackingWith.element === "earth") {
+							for(var i = 0; i < Math.random() * 2 + 1; i ++) {
+								roomInstances[inRoom].content.push(new Boulder(enemy.x + Math.random() * 50 - 25, Math.random() * -30 - 20 - this.worldY, Math.round(Math.random() * 2 + 4), Math.random() * 10 + 20));
+							}
 						}
 						//reset variables for weapon swinging
 						this.canHit = false;
@@ -2460,6 +2462,37 @@ EarthCrystal.prototype.getDesc = function() {
 		}
 	]
 };
+function Boulder(x, y, damage, size) {
+	this.x = x;
+	this.y = y;
+	this.velY = 0;
+	this.damage = damage;
+	this.size = size;
+	this.hitSomething = false;
+	this.opacity = 1;
+};
+Boulder.prototype.exist = function() {
+	c.save();
+	c.globalAlpha = (this.opacity > 0) ? this.opacity : 0;
+	c.fillStyle = "rgb(50, 50, 50)";
+	c.beginPath();
+	c.arc(this.x + p.worldX, this.y + p.worldY, this.size, 0, 2 * Math.PI);
+	c.fill();
+	this.y += this.velY;
+	this.velY += 0.1;
+	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+		if(roomInstances[inRoom].content[i] instanceof Block && this.x + this.size > roomInstances[inRoom].content[i].x && this.x - this.size < roomInstances[inRoom].content[i].x + roomInstances[inRoom].content[i].width && this.y + this.size > roomInstances[inRoom].content[i].y && this.y - this.size < roomInstances[inRoom].content[i].y + roomInstances[inRoom].content[i].height) {
+			this.hitSomething = true;
+		}
+	}
+	if(this.hitSomething) {
+		this.opacity -= 0.05;
+	}
+	if(this.opacity < 0) {
+		this.splicing = true;
+	}
+	c.restore();
+};
 function AirCrystal() {
 	Crystal.call(this);
 };
@@ -2821,7 +2854,7 @@ ShotArrow.prototype.exist = function() {
 	}
 };
 p.addItem(new Sword("none"));
-p.invSlots[0].content.element = "air";
+p.invSlots[0].content.element = "earth";
 
 /** ENEMIES **/
 function RandomEnemy(x, y) {
