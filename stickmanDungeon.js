@@ -680,9 +680,17 @@ Player.prototype.update = function() {
 							roomInstances[inRoom].content.push(new WindBurst(weaponPos.x - this.worldX, weaponPos.y - this.worldY, this.facing));
 						}
 						else if(this.attackingWith.element === "earth") {
-							for(var i = 0; i < Math.random() * 2 + 1; i ++) {
-								roomInstances[inRoom].content.push(new Boulder(enemy.x + Math.random() * 50 - 25, Math.random() * -30 - 20 - this.worldY, Math.round(Math.random() * 2 + 4), Math.random() * 10 + 20));
+							console.log("attacking with an earth weapon");
+							//find lowest roof directly above weapon
+							var lowestIndex = 0;
+							for(var j = 0; j < roomInstances[inRoom].content.length; j ++) {
+								if(roomInstances[inRoom].content[j] instanceof Block && roomInstances[inRoom].content[j].x < weaponPos.x - this.worldX && roomInstances[inRoom].content[j].x + roomInstances[inRoom].content[j].w < weaponPos.x - this.worldX && roomInstances[inRoom].content[j].y + roomInstances[inRoom].content[j].h > roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h && roomInstances[inRoom].content[j].y + roomInstances[inRoom].content[j].h <= weaponPos.y - this.worldY) {
+									lowestIndex = j;
+								}
 							}
+							console.log(lowestIndex);
+							roomInstances[inRoom].content.push(new Boulder(weaponPos.x - this.worldX, roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h, Math.random() * 2 + 2));
+							roomInstances[inRoom].content.push(new BoulderVoid(weaponPos.x - this.worldX, roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h));
 						}
 						//reset variables for weapon swinging
 						this.canHit = false;
@@ -2462,35 +2470,43 @@ EarthCrystal.prototype.getDesc = function() {
 		}
 	]
 };
-function Boulder(x, y, damage, size) {
+function Boulder(x, y, damage) {
 	this.x = x;
 	this.y = y;
 	this.velY = 0;
 	this.damage = damage;
-	this.size = size;
 	this.hitSomething = false;
 	this.opacity = 1;
 };
 Boulder.prototype.exist = function() {
-	c.save();
-	c.globalAlpha = (this.opacity > 0) ? this.opacity : 0;
-	c.fillStyle = "rgb(50, 50, 50)";
+	console.log("boulders exist");
+	c.fillStyle = "rgb(255, 0, 0)";
 	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY, this.size, 0, 2 * Math.PI);
+	c.moveTo(this.x + p.worldX - 40, this.y + p.worldY);
+	c.lineTo(this.x + p.worldX + 40, this.y + p.worldY);
+	c.lineTo(this.x + p.worldX, this.y + p.worldY - 100);
+	c.fill();
+	c.beginPath();
+	c.arc(this.x + p.worldX, this.y + p.worldY, 1250, 0, 2 * Math.PI);
 	c.fill();
 	this.y += this.velY;
-	this.velY += 0.1;
-	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
-		if(roomInstances[inRoom].content[i] instanceof Block && this.x + this.size > roomInstances[inRoom].content[i].x && this.x - this.size < roomInstances[inRoom].content[i].x + roomInstances[inRoom].content[i].width && this.y + this.size > roomInstances[inRoom].content[i].y && this.y - this.size < roomInstances[inRoom].content[i].y + roomInstances[inRoom].content[i].height) {
-			this.hitSomething = true;
-		}
-	}
-	if(this.hitSomething) {
-		this.opacity -= 0.05;
-	}
-	if(this.opacity < 0) {
-		this.splicing = true;
-	}
+	this.velY += 0.05;
+};
+function BoulderVoid(x, y) {
+	this.x = x;
+	this.y = y;
+	this.opacity = 1;
+};
+BoulderVoid.prototype.exist = function() {
+	c.save();
+	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
+	c.fillStyle = "rgb(150, 150, 150)";
+	c.translate(p.worldX, p.worldY);
+	c.beginPath();
+	c.moveTo(this.x - 40, this.y);
+	c.lineTo(this.x + 40, this.y);
+	c.lineTo(this.x, this.y - 100);
+	c.fill();
 	c.restore();
 };
 function AirCrystal() {
