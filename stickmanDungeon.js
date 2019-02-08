@@ -6,7 +6,7 @@ var mouseX;
 var mouseY;
 var keys = [];
 var fps = 60;
-const showHitboxes = true;
+const showHitboxes = false;
 const floorWidth = 0.1;
 var frameCount = 0;
 var hitboxes = []; //for showing hitboxes when debugging
@@ -520,7 +520,7 @@ Player.prototype.display = function() {
 	c.arc(550 + ((this.visualHealth / this.maxHealth) * 225), 25, 12, 0, 2 * Math.PI);
 	c.fill();
 	c.fillStyle = "rgb(100, 100, 100)";
-	c.font = "bold 10pt Courier";
+	c.font = "bold 10pt monospace";
 	c.fillText("Health: " + this.health + " / " + this.maxHealth, 662, 28);
 	this.visualHealth += (this.health - this.visualHealth) / 10;
 	//mana bar
@@ -679,18 +679,21 @@ Player.prototype.update = function() {
 						else if(this.attackingWith.element === "air") {
 							roomInstances[inRoom].content.push(new WindBurst(weaponPos.x - this.worldX, weaponPos.y - this.worldY, this.facing));
 						}
-						else if(this.attackingWith.element === "earth") {
-							console.log("attacking with an earth weapon");
+						else if(this.attackingWith.element === "earth" && this.canUseEarth) {
 							//find lowest roof directly above weapon
-							var lowestIndex = 0;
+							var lowestIndex = null;
 							for(var j = 0; j < roomInstances[inRoom].content.length; j ++) {
-								if(roomInstances[inRoom].content[j] instanceof Block && roomInstances[inRoom].content[j].x < weaponPos.x - this.worldX && roomInstances[inRoom].content[j].x + roomInstances[inRoom].content[j].w < weaponPos.x - this.worldX && roomInstances[inRoom].content[j].y + roomInstances[inRoom].content[j].h > roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h && roomInstances[inRoom].content[j].y + roomInstances[inRoom].content[j].h <= weaponPos.y - this.worldY) {
+								if(lowestIndex !== null) {
+									if(roomInstances[inRoom].content[j] instanceof Block && weaponPos.x - this.worldX > roomInstances[inRoom].content[j].x && weaponPos.x - this.worldX < roomInstances[inRoom].content[j].x + roomInstances[inRoom].content[j].w &&roomInstances[inRoom].content[j].y + roomInstances[inRoom].content[j].h > roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h && roomInstances[inRoom].content[j].y + roomInstances[inRoom].content[j].h <= weaponPos.y - this.worldY) {
+										lowestIndex = j;
+									}
+								}
+								else if(lowestIndex === null && weaponPos.x - this.worldX > roomInstances[inRoom].content[j].x && weaponPos.x - this.worldX < roomInstances[inRoom].content[j].x + roomInstances[inRoom].content[j].w && roomInstances[inRoom].content[j].y <= weaponPos.y - this.worldY && roomInstances[inRoom].content[j] instanceof Block) {
 									lowestIndex = j;
 								}
 							}
-							console.log(lowestIndex);
-							roomInstances[inRoom].content.push(new Boulder(weaponPos.x - this.worldX, roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h, Math.random() * 2 + 2));
 							roomInstances[inRoom].content.push(new BoulderVoid(weaponPos.x - this.worldX, roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h));
+							roomInstances[inRoom].content.push(new Boulder(weaponPos.x - this.worldX, roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h, Math.random() * 2 + 2));
 						}
 						//reset variables for weapon swinging
 						this.canHit = false;
@@ -726,7 +729,7 @@ Player.prototype.update = function() {
 				velocity.x += (this.x - this.worldX + 10);
 				velocity.y += (this.y - this.worldY + 26);
 				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player"));
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player", this.invSlots[this.activeSlot].content.element));
 			}
 			else {
 				var velocity = getRotated(-10, 0, -this.aimRot);
@@ -735,7 +738,7 @@ Player.prototype.update = function() {
 				velocity.x += (this.x - this.worldX + 10);
 				velocity.y += (this.y - this.worldY + 26);
 				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player"));
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player", this.invSlots[this.activeSlot].content.element));
 			}
 			for(var i = 0; i < this.invSlots.length; i ++) {
 				if(this.invSlots[i].content instanceof Arrow) {
@@ -885,7 +888,7 @@ Player.prototype.gui = function() {
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
 		//text
-		c.font = "bold 20pt Courier";
+		c.font = "bold 20px monospace";
 		c.textAlign = "center";
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.beginPath();
@@ -1784,10 +1787,12 @@ Room.prototype.exist = function(index) {
 	boxFronts = [];
 	hitboxes = [];
 	var chestIndexes = [];
+	var boulderIndexes = [];
+	p.canUseEarth = true;
 	//hax
 	for(var i = 0; i < this.content.length; i ++) {
 		if(this.content[i] instanceof Enemy) {
-			this.content[i].health = this.content[i].maxHealth;
+			//this.content[i].health = this.content[i].maxHealth;
 		}
 	}
 	//load all types of items
@@ -1877,6 +1882,13 @@ Room.prototype.exist = function(index) {
 		else if(this.content[i] instanceof Block) {
 			this.content[i].exist(index);
 		}
+		else if(this.content[i] instanceof Boulder) {
+			if(this.content[i].splicing) {
+				this.content.splice(i, 1);
+				continue;
+			}
+			boulderIndexes.push(i);
+		}
 		else {
 			this.content[i].exist();
 			if(this.content[i].splicing) {
@@ -1887,6 +1899,9 @@ Room.prototype.exist = function(index) {
 		if(this.content[i] instanceof Chest) {
 			chestIndexes.push(i);
 		}
+		if(this.content[i] instanceof BoulderVoid) {
+			p.canUseEarth = false;
+		}
 	}
 	//load chest fronts after everything else
 	for(var i = 0; i < chestIndexes.length; i ++) {
@@ -1896,6 +1911,17 @@ Room.prototype.exist = function(index) {
 	}
 	//load block fronts after everything else
 	for(var i = 0; i < boxFronts.length; i ++) {
+		if(boxFronts[i].type === "boulder void") {
+			c.globalAlpha = (boxFronts[i].opacity <= 0) ? 0 : boxFronts[i].opacity;
+			c.fillStyle = "rgb(150, 150, 150)";
+			c.beginPath();
+			c.moveTo(boxFronts[i].pos1.x, boxFronts[i].pos1.y);
+			c.lineTo(boxFronts[i].pos2.x, boxFronts[i].pos2.y);
+			c.lineTo(boxFronts[i].pos3.x, boxFronts[i].pos3.y);
+			c.lineTo(boxFronts[i].pos4.x, boxFronts[i].pos4.y);
+			c.fill();
+			c.globalAlpha = 1;
+		}
 		if(boxFronts[i].type === "rect") {
 			c.fillStyle = boxFronts[i].col;
 			c.fillRect(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3]);
@@ -1906,6 +1932,10 @@ Room.prototype.exist = function(index) {
 			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], 0, 2 * Math.PI);
 			c.fill();
 		}
+	}
+	//load boulders
+	for(var i = 0; i < boulderIndexes.length; i ++) {
+		this.content[boulderIndexes[i]].exist();
 	}
 	//show hitboxes
 	c.strokeStyle = "rgb(0, " + (Math.sin(frameCount / 30) * 30 + 225) + ", " + (Math.sin(frameCount / 30) * 30 + 225) + ")";
@@ -2084,26 +2114,36 @@ Sword.prototype.getDesc = function() {
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
 			+ "Sword" + 
 			((this.element === "none") ? "" : (" of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length))),
-			font: "bolder 10pt Courier",
+			font: "bold 10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Range: Short",
+			font: "10pt monospace",
 			color: "rgb(255, 255, 255)"
 		},
 		{
 			content: "A nice, solid weapon.",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	];
 	if(this.element !== "none") {
 		desc.push(
 			{
 				content: "Enhanced with the power",
-				font: "10pt Courier",
-				color: "rgb(255, 255, 255)",
+				font: "10pt monospace",
+				color: "rgb(150, 150, 150)",
 			},
 			{
 				content: "of " + ((this.element === "fire" || this.element === "water") ? (this.element === "fire" ? "flame." : "ice.") : (this.element === "earth" ? "stone." : "wind.")),
-				font: "10pt Courier",
-				color: "rgb(255, 255, 255)",
+				font: "10pt monospace",
+				color: "rgb(150, 150, 150)",
 			}
 		);
 	}
@@ -2163,18 +2203,18 @@ Arrow.prototype.getDesc = function() {
 	return [
 		{
 			content: "Arrow [" + this.quantity + "]",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "It's an arrow. You can",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "shoot it with a bow",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	];
 };
@@ -2214,19 +2254,19 @@ WoodBow.prototype.display = function(type) {
 WoodBow.prototype.getDesc = function() {
 	return [
 		{
-			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length)) + " Wood Bow",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Wood Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "It's a bow. You can",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "shoot arrows with it",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	];
 };
@@ -2266,29 +2306,29 @@ MetalBow.prototype.display = function(type) {
 MetalBow.prototype.getDesc = function() {
 	return [
 		{
-			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length)) + " Metal Bow",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Wood Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "The reinforced metal",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "on this bow makes it",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "slightly stronger than",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "its wooden counterpart.",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	];
 };
@@ -2363,28 +2403,28 @@ FireCrystal.prototype.getDesc = function() {
 	return [
 		{
 			content: "Fire Crystal",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "When a weapon is infused",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "with power from this",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "crystal, attacks will",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "set enemies on fire.",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	];
 				
@@ -2402,33 +2442,33 @@ WaterCrystal.prototype.getDesc = function() {
 	return [
 		{
 			content: "Water Crystal",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "When a weapon is infused",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "with power from this",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "crystal, attacks will",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "freeze water vapor,",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "encasing enemies in ice.",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	];
 };
@@ -2445,52 +2485,96 @@ EarthCrystal.prototype.getDesc = function() {
 	return [
 		{
 			content: "Earth Crystal",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "When a weapon is infused",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "with power from this",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "crystal, attacks will",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "summon an avalanche.",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	]
 };
 function Boulder(x, y, damage) {
 	this.x = x;
 	this.y = y;
-	this.velY = 0;
+	this.velY = 2;
 	this.damage = damage;
 	this.hitSomething = false;
 	this.opacity = 1;
 };
 Boulder.prototype.exist = function() {
-	console.log("boulders exist");
-	c.fillStyle = "rgb(255, 0, 0)";
+	var p1b = point3d(this.x + p.worldX - 40, this.y + p.worldY, 0.9);
+	var p2b = point3d(this.x + p.worldX + 40, this.y + p.worldY, 0.9);
+	var p3b = point3d(this.x + p.worldX, this.y + p.worldY - 100, 0.9);
+	var p1f = point3d(this.x + p.worldX - 40, this.y + p.worldY, 1.1);
+	var p2f = point3d(this.x + p.worldX + 40, this.y + p.worldY, 1.1);
+	var p3f = point3d(this.x + p.worldX, this.y + p.worldY - 100, 1.1);
+	c.fillStyle = "rgb(150, 150, 150)";
+	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
 	c.beginPath();
-	c.moveTo(this.x + p.worldX - 40, this.y + p.worldY);
-	c.lineTo(this.x + p.worldX + 40, this.y + p.worldY);
-	c.lineTo(this.x + p.worldX, this.y + p.worldY - 100);
+	c.moveTo(p1b.x, p1b.y);
+	c.lineTo(p2b.x, p2b.y);
+	c.lineTo(p2f.x, p2f.y);
+	c.lineTo(p1f.x, p1f.y);
 	c.fill();
 	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY, 1250, 0, 2 * Math.PI);
+	c.moveTo(p2b.x, p2b.y);
+	c.lineTo(p3b.x, p3b.y);
+	c.lineTo(p3f.x, p3f.y);
+	c.lineTo(p2f.x, p2f.y);
 	c.fill();
-	this.y += this.velY;
-	this.velY += 0.05;
+	c.beginPath();
+	c.moveTo(p1b.x, p1b.y);
+	c.lineTo(p3b.x, p3b.y);
+	c.lineTo(p3f.x, p3f.y);
+	c.lineTo(p1f.x, p1f.y);
+	c.fill();
+	c.fillStyle = "rgb(100, 100, 100)";
+	c.beginPath();
+	c.moveTo(p1f.x, p1f.y);
+	c.lineTo(p2f.x, p2f.y);
+	c.lineTo(p3f.x, p3f.y);
+	c.fill();
+	if(!this.hitSomething) {
+		this.velY += 0.1;
+		this.y += this.velY;
+		for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+			var thing = roomInstances[inRoom].content[i];
+			if(thing instanceof Block && this.x + 40 > thing.x && this.x - 40 < thing.x + thing.w && this.y > thing.y && this.y < thing.y + 10) {
+				this.hitSomething = true;
+			}
+			else if(thing instanceof Enemy && this.x + 40 > thing.x + thing.leftX && this.x - 40 < thing.x + thing.rightX && this.y > thing.y + thing.topY && this.y < thing.y + thing.bottomY && !this.hitAnEnemy) {
+				thing.hurt(this.damage, true);
+				this.hitAnEnemy = true;
+			}
+			if(this.x + p.worldX + 40 > p.x - 5 && this.x + p.worldX - 40 < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && !this.hitAPlayer) {
+				p.hurt(this.damage);
+				this.hitAPlayer = true;
+			}
+		}
+	}
+	else {
+		this.opacity -= 0.05;
+	}
+	if(this.opacity < 0) {
+		this.splicing = true;
+	}
 };
 function BoulderVoid(x, y) {
 	this.x = x;
@@ -2498,23 +2582,82 @@ function BoulderVoid(x, y) {
 	this.opacity = 1;
 };
 BoulderVoid.prototype.exist = function() {
+	var p1b = point3d(this.x + p.worldX - 40, this.y + p.worldY, 0.9);
+	var p2b = point3d(this.x + p.worldX + 40, this.y + p.worldY, 0.9);
+	var p3b = point3d(this.x + p.worldX, this.y + p.worldY - 100, 0.9);
+	var p1f = point3d(this.x + p.worldX - 40, this.y + p.worldY, 1.1);
+	var p2f = point3d(this.x + p.worldX + 40, this.y + p.worldY, 1.1);
+	var p3f = point3d(this.x + p.worldX, this.y + p.worldY - 100, 1.1);
 	c.save();
 	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
-	c.fillStyle = "rgb(150, 150, 150)";
-	c.translate(p.worldX, p.worldY);
+	c.fillStyle = "rgb(100, 100, 100)";
 	c.beginPath();
-	c.moveTo(this.x - 40, this.y);
-	c.lineTo(this.x + 40, this.y);
-	c.lineTo(this.x, this.y - 100);
+	c.lineTo(p1f.x, p1f.y);
+	c.lineTo(p2f.x, p2f.y);
+	c.lineTo(p2b.x, p2b.y);
+	c.lineTo(p1b.x, p1b.y);
 	c.fill();
 	c.restore();
+	var boulderExists = false;
+	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+		if(roomInstances[inRoom].content[i] instanceof Boulder) {
+			boulderExists = true;
+			break;
+		}
+	}
+	if(!boulderExists) {
+		this.opacity -= 0.05;
+	}
+	if(this.opacity < 0) {
+		this.splicing = true;
+	}
+	boxFronts.push({
+		type: "boulder void",
+		opacity: this.opacity,
+		pos1: {
+			x: p1b.x,
+			y: p1b.y
+		},
+		pos2: {
+			x: p3b.x,
+			y: p3b.y
+		},
+		pos3: {
+			x: p3f.x,
+			y: p3f.y
+		},
+		pos4: {
+			x: p1f.x,
+			y: p1f.y
+		}
+	});
+	boxFronts.push({
+		type: "boulder void",
+		opacity: this.opacity,
+		pos1: {
+			x: p2b.x,
+			y: p2b.y
+		},
+		pos2: {
+			x: p3b.x,
+			y: p3b.y
+		},
+		pos3: {
+			x: p3f.x,
+			y: p3f.y
+		},
+		pos4: {
+			x: p2f.x,
+			y: p2f.y
+		}
+	});
 };
 function AirCrystal() {
 	Crystal.call(this);
 };
 inheritsFrom(AirCrystal, Crystal);
 AirCrystal.prototype.display = function(type) {
-	c.fillStyle = "rgb(255, 255, 255)";
+	c.fillStyle = "rgb(150, 150, 150)";
 	c.strokeStyle = "rgb(220, 220, 220)";
 	this.graphics(type);
 };
@@ -2522,33 +2665,33 @@ AirCrystal.prototype.getDesc = function() {
 	return [
 		{
 			content: "Air Crystal",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "When a weapon is infused",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "with power from this",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "crystal, attacks will",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "be accompanied by a",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "gust of wind.",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	]
 };
@@ -2566,7 +2709,7 @@ WindBurst.prototype.exist = function() {
 WindBurst.prototype.display = function() {
 	c.save();
 	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
-	c.strokeStyle = "rgb(255, 255, 255)";
+	c.strokeStyle = "rgb(150, 150, 150)";
 	c.lineWidth = 4;
 	c.translate(p.worldX, p.worldY);
 	if(this.dir === "right") {
@@ -2638,7 +2781,7 @@ Barricade.prototype.display = function(type) {
 	if(type === "item" || type === "holding") {
 		c.save();
 		c.fillStyle = "rgb(139, 69, 19)";
-		c.strokeStyle = "rgb(255, 255, 255)";
+		c.strokeStyle = "rgb(150, 150, 150)";
 		c.lineWidth = 2;
 		
 		c.save();
@@ -2695,23 +2838,23 @@ Barricade.prototype.getDesc = function() {
 	return [
 		{
 			content: "Barricade",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "Can be placed on a door",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "to block enemies from",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "following you.",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	];
 };
@@ -2761,28 +2904,28 @@ Coin.prototype.getDesc = function() {
 	var desc = [
 		{
 			content: "Coin [" + this.quantity + "]",
-			font: "bolder 10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "bolder 10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "Even though you can't",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "buy anything with it,",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "money is always a nice",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "thing to have.",
-			font: "10pt Courier",
-			color: "rgb(255, 255, 255)"
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
 		}
 	];
 	return desc;
@@ -2799,7 +2942,7 @@ Coin.prototype.display = function(type) {
 	c.fillRect(-2, -8, 4, 16);
 	c.globalAlpha = 1;
 };
-function ShotArrow(x, y, velX, velY, damage, shotBy) {
+function ShotArrow(x, y, velX, velY, damage, shotBy, element) {
 	this.x = x;
 	this.y = y;
 	this.velX = velX;
@@ -2807,9 +2950,11 @@ function ShotArrow(x, y, velX, velY, damage, shotBy) {
 	this.shotBy = shotBy;
 	this.opacity = 1;
 	this.damage = damage;
+	this.element = element;
 	this.hitSomething = false;
 };
 ShotArrow.prototype.exist = function() {
+	console.log(this.element);
 	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
 	var angle = Math.atan2(this.velX, this.velY);
 	c.save();
@@ -2850,6 +2995,32 @@ ShotArrow.prototype.exist = function() {
 				var enemy = roomInstances[inRoom].content[i];
 				if(this.x > enemy.x + enemy.leftX && this.x < enemy.x + enemy.rightX && this.y > enemy.y + enemy.topY && this.y < enemy.y + enemy.bottomY) {
 					enemy.hurt(this.damage);
+					if(this.element === "fire") {
+						console.log("IT BURNS");
+						enemy.timeBurning = (enemy.timeBurning <= 0) ? 120 : enemy.timeBurning;
+					}
+					else if(this.element === "water") {
+						enemy.timeFrozen = (enemy.timeFrozen <= 0) ? 120 : enemy.timeFrozen;
+					}
+					else if(this.element === "air") {
+						roomInstances[inRoom].content.push(new WindBurst(this.x, this.y, this.velX > 0 ? "right" : "left"));
+					}
+					else if(this.element === "earth" && p.canUseEarth) {
+						//find lowest roof directly above weapon
+						var lowestIndex = null;
+						for(var j = 0; j < roomInstances[inRoom].content.length; j ++) {
+							if(lowestIndex !== null) {
+								if(roomInstances[inRoom].content[j] instanceof Block && this.x > roomInstances[inRoom].content[j].x && this.x < roomInstances[inRoom].content[j].x + roomInstances[inRoom].content[j].w &&roomInstances[inRoom].content[j].y + roomInstances[inRoom].content[j].h > roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h && roomInstances[inRoom].content[j].y + roomInstances[inRoom].content[j].h <= this.y) {
+									lowestIndex = j;
+								}
+							}
+							else if(lowestIndex === null && this.x > roomInstances[inRoom].content[j].x && this.x < roomInstances[inRoom].content[j].x + roomInstances[inRoom].content[j].w && roomInstances[inRoom].content[j].y <= this.y && roomInstances[inRoom].content[j] instanceof Block) {
+								lowestIndex = j;
+							}
+						}
+						roomInstances[inRoom].content.push(new BoulderVoid(this.x, roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h));
+						roomInstances[inRoom].content.push(new Boulder(this.x, roomInstances[inRoom].content[lowestIndex].y + roomInstances[inRoom].content[lowestIndex].h, Math.random() * 2 + 2));
+					}
 					this.hitSomething = true;
 				}
 			}
@@ -2869,8 +3040,7 @@ ShotArrow.prototype.exist = function() {
 		this.opacity -= 0.05;	
 	}
 };
-p.addItem(new Sword("none"));
-p.invSlots[0].content.element = "earth";
+p.addItem(new Sword());
 
 /** ENEMIES **/
 function RandomEnemy(x, y) {
@@ -2909,10 +3079,13 @@ function Enemy(x, y) {
 	this.fadingIn = false;
 	this.particles = [];
 	this.timeFrozen = 0;
+	this.timeBurning = 0;
 };
-Enemy.prototype.hurt = function(amount) {
+Enemy.prototype.hurt = function(amount, ignoreDef) {
 	var def = Math.round(Math.random() * (this.defHigh - this.defLow) + this.defLow);
-	amount -= def;
+	if(!ignoreDef) {
+		amount -= def;
+	}
 	this.health -= amount;
 };
 Enemy.prototype.displayStats = function() {
@@ -2975,13 +3148,13 @@ Enemy.prototype.exist = function() {
 		this.update("player");
 	}
 	if(this.timeFrozen > 0 && !(this instanceof Wraith)) {
-		cube(this.x + p.worldX + this.leftX, this.y + p.worldY + this.topY, (this.rightX - this.leftX), (this.bottomY - this.topY), 0.95, 1.05, "rgba(0, 255, 128, 0.5)", "rgba(0, 255, 200, 0.5)");
+		cube(this.x + p.worldX + this.leftX, this.y + p.worldY + this.topY, (this.rightX - this.leftX), (this.bottomY - this.topY), 0.95, 1.05, "rgba(0, 128, 200, 0.5)", "rgba(0, 128, 200, 0.5)");
 		this.y += 2;
 	}
 	if(typeof this.attack === "function" && this.timeFrozen < 0) {
 		this.attack();
 	}
-	if(this.timeBurning > 0 && !(this instanceof Wraith) && false) {
+	if(this.timeBurning > 0 && !(this instanceof Wraith)) {
 		this.particles.push(new Particle("rgb(255, 128, 0)", Math.random() * (this.rightX - this.leftX), Math.random() * (this.bottomY - this.topY), Math.random() * 4 - 2, Math.random() * 4 - 3, Math.random() * 2 + 3));
 		this.timeBurning --;
 		if(this.timeBurning % 60 === 0) {
