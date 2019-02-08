@@ -652,7 +652,7 @@ Player.prototype.update = function() {
 	if(this.attacking) {
 		if(this.attackingWith instanceof MeleeWeapon) {
 			//calculate weapon tip position
-			var weaponPos = getRotated(10, -60, this.attackArmRot);
+			var weaponPos = getRotated(10, -this.attackingWith.range, this.attackArmRot);
 			if(this.facing === "left") {
 				weaponPos.x = -weaponPos.x;
 			}
@@ -845,6 +845,7 @@ Player.prototype.gui = function() {
 		//find which you are hovering over
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			if(mouseX > this.invSlots[i].x && mouseX < this.invSlots[i].x + 70 && mouseY > this.invSlots[i].y && mouseY < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
+				console.log("getting desc");
 				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
 				hoverIndex = i;
 				break;
@@ -2001,6 +2002,7 @@ Item.prototype.animate = function() {
 };
 Item.prototype.checkInteraction = function() {};
 Item.prototype.displayDesc = function(x, y) {
+	console.log(this.desc);
 	var descHeight = this.desc.length * 10 + 10;
 	var idealY = y - (descHeight / 2);
 	var actualY = (idealY > 20) ? idealY : 20;
@@ -2068,6 +2070,7 @@ function Sword(modifier) {
 	MeleeWeapon.call(this, modifier);
 	this.damLow = 7;
 	this.damHigh = 10;
+	this.range = 60;
 };
 inheritsFrom(Sword, MeleeWeapon);
 Sword.prototype.display = function(type) {
@@ -2153,8 +2156,81 @@ function Dagger(modifier) {
 	MeleeWeapon.call(this, modifier);
 	this.damLow = 3;
 	this.damHigh = 5;
+	this.range = 30;
 };
 inheritsFrom(Dagger, MeleeWeapon);
+Dagger.prototype.getDesc = function() {
+	var desc = [
+		{
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
+			+ "Dagger" + 
+			((this.element === "none") ? "" : (" of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length))),
+			font: "bold 10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Range: Very Short",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "A small dagger, the",
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
+		},
+		{
+			content: "kind used for stabbing",
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
+		},
+		{
+			content: "people in the dark.",
+			font: "10pt monospace",
+			color: "rgb(150, 150, 150)"
+		}
+	];
+	if(this.element !== "none") {
+		desc.push(
+			{
+				content: "Enhanced with the power",
+				font: "10pt monospace",
+				color: "rgb(150, 150, 150)",
+			},
+			{
+				content: "of " + ((this.element === "fire" || this.element === "water") ? (this.element === "fire" ? "flame." : "ice.") : (this.element === "earth" ? "stone." : "wind.")),
+				font: "10pt monospace",
+				color: "rgb(150, 150, 150)",
+			}
+		);
+	}
+	return desc;
+};
+Dagger.prototype.display = function(type) {
+	c.fillStyle = "rgb(139, 69, 19)";
+	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
+	if(type !== "attacking") {
+		c.translate(-15, 15);
+		c.rotate(0.7853);
+	}
+	c.beginPath();
+	c.moveTo(-1, -3);
+	c.lineTo(1, -3);
+	c.lineTo(3, -10);
+	c.lineTo(-3, -10);
+	c.fill();
+	c.fillStyle = "rgb(255, 255, 255)";
+	c.beginPath();
+	c.moveTo(-3, -10);
+	c.lineTo(3, -10);
+	c.lineTo(0, -30);
+	c.fill();
+	c.globalAlpha = 1;
+};
 function RangedWeapon(modifier) {
 	Weapon.call(this, modifier);
 };
@@ -3040,7 +3116,7 @@ ShotArrow.prototype.exist = function() {
 		this.opacity -= 0.05;	
 	}
 };
-p.addItem(new Sword());
+p.addItem(new Dagger());
 
 /** ENEMIES **/
 function RandomEnemy(x, y) {
