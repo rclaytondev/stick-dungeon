@@ -1,4 +1,4 @@
-# dungeon-game
+# Stick Dungeon
 In this game, you control a stick figure to survive within a dungeon. As stated in the description, this is sort of a cross between a dungeon crawler and a platformer, and it has aspects of both genres. It has several types of rooms (it could probably use more) that are divided into a few distinct types:
 * Combat rooms - featuring a random enemy for you to defeat
 * Platforming rooms - in which the user must navigate around moving parts while avoiding a fall
