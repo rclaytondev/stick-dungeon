@@ -174,7 +174,7 @@ function hitboxRect(x, y, w, h) {
 	}
 	return (p.x + 5 > x && p.x - 5 < x + w && p.y + 46 > y && p.y < y + h);
 };
-function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies) {
+function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandling) {
 	parentRoom = parentRoom || inRoom;
 	onlyEnemies = onlyEnemies || false;
 	if(showHitboxes) {
@@ -183,24 +183,39 @@ function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies) {
 	if(typeof walls !== "object") {
 		walls = [true, true, true, true];
 	}
+	if(illegalHandling === undefined) {
+		illegalHandling = "collide";
+	}
 	if(showHitboxes) {
 		c.strokeStyle = "rgb(0, " + (Math.sin(frameCount / 30) * 30 + 225) + ", " + (Math.sin(frameCount / 30) * 30 + 225) + ")";
 		//c.strokeStyle = "rgb(0, 255, 255)";
 		c.strokeRect(x, y, w, h);
 	}
-	if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + p.velY + 1 && walls[0] && !onlyEnemies) {
-		p.velY = 0;
-		p.y = y - 46;
-		p.canJump = true;
-	}
-	if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h + p.velY - 1 && walls[1] && !onlyEnemies) {
-		p.velY = 2;
-	}
-	if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + p.velX + 1 && walls[2] && !onlyEnemies) {
-		p.velX = -1;
-	}
-	if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w + p.velX - 1 && walls[3] && !onlyEnemies) {
-		p.velX = 1;
+	if(!onlyEnemies) {
+		if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + p.velY + 1 && walls[0] && !onlyEnemies) {
+			p.velY = 0;
+			p.y = y - 46;
+			p.canJump = true;
+		}
+		if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h + p.velY - 1 && walls[1] && !onlyEnemies) {
+			p.velY = 2;
+		}
+		if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + p.velX + 1 && walls[2] && !onlyEnemies) {
+			if(illegalHandling === "collide") {
+				p.velX = -1;
+			}
+			else {
+				p.y = y - 46;
+			}
+		}
+		if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w + p.velX - 1 && walls[3] && !onlyEnemies) {
+			if(illegalHandling === "collide") {
+				p.velX = 1;
+			}
+			else {
+				p.y = y - 46;
+			}
+		}
 	}
 	for(var i = 0; i < roomInstances[parentRoom].content.length; i ++) {
 		if(roomInstances[parentRoom].content[i] instanceof Enemy) {
@@ -373,6 +388,23 @@ Player.prototype.init = function() {
 	}
 };
 Player.prototype.display = function() {
+	//side scrolling (in display b/c it has to be done before)
+	if(this.y > 400) {
+		this.worldY -= Math.dist(0, this.y, 0, 400);
+		this.y = 400;
+	}
+	else if(this.y < 400) {
+		this.worldY += Math.dist(0, this.y, 0, 400);
+		this.y = 400;
+	}
+	if(this.x > 400) {
+		this.worldX -= Math.dist(this.x, 0, 400, 0);
+		this.x = 400;
+	}
+	else if(this.x < 400) {
+		this.worldX += Math.dist(this.x, 0, 400, 0);
+		this.x = 400;
+	}
 	c.lineWidth = 5;
 	c.lineCap = "round";
 	//head
@@ -592,23 +624,6 @@ Player.prototype.update = function() {
 		this.velY = -7.5;
 	}
 	this.canJump = false;
-	//side scrolling
-	if(this.y > 400) {
-		this.worldY -= Math.dist(0, this.y, 0, 400);
-		this.y = 400;
-	}
-	else if(this.y < 400) {
-		this.worldY += Math.dist(0, this.y, 0, 400);
-		this.y = 400;
-	}
-	if(this.x > 400) {
-		this.worldX -= Math.dist(this.x, 0, 400, 0);
-		this.x = 400;
-	}
-	else if(this.x < 400) {
-		this.worldX += Math.dist(this.x, 0, 400, 0);
-		this.x = 400;
-	}
 	//screen transitions
 	if(this.enteringDoor) {
 		this.op -= 0.05;
@@ -915,7 +930,15 @@ Player.prototype.gui = function() {
 					this.invSlots[i].content.displayParticles();
 					c.restore();
 				}
+				//gray out invalid choices
+				if((!(this.invSlots[i].content instanceof Weapon && !(this.invSlots[i].content instanceof Arrow)) || this.invSlots[i].content.element === this.infusedGui) && !(i === this.activeSlot)) {
+					c.globalAlpha = 0.75;
+					c.fillStyle = "rgb(150, 150, 150)";
+					c.fillRect(this.invSlots[i].x + 2, this.invSlots[i].y + 2, 66, 66);
+					c.globalAlpha = 1;
+				}
 			}
+			
 			//graphic for selection
 			if(i === this.activeSlot) {
 				c.fillStyle = "rgb(100, 100, 100)";
@@ -952,7 +975,7 @@ Player.prototype.gui = function() {
 		if(hoverIndex !== null) {
 			//display desc of hovered item
 			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + 70, this.invSlots[hoverIndex].y + 35);
-			if(mouseIsPressed && this.invSlots[hoverIndex].content instanceof Weapon && this.invSlots[hoverIndex].content.element !== this.infusedGui) {
+			if(mouseIsPressed && this.invSlots[hoverIndex].content instanceof Weapon && !(this.invSlots[hoverIndex].content instanceof Arrow) && this.invSlots[hoverIndex].content.element !== this.infusedGui) {
 				this.invSlots[hoverIndex].content.element = this.infusedGui;
 				this.guiOpen = "none";
 				this.invSlots[this.activeSlot].content = "empty";
@@ -1041,7 +1064,7 @@ Player.prototype.hurt = function(amount) {
 };
 var p = new Player();
 p.init();
-   
+
 /** IN GAME STRUCTURES **/
 function Block(x, y, w, h) {
 	this.x = x;
@@ -1050,7 +1073,7 @@ function Block(x, y, w, h) {
 	this.h = h;
 };
 Block.prototype.update = function(parentRoom, onlyEnemies) {
-	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, [true, true, true, true], parentRoom, onlyEnemies);
+	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, [true, true, true, true], parentRoom, onlyEnemies, partOfAStair ? "teleport" : "collide");
 };
 Block.prototype.display = function() {
 	cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
@@ -1189,6 +1212,24 @@ Door.prototype.exist = function(parentRoom) {
 								new Torch(800, 440),
 								new Door(400, 500, ["combat", "parkour", "secret"]),
 								new Door(900, 500, ["combat", "parkour", "secret"])
+							],
+							"?"
+						)
+					);
+					break;
+				case "ambient3":
+					roomInstances.push(
+						new Room(
+							"ambient",
+							[
+								new Block(-4000, 0, 8000, 1000), //floor
+								new Stairs(200, 0, 10, "right"),
+								new Block(600, -4000, 4000, 4100), //right wall
+								new Door(500, 0, ["combat", "parkour", "secret"], true),
+								new Block(-800, -200, 1001, 1000), //higher floor
+								new Door(100, -200, ["combat", "parkour", "secret"]),
+								new Block(-1000, -4000, 1000, 8000), //left wall
+								new Block(-4000, -1400, 8000, 1000), //roof
 							],
 							"?"
 						)
@@ -1773,7 +1814,40 @@ FallBlock.prototype.exist = function() {
 		this.y += this.velY;
 	}
 };
-   
+var partOfAStair;
+function Stairs(x, y, numSteps, dir) {
+	this.x = x;
+	this.y = y;
+	this.numSteps = numSteps;//each step is 20px * 20px
+	this.dir = dir;
+	if(this.dir === "right") {
+		this.steps = [];
+		for(var x = 0; x < this.numSteps * 20; x += 20) {
+			this.steps.push(new Block(x + this.x, -this.numSteps * 20 + x + this.y, 21, this.numSteps * 20 - x + 1));
+		}
+	}
+	else {
+		this.steps = [];
+		for(var x = 0; x > -this.numSteps * 20; x -= 20) {
+			this.steps.push(new Block(x - 20 + this.x, -this.numSteps * 20 - x + this.y, 21, this.numSteps * 20 + x + 1));
+		}
+	}
+};
+Stairs.prototype.exist = function() {
+	partOfAStair = true;
+	if(this.dir === "right") {
+		for(var i = 0; i < this.steps.length; i ++) {
+			this.steps[i].display();
+			if(p.x + 5 > this.steps[i].x + p.worldX && p.x - 5 < this.steps[i].x + p.worldX + this.steps[i].w && p.y + 46 > this.steps[i].y + p.worldY && p.y - 7 < this.steps[i].y + this.steps[i].h + p.worldY) {
+				p.velY = 0;
+				p.y = this.steps[i].y + p.worldY - 46;
+				p.canJump = true;
+			}
+		}
+	}
+	partOfAStair = false;
+};
+
 /** ROOM DATA **/
 var inRoom = 0;
 var numRooms = 0;
@@ -1952,7 +2026,7 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-const rooms = [/*"ambient1", "ambient2", "secret1", */"combat1"/*, "parkour1", "reward1"*/];
+const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1"];
 const items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow];
 const enemies = [/*Spider, Bat, Skeleton, */SkeletonWarrior/*, SkeletonArcher, Wraith/*, /*Troll*/];
 var roomInstances = [
@@ -1970,7 +2044,7 @@ var roomInstances = [
 		"?"
 	)
 ];
-   
+
 /** ITEMS **/
 function Item() {
 	this.location = null;
@@ -2002,11 +2076,45 @@ Item.prototype.animate = function() {
 };
 Item.prototype.checkInteraction = function() {};
 Item.prototype.displayDesc = function(x, y) {
-	console.log(this.desc);
-	var descHeight = this.desc.length * 10 + 10;
+	if(this instanceof Weapon && this.element !== "none") {
+		var propertiesOfWeapons = ["damage", "range", "special"];
+		loop1: for(var i = 1; i < this.desc.length; i ++) {
+			var isAStat = false;
+			loop2: for(var j = 0; j < propertiesOfWeapons.length; j ++) {
+				if(this.desc[i].content.substr(0, propertiesOfWeapons[j].length) === propertiesOfWeapons[j]) {
+					isAStat = true;
+					break loop2;
+				}
+			}
+			if(!isAStat) {
+				this.desc.splice(i, 0, {
+					content: "Special: " + ((this.element === "fire" || this.element === "water") ? 
+					((this.element === "fire") ? "Burning" : "Freezing") : 
+					((this.element === "earth") ? "Crushing" : "Knockback")), 
+					font: "10pt monospace", 
+					color: "rgb(255, 255, 255)"
+				});
+				break loop1;
+			}
+		}
+		this.desc.push({
+			content: "Enhanced with the power",
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		},
+		{
+			content: "of " + ((this.element === "fire" || this.element === "water") ? 
+			((this.element === "fire") ? "flame." : "ice.") : 
+			((this.element === "earth") ? "stone." : "wind.")),
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		});
+	}
+	var descHeight = this.desc.length * 12 + 10;
 	var idealY = y - (descHeight / 2);
 	var actualY = (idealY > 20) ? idealY : 20;
 	actualY = (actualY + (descHeight / 2) < 780) ? actualY : 780 - (descHeight / 2);
+	//text box
 	c.fillStyle = "rgb(100, 100, 100)";
 	c.beginPath();
 	c.moveTo(x, y);
@@ -2014,11 +2122,12 @@ Item.prototype.displayDesc = function(x, y) {
 	c.lineTo(x + 10, y + 10);
 	c.fill();
 	c.fillRect(x + 10, actualY, 200, descHeight);
+	//text
 	c.textAlign = "left";
 	for(var i = 0; i < this.desc.length; i ++) {
 		c.fillStyle = this.desc[i].color;
 		c.font = this.desc[i].font;
-		c.fillText(this.desc[i].content, x + 15, y - (descHeight / 2) + (i * 10) + 10);
+		c.fillText(this.desc[i].content, x + 15, actualY + (i * 12) + 15);
 	}
 	c.textAlign = "center";
 };
@@ -2117,7 +2226,7 @@ Sword.prototype.getDesc = function() {
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
 			+ "Sword" + 
 			((this.element === "none") ? "" : (" of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length))),
-			font: "bold 10pt monospace",
+			font: "bold 10pt Cursive",
 			color: "rgb(255, 255, 255)"
 		},
 		{
@@ -2132,30 +2241,16 @@ Sword.prototype.getDesc = function() {
 		},
 		{
 			content: "A nice, solid weapon.",
-			font: "10pt monospace",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
-	if(this.element !== "none") {
-		desc.push(
-			{
-				content: "Enhanced with the power",
-				font: "10pt monospace",
-				color: "rgb(150, 150, 150)",
-			},
-			{
-				content: "of " + ((this.element === "fire" || this.element === "water") ? (this.element === "fire" ? "flame." : "ice.") : (this.element === "earth" ? "stone." : "wind.")),
-				font: "10pt monospace",
-				color: "rgb(150, 150, 150)",
-			}
-		);
-	}
 	return desc;
 };
 function Dagger(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = 3;
-	this.damHigh = 5;
+	this.damLow = 5;
+	this.damHigh = 7;
 	this.range = 30;
 };
 inheritsFrom(Dagger, MeleeWeapon);
@@ -2165,7 +2260,7 @@ Dagger.prototype.getDesc = function() {
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
 			+ "Dagger" + 
 			((this.element === "none") ? "" : (" of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length))),
-			font: "bold 10pt monospace",
+			font: "bold 10pt Cursive",
 			color: "rgb(255, 255, 255)"
 		},
 		{
@@ -2179,42 +2274,23 @@ Dagger.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "A small dagger, the",
-			font: "10pt monospace",
+			content: "A small dagger, the kind used",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "kind used for stabbing",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "people in the dark.",
-			font: "10pt monospace",
+			content: "for stabbing in the dark.",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
-	if(this.element !== "none") {
-		desc.push(
-			{
-				content: "Enhanced with the power",
-				font: "10pt monospace",
-				color: "rgb(150, 150, 150)",
-			},
-			{
-				content: "of " + ((this.element === "fire" || this.element === "water") ? (this.element === "fire" ? "flame." : "ice.") : (this.element === "earth" ? "stone." : "wind.")),
-				font: "10pt monospace",
-				color: "rgb(150, 150, 150)",
-			}
-		);
-	}
 	return desc;
 };
 Dagger.prototype.display = function(type) {
 	c.fillStyle = "rgb(139, 69, 19)";
 	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
 	if(type !== "attacking") {
-		c.translate(-15, 15);
+		c.translate(-13, 13);
 		c.rotate(0.7853);
 	}
 	c.beginPath();
@@ -2279,17 +2355,17 @@ Arrow.prototype.getDesc = function() {
 	return [
 		{
 			content: "Arrow [" + this.quantity + "]",
-			font: "bolder 10pt monospace",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "It's an arrow. You can shoot it",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "It's an arrow. You can",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "shoot it with a bow",
-			font: "10pt monospace",
+			content: "with a bow",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
@@ -2331,17 +2407,27 @@ WoodBow.prototype.getDesc = function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Wood Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
-			font: "bolder 10pt monospace",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Range: Long",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "It's a bow. You can shoot",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "It's a bow. You can",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "shoot arrows with it",
-			font: "10pt monospace",
+			content: "arrows with it.",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
@@ -2382,28 +2468,33 @@ MetalBow.prototype.display = function(type) {
 MetalBow.prototype.getDesc = function() {
 	return [
 		{
-			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Wood Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
-			font: "bolder 10pt monospace",
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Metal Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Range: Long",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "The reinforced metal on this",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "The reinforced metal",
-			font: "10pt monospace",
+			content: "bow makes it slightly stronger",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "on this bow makes it",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "slightly stronger than",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "its wooden counterpart.",
-			font: "10pt monospace",
+			content: "than it's wooden counterpart.",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
@@ -2479,27 +2570,32 @@ FireCrystal.prototype.getDesc = function() {
 	return [
 		{
 			content: "Fire Crystal",
-			font: "bolder 10pt monospace",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Effect: Burning",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "When a weapon is infused with",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "When a weapon is infused",
-			font: "10pt monospace",
+			content: "power from this crystal,",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "with power from this",
-			font: "10pt monospace",
+			content: "attacks will set enemies on",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "crystal, attacks will",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "set enemies on fire.",
-			font: "10pt monospace",
+			content: "fire.",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
@@ -2518,32 +2614,32 @@ WaterCrystal.prototype.getDesc = function() {
 	return [
 		{
 			content: "Water Crystal",
-			font: "bolder 10pt monospace",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Effect: Freezing",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "When a weapon is infused with",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "When a weapon is infused",
-			font: "10pt monospace",
+			content: "power from this crystal,",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "with power from this",
-			font: "10pt monospace",
+			content: "attacks will freeze water",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "crystal, attacks will",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "freeze water vapor,",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "encasing enemies in ice.",
-			font: "10pt monospace",
+			content: "vapor, encasing enemies in ice.",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
@@ -2561,27 +2657,32 @@ EarthCrystal.prototype.getDesc = function() {
 	return [
 		{
 			content: "Earth Crystal",
-			font: "bolder 10pt monospace",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Effect: Crushing",
+			font: "10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "When a weapon is infused with",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "When a weapon is infused",
-			font: "10pt monospace",
+			content: "power from this crystal,",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "with power from this",
-			font: "10pt monospace",
+			content: "attacks will crush enemies",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "crystal, attacks will",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "summon an avalanche.",
-			font: "10pt monospace",
+			content: "using a chunk of rock.",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	]
@@ -2741,32 +2842,37 @@ AirCrystal.prototype.getDesc = function() {
 	return [
 		{
 			content: "Air Crystal",
-			font: "bolder 10pt monospace",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Effect: Knockback",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "When a weapon is infused with",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "When a weapon is infused",
-			font: "10pt monospace",
+			content: "power from this crystal,",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "with power from this",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "crystal, attacks will",
-			font: "10pt monospace",
+			content: "attacks will",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "be accompanied by a",
-			font: "10pt monospace",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
 			content: "gust of wind.",
-			font: "10pt monospace",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	]
@@ -2914,22 +3020,27 @@ Barricade.prototype.getDesc = function() {
 	return [
 		{
 			content: "Barricade",
-			font: "bolder 10pt monospace",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Usage: Blocking doors",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Can be placed on a door to",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "Can be placed on a door",
-			font: "10pt monospace",
+			content: "prevent enemies from chasing",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "to block enemies from",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "following you.",
-			font: "10pt monospace",
+			content: "you.",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
@@ -3116,7 +3227,16 @@ ShotArrow.prototype.exist = function() {
 		this.opacity -= 0.05;	
 	}
 };
+p.addItem(new Sword());
+p.addItem(new WoodBow());
+p.addItem(new MetalBow());
+p.addItem(new Arrow(10));
+p.addItem(new EarthCrystal());
 p.addItem(new Dagger());
+p.addItem(new WaterCrystal());
+p.addItem(new FireCrystal());
+p.addItem(new AirCrystal());
+p.addItem(new Barricade());
 
 /** ENEMIES **/
 function RandomEnemy(x, y) {
@@ -3162,6 +3282,7 @@ Enemy.prototype.hurt = function(amount, ignoreDef) {
 	if(!ignoreDef) {
 		amount -= def;
 	}
+	amount = (amount < 0) ? 0 : amount;
 	this.health -= amount;
 };
 Enemy.prototype.displayStats = function() {
