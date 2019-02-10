@@ -860,7 +860,6 @@ Player.prototype.gui = function() {
 		//find which you are hovering over
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			if(mouseX > this.invSlots[i].x && mouseX < this.invSlots[i].x + 70 && mouseY > this.invSlots[i].y && mouseY < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
-				console.log("getting desc");
 				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
 				hoverIndex = i;
 				break;
@@ -1035,7 +1034,7 @@ Player.prototype.gui = function() {
 Player.prototype.addItem = function(item) {
 	if(item.stackable) {
 		for(var i = 0; i < this.invSlots.length; i ++) {
-			if(this.invSlots[i].content instanceof Arrow) {
+			if(this.invSlots[i].content instanceof item.constructor) {
 				this.invSlots[i].content.quantity += item.quantity;
 				return;
 			}
@@ -1693,6 +1692,7 @@ Chest.prototype.exist = function() {
 			}
 		}
 		if(ownsABow) {
+			//25% arrows, 25% coins, 50% random item (not arrows or coins)
 			var chooser = Math.random();
 			if(chooser < 0.25) {
 				//give the player 6-10 arrows
@@ -1720,6 +1720,8 @@ Chest.prototype.exist = function() {
 					}
 				}
 				if(possibleItems.length === 0) {
+					//the player already has every item in the game, so just give them coins
+					roomInstances[inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
 					return;
 				}
 				var selector = Math.floor(Math.random() * possibleItems.length);
@@ -2027,7 +2029,7 @@ Room.prototype.exist = function(index) {
 	c.fillRect(0, 0, 800, 800);
 };
 const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1"];
-const items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow];
+const items = [/*Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow*/EnergyStaff];
 const enemies = [/*Spider, Bat, Skeleton, */SkeletonWarrior/*, SkeletonArcher, Wraith/*, /*Troll*/];
 var roomInstances = [
 	new Room(
@@ -2307,6 +2309,7 @@ Dagger.prototype.display = function(type) {
 	c.fill();
 	c.globalAlpha = 1;
 };
+
 function RangedWeapon(modifier) {
 	Weapon.call(this, modifier);
 };
@@ -2498,6 +2501,21 @@ MetalBow.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
+};
+
+function MagicWeapon(modifier) {
+	Weapon.call(this, modifier);
+};
+inheritsFrom(MagicWeapon, Weapon);
+function EnergyStaff(modifier) {
+	MagicWeapon.call(this, modifier);
+};
+inheritsFrom(EnergyStaff, MagicWeapon);
+EnergyStaff.prototype.display = function(type) {
+	c.save();
+	c.rotate(45 / 180 * Math.PI);
+	c.beginPath();
+	c.restore();
 };
 
 //equipables
@@ -2861,17 +2879,17 @@ AirCrystal.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "attacks will",
+			content: "attacks will be accompanied",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "be accompanied by a",
+			content: "by a gust of wind, knocking",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "gust of wind.",
+			content: "enemies backward.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -3024,7 +3042,7 @@ Barricade.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "Usage: Blocking doors",
+			content: "Usage: Blocking Doors",
 			font: "10pt monospace",
 			color: "rgb(255, 255, 255)"
 		},
@@ -3091,33 +3109,35 @@ Coin.prototype.getDesc = function() {
 	var desc = [
 		{
 			content: "Coin [" + this.quantity + "]",
-			font: "bolder 10pt monospace",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "The goal of life",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Even though you can't buy",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "Even though you can't",
-			font: "10pt monospace",
+			content: "anything with it, money is",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
 		{
-			content: "buy anything with it,",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "money is always a nice",
-			font: "10pt monospace",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "thing to have.",
-			font: "10pt monospace",
+			content: "always nice to have.",
+			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
 	return desc;
 };
 Coin.prototype.display = function(type) {
+	c.save();
+	c.lineWidth = 2;
 	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
 	c.fillStyle = "rgb(255, 255, 0)";
 	c.strokeStyle = "rgb(255, 128, 0)";
@@ -3126,8 +3146,12 @@ Coin.prototype.display = function(type) {
 	c.fill();
 	c.stroke();
 	c.fillStyle = "rgb(255, 128, 0)";
-	c.fillRect(-2, -8, 4, 16);
+	//c.fillRect(-2, -8, 4, 16);
+	c.font = "bolder 20px monospace";
+	c.textAlign = "center";
+	c.fillText(this.quantity, 0, 7);
 	c.globalAlpha = 1;
+	c.restore();
 };
 function ShotArrow(x, y, velX, velY, damage, shotBy, element) {
 	this.x = x;
@@ -3237,6 +3261,7 @@ p.addItem(new WaterCrystal());
 p.addItem(new FireCrystal());
 p.addItem(new AirCrystal());
 p.addItem(new Barricade());
+p.addItem(new Coin(10));
 
 /** ENEMIES **/
 function RandomEnemy(x, y) {
