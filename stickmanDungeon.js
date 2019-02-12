@@ -4712,15 +4712,15 @@ function doByTime() {
 		new Block(-100, 600, 1000, 200).display();
 		c.fillStyle = "rgb(20, 20, 20)";
 		//left door
-		c.fillRect(120, 440, 130, 140);
+		c.fillRect(40, 440, 170, 140);
 		c.beginPath();
-		c.arc(185, 440, 65, 0, 2 * Math.PI);
+		c.arc(125, 440, 85, 0, 2 * Math.PI);
 		c.fill();
 		//left door text - drawn by hand b/c I couldn't find any ancient-looking fonts
 		{
 			c.strokeStyle = "rgb(255, 255, 255)";
 			c.save();
-			c.translate(150, 495);
+			c.translate(125 - 35, 495);
 			c.beginPath();
 			c.moveTo(0, 0);
 			c.lineTo(5, 0);
@@ -4740,7 +4740,7 @@ function doByTime() {
 			c.restore();
 			
 			c.save();
-			c.translate(175, 495);
+			c.translate(125 - 10, 495);
 			c.beginPath();
 			c.moveTo(0, -10);
 			c.lineTo(10, -20);
@@ -4751,7 +4751,7 @@ function doByTime() {
 			c.restore();
 			
 			c.save();
-			c.translate(200, 495);
+			c.translate(125 + 15, 495);
 			c.beginPath();
 			c.moveTo(5, -20);
 			c.lineTo(0, -20);
@@ -4845,13 +4845,91 @@ function doByTime() {
 		c.fill();
 		//right door text
 		{
-			c.fillStyle = "rgb(255, 0, 0)";
-			c.fillRect(675 - 22.5, 500, 20, 5);
-			c.fillRect(675 + 2.5, 500, 20, 5);
-			c.fillRect(675 + 27.5, 500, 20, 5);
-			c.fillRect(675 - 47.5, 500, 20, 5);
-			c.fillRect(675 - 72.5, 500, 20, 5);
-			c.fillRect(675 + 52.5, 500, 20, 5);
+			c.strokeStyle = "rgb(255, 255, 255)";
+			
+			c.save();
+			c.translate(675 - 72.5, 495);
+			c.beginPath();
+			c.moveTo(0, 0);
+			c.lineTo(20, -6);
+			c.lineTo(0, -14);
+			c.lineTo(20, -20);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(675 - 47.5, 495);
+			c.moveTo(0, 0);
+			c.lineTo(20, 0);
+			c.lineTo(20, -5);
+			c.moveTo(5, 0);
+			c.lineTo(5, -20);
+			c.moveTo(0, -20);
+			c.lineTo(20, -20);
+			c.lineTo(20, -15);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(675 - 22.5, 495);
+			c.beginPath();
+			c.moveTo(0, -10);
+			c.lineTo(10, -20);
+			c.lineTo(20, -10);
+			c.lineTo(10, 0);
+			c.lineTo(0, -10);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(677.5, 495);
+			c.beginPath();
+			c.moveTo(10, 0);
+			c.lineTo(5, 0);
+			c.lineTo(5, -20);
+			c.lineTo(0, -20);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(5, -20);
+			c.lineTo(20, -15);
+			c.lineTo(5, -10);
+			c.lineTo(20, 0);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(675 + 27.5, 495);
+			c.beginPath();
+			c.moveTo(0, 0);
+			c.lineTo(20, 0);
+			c.lineTo(20, -5);
+			c.moveTo(5, 0);
+			c.lineTo(5, -20);
+			c.moveTo(0, -20);
+			c.lineTo(20, -20);
+			c.lineTo(20, -15);
+			c.moveTo(5, -10);
+			c.lineTo(20, -10);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(675 + 52.5, 495);
+			c.beginPath();
+			c.moveTo(0, 0);
+			c.lineTo(20, -6);
+			c.lineTo(0, -14);
+			c.lineTo(20, -20);
+			c.stroke();
+			c.restore();
+			
+			// c.fillStyle = "rgb(255, 0, 0)";
+			// c.fillRect(675 - 22.5, 500, 20, 5);
+			// c.fillRect(675 + 2.5, 500, 20, 5);
+			// c.fillRect(675 + 27.5, 500, 20, 5);
+			// c.fillRect(675 - 47.5, 500, 20, 5);
+			// c.fillRect(675 - 72.5, 500, 20, 5);
+			// c.fillRect(675 + 52.5, 500, 20, 5);
 		}
 		for(var i = 0; i < boxFronts.length; i ++) {
 			if(boxFronts[i].type === "boulder void") {
@@ -4874,6 +4952,11 @@ function doByTime() {
 				c.beginPath();
 				c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], 0, 2 * Math.PI);
 				c.fill();
+			}
+		}
+		if(mouseIsPressed) {
+			if(Math.dist(mouseX, mouseY, 400, 380) <= 80 || (mouseX > 320 && mouseX < 480 && mouseY > 380 && mouseY < 580)) {
+				p.onScreen = "play";
 			}
 		}
 	}
