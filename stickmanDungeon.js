@@ -6,7 +6,7 @@ var mouseX;
 var mouseY;
 var keys = [];
 var fps = 60;
-const showHitboxes = false;
+const showHitboxes = true;
 const floorWidth = 0.1;
 var frameCount = 0;
 var hitboxes = []; //for showing hitboxes when debugging
@@ -389,7 +389,7 @@ Player.prototype.init = function() {
 };
 Player.prototype.display = function() {
 	//side scrolling (in display b/c it has to be done before)
-	if(this.y > 400) {
+	if(this.y > 400 && (this.worldY > roomInstances[inRoom].minWorldY || roomInstances[inRoom].minWorldY === undefined)) {
 		this.worldY -= Math.dist(0, this.y, 0, 400);
 		this.y = 400;
 	}
@@ -509,29 +509,67 @@ Player.prototype.display = function() {
 	}
 	this.attackArmRot += this.attackArmDir;
 	if(this.aiming && this.facing === "right") {
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.rotate(this.aimRot / 180 * Math.PI);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(10, 0);
-		c.stroke();
-		c.translate(10, 0);
-		this.attackingWith.display("aiming");
-		c.restore();
+		if(this.attackingWith instanceof RangedWeapon) {
+			c.save();
+			c.translate(this.x, this.y + 26);
+			c.rotate(this.aimRot / 180 * Math.PI);
+			c.beginPath();
+			c.moveTo(0, 0);
+			c.lineTo(10, 0);
+			c.stroke();
+			c.translate(10, 0);
+			this.attackingWith.display("aiming");
+			c.restore();
+		}
+		else {
+			c.save();
+			c.moveTo(this.x, this.y + 26);
+			c.lineTo(this.x + 13, this.y + 26);
+			c.stroke();
+			c.translate(this.x + 14, this.y + 16);
+			this.attackingWith.display("attacking");
+			c.restore();
+			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+				if(roomInstances[inRoom].content[i] instanceof MagicCharge && roomInstances[inRoom].content[i].beingAimed) {
+					roomInstances[inRoom].content[i].x = this.x + this.chargeLoc.x - this.worldX;
+					roomInstances[inRoom].content[i].y = this.y + this.chargeLoc.y - this.worldY;
+					break;
+				}
+			}
+		}
 	}
 	if(this.aiming && this.facing === "left") {
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.rotate(-this.aimRot / 180 * Math.PI);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(-10, 0);
-		c.stroke();
-		c.translate(-10, 0);
-		c.scale(-1, 1);
-		this.attackingWith.display("aiming");
-		c.restore();
+		if(this.attackingWith instanceof RangedWeapon) {
+			c.save();
+			c.translate(this.x, this.y + 26);
+			c.rotate(this.aimRot / -180 * Math.PI);
+			c.beginPath();
+			c.moveTo(0, 0);
+			c.lineTo(-10, 0);
+			c.stroke();
+			c.translate(-10, 0);
+			c.scale(-1, 1);
+			this.attackingWith.display("aiming");
+			c.restore();
+		}
+		else {
+			c.save();
+			c.moveTo(this.x, this.y + 26);
+			c.lineTo(this.x - 13, this.y + 26);
+			c.stroke();
+			c.translate(this.x, this.y + 16);
+			c.scale(-1, 1); //mirror the item graphic
+			c.translate(14, 0);
+			this.attackingWith.display("attacking");
+			c.restore();
+			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+				if(roomInstances[inRoom].content[i] instanceof MagicCharge && roomInstances[inRoom].content[i].beingAimed) {
+					roomInstances[inRoom].content[i].x = this.x + this.chargeLoc.x - this.worldX;
+					roomInstances[inRoom].content[i].y = this.y + this.chargeLoc.y - this.worldY;
+					break;
+				}
+			}
+		}
 	}
 	if(!this.attacking) {
 		this.attackArmRot = null;
@@ -653,14 +691,27 @@ Player.prototype.update = function() {
 				this.attackArmDir = 5;
 			}
 		}
-		else if(this.invSlots[this.activeSlot].content instanceof RangedWeapon) {
+		else if(this.invSlots[this.activeSlot].content instanceof RangedWeapon || this.invSlots[this.activeSlot].content instanceof MagicWeapon) {
 			if(this.aimRot === null) {
 				this.aimRot = 0;
 				this.attackingWith = this.invSlots[this.activeSlot].content;
+				if(this.attackingWith instanceof MagicWeapon && this.mana >= this.attackingWith.manaCost) {
+					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+					if(this.facing === "right") {
+						roomInstances[inRoom].content.push(new MagicCharge(450 - this.worldX, 400 - this.worldY, 0, 0, this.attackingWith.chargeType, damage));
+						roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].beingAimed = true;
+					}
+					else {
+						roomInstances[inRoom].content.push(new MagicCharge(350 - this.worldX, 400 - this.worldY, 0, 0, this.attackingWith.chargeType, damage));
+						roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].beingAimed = true;
+					}
+					this.mana -= this.attackingWith.manaCost;
+					this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
+				}
 			}
 			this.aiming = true;
 		}
-		else {
+		else if(this.invSlots[this.activeSlot].content.hasOwnProperty("use")) {
 			this.invSlots[this.activeSlot].content.use();
 		}
 	}
@@ -725,52 +776,87 @@ Player.prototype.update = function() {
 	this.timeSinceAttack ++;
 	if(this.aiming && keys[38] && this.aimRot > -45) {
 		this.aimRot --;
+		if(this.attackingWith instanceof MagicWeapon) {
+			this.aimRot --;
+			this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
+		}
 	}
 	if(this.aiming && keys[40] && this.aimRot < 45) {
 		this.aimRot ++;
+		if(this.attackingWith instanceof MagicWeapon) {
+			this.aimRot ++;
+			this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
+		}
 	}
 	if(!this.aiming && this.aimingBefore && this.shootReload < 0) {
-		var hasArrows = false;
-		for(var i = 0; i < this.invSlots.length; i ++) {
-			if(this.invSlots[i].content instanceof Arrow) {
-				hasArrows = true;
-			}
-		}
-		if(hasArrows) {
-			if(this.facing === "right") {
-				var velocity = getRotated(10, 0, this.aimRot);
-				var velX = velocity.x;
-				var velY = velocity.y;
-				velocity.x += (this.x - this.worldX + 10);
-				velocity.y += (this.y - this.worldY + 26);
-				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player", this.invSlots[this.activeSlot].content.element));
-			}
-			else {
-				var velocity = getRotated(-10, 0, -this.aimRot);
-				var velX = velocity.x;
-				var velY = velocity.y;
-				velocity.x += (this.x - this.worldX + 10);
-				velocity.y += (this.y - this.worldY + 26);
-				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player", this.invSlots[this.activeSlot].content.element));
-			}
+		if(this.attackingWith instanceof RangedWeapon) {
+			var hasArrows = false;
 			for(var i = 0; i < this.invSlots.length; i ++) {
 				if(this.invSlots[i].content instanceof Arrow) {
-					if(this.invSlots[i].content.quantity > 1) {
-						this.invSlots[i].content.quantity --;
+					hasArrows = true;
+				}
+			}
+			if(hasArrows) {
+				this.shootReload = 60;
+				if(this.facing === "right") {
+					var velocity = getRotated(10, 0, this.aimRot);
+					var velX = velocity.x;
+					var velY = velocity.y;
+					velocity.x += (this.x - this.worldX + 10);
+					velocity.y += (this.y - this.worldY + 26);
+					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player", this.invSlots[this.activeSlot].content.element));
+				}
+				else {
+					var velocity = getRotated(-10, 0, -this.aimRot);
+					var velX = velocity.x;
+					var velY = velocity.y;
+					velocity.x += (this.x - this.worldX + 10);
+					velocity.y += (this.y - this.worldY + 26);
+					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player", this.invSlots[this.activeSlot].content.element));
+				}
+				for(var i = 0; i < this.invSlots.length; i ++) {
+					if(this.invSlots[i].content instanceof Arrow) {
+						if(this.invSlots[i].content.quantity > 1) {
+							this.invSlots[i].content.quantity --;
+						}
+						else {
+							this.invSlots[i].content = "empty";
+						}
 					}
-					else {
-						this.invSlots[i].content = "empty";
+				}
+			}
+		}
+		else {
+			if(this.facing === "right") {
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof MagicCharge && roomInstances[inRoom].content[i].beingAimed) {
+						roomInstances[inRoom].content[i].beingAimed = false;
+						roomInstances[inRoom].content[i].velX = this.chargeLoc.x / 10;
+						roomInstances[inRoom].content[i].velY = this.chargeLoc.y / 10;
+					}
+				}
+			}
+			else {
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof MagicCharge && roomInstances[inRoom].content[i].beingAimed) {
+						roomInstances[inRoom].content[i].beingAimed = false;
+						roomInstances[inRoom].content[i].velX = this.chargeLoc.x / 10;
+						roomInstances[inRoom].content[i].velY = this.chargeLoc.y / 10;
 					}
 				}
 			}
 		}
 	}
+	if(this.facingBefore !== this.facing) {
+		this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
+	}
 	if(!this.aiming) {
 		this.aimRot = null;
 	}
 	this.aimingBefore = this.aiming;
+	this.facingBefore = this.facing;
 	this.shootReload --;
 	if(this.health >= this.maxHealth) {
 		this.numHeals = 0;
@@ -778,6 +864,9 @@ Player.prototype.update = function() {
 	if(this.numHeals > 0 && frameCount % 300 === 0) {
 		this.health ++;
 		this.numHeals --;
+	}
+	if(frameCount % 180 === 0) {
+		this.mana ++;
 	}
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		if(this.invSlots[i].content instanceof Coin) {
@@ -1275,9 +1364,11 @@ Door.prototype.exist = function(parentRoom) {
 								new FallBlock(1100, 475),
 								new Block(1200, 500, 1000, 2000), //right floor
 								new Block(1400, -1000, 1000, 2000), //right wall
-								new Door(1300, 500, ["ambient"], false)
+								new Door(1300, 500, ["ambient"], false),
+								new Block(-4000, -1200, 8000, 1300)
 							],
-							"?"
+							"?",
+							-200
 						)
 					);
 					break;
@@ -1853,12 +1944,13 @@ Stairs.prototype.exist = function() {
 /** ROOM DATA **/
 var inRoom = 0;
 var numRooms = 0;
-function Room(type, content, id) {
+function Room(type, content, id, minWorldY) {
 	this.type = type;
 	this.content = content;
 	this.id = id;
 	this.hasEnemy = false;
 	this.pathScore = null;
+	this.minWorldY = minWorldY;
 };
 Room.prototype.exist = function(index) {
 	boxFronts = [];
@@ -2028,7 +2120,7 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1"];
+const rooms = [/*"ambient1", "ambient2", "ambient3", "secret1", */"combat1", "parkour1", "reward1"];
 const items = [/*Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow*/EnergyStaff];
 const enemies = [/*Spider, Bat, Skeleton, */SkeletonWarrior/*, SkeletonArcher, Wraith/*, /*Troll*/];
 var roomInstances = [
@@ -2409,7 +2501,7 @@ WoodBow.prototype.display = function(type) {
 WoodBow.prototype.getDesc = function() {
 	return [
 		{
-			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Wood Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Wooden Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
 			font: "bolder 10pt Cursive",
 			color: "rgb(255, 255, 255)"
 		},
@@ -2509,13 +2601,56 @@ function MagicWeapon(modifier) {
 inheritsFrom(MagicWeapon, Weapon);
 function EnergyStaff(modifier) {
 	MagicWeapon.call(this, modifier);
+	this.chargeType = "energy";
+	this.manaCost = 2;
+	this.damLow = 7;
+	this.damHigh = 10;
 };
 inheritsFrom(EnergyStaff, MagicWeapon);
 EnergyStaff.prototype.display = function(type) {
+	c.strokeStyle = "rgb(139, 69, 19)";
 	c.save();
-	c.rotate(45 / 180 * Math.PI);
+	c.lineWidth = 4;
+	if(type === "holding" || type === "item") {
+		c.rotate(45 / 180 * Math.PI);
+	}
 	c.beginPath();
+	c.moveTo(0, -10);
+	c.lineTo(0, 30);
+	c.stroke();
+	c.beginPath();
+	c.arc(0, -14, 5, 0.5 * Math.PI, 1 * Math.PI, true);
+	c.stroke();
 	c.restore();
+};
+EnergyStaff.prototype.getDesc = function() {
+	return [
+		{
+			content: (this.modifier === "none" ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Energy",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Mana Cost: " + this.manaCost,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Shoots a bolt of magical",
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		},
+		{
+			content: "energy.",
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		}
+	];
 };
 
 //equipables
@@ -3253,6 +3388,7 @@ ShotArrow.prototype.exist = function() {
 };
 p.addItem(new Sword());
 p.addItem(new WoodBow());
+p.addItem(new EnergyStaff());
 p.addItem(new MetalBow());
 p.addItem(new Arrow(10));
 p.addItem(new EarthCrystal());
@@ -4184,10 +4320,9 @@ function Particle(color, x, y, velX, velY, size) {
 	this.opacity = 1;
 };
 Particle.prototype.exist = function() {
-	c.fillStyle = "rgb(0, 255, 128)";
-	//circle(this.x + p.worldX, this.y + p.worldY, 5);
 	var prevOp = c.globalAlpha;
 	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
+	c.fillStyle = "rgb(255, 0, 0)";
 	c.fillStyle = this.color;
 	c.beginPath();
 	c.arc(this.x + p.worldX, this.y + p.worldY, this.size, 0, 2 * Math.PI);
@@ -4289,12 +4424,13 @@ Wraith.prototype.attack = function() {
 	}
 };
 
-function MagicCharge(x, y, velX, velY, type) {
+function MagicCharge(x, y, velX, velY, type, damage) {
 	this.x = x;
 	this.y = y;
 	this.velX = velX;
 	this.velY = velY;
 	this.type = type;
+	this.damage = damage;
 	this.particles = [];
 };
 MagicCharge.prototype.exist = function() {
@@ -4307,6 +4443,9 @@ MagicCharge.prototype.exist = function() {
 	if(this.type === "shadow") {
 		this.particles.push(new Particle("rgb(0, 0, 0)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
 	}
+	else if(this.type === "energy") {
+		this.particles.push(new Particle("hsl(" + (frameCount % 360) + ", 100%, 50%)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
+	}
 	this.x += this.velX;
 	this.y += this.velY;
 	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
@@ -4314,6 +4453,15 @@ MagicCharge.prototype.exist = function() {
 			var block = roomInstances[inRoom].content[i];
 			if(this.x > block.x && this.x < block.x + block.w && this.y > block.y && this.y < block.y + block.h) {
 				this.splicing = true;
+			}
+		}
+		if(roomInstances[inRoom].content[i] instanceof Enemy && this.type !== "shadow") {
+			var enemy = roomInstances[inRoom].content[i];
+			if(this.x + 10 > enemy.x + enemy.leftX && this.x - 10 < enemy.x + enemy.rightX && this.y + 10 > enemy.y + enemy.topY && this.y - 10 < enemy.y + enemy.bottomY) {
+				if(this.type === "energy") {
+					enemy.hurt(this.damage);
+					this.splicing = true;
+				}
 			}
 		}
 	}
@@ -4470,89 +4618,262 @@ function doByTime() {
 	resizeCanvas();
 	c.fillStyle = "rgb(100, 100, 100)";
 	c.fillRect(0, 0, 800, 800);
-	   
-	p.update();
-	   
-	for(var i = 0; i < roomInstances.length; i ++) {
-		if(roomInstances[i].id === "?") {
-			roomInstances[i].id = numRooms;
-			numRooms ++;
-		}
-		if(inRoom === roomInstances[i].id) {
-			roomInstances[i].exist(i);
-		}
-		if(roomInstances[i].hasEnemy) {
-			for(var j = 0; j < roomInstances[i].content.length; j ++) {
-				if(roomInstances[i].content[j] instanceof Enemy) {
-					for(var k = 0; k < roomInstances[i].content.length; k ++) {
-						if(roomInstances[i].content[k] instanceof Door && roomInstances[i].content[k].dest === inRoom) {
-							var distance = Math.dist(roomInstances[i].content[j].x, roomInstances[i].content[j].y, roomInstances[i].content[k].x, roomInstances[i].content[k].y);
-							roomInstances[inRoom].content.push(new EnemyRequest(roomInstances[i].content[k].x, roomInstances[i].content[k].y, Object.create(roomInstances[i].content[j])));
-						}
-					}
-				}
-			}
-		}
-	}
-	   
-	p.display();
-	p.gui();
 	
-	//load enemies in other rooms
-	var unseenEnemy = false;
-	for(var i = 0; i < roomInstances.length; i ++) {
-		for(var j = 0; j < roomInstances[i].content.length; j ++) {
-			if(roomInstances[i].content[j] instanceof Enemy && i !== inRoom) {
-				unseenEnemy = true;
-				break;
+	if(p.onScreen === "play") {
+		p.update();
+		   
+		for(var i = 0; i < roomInstances.length; i ++) {
+			if(roomInstances[i].id === "?") {
+				roomInstances[i].id = numRooms;
+				numRooms ++;
+			}
+			if(inRoom === roomInstances[i].id) {
+				roomInstances[i].exist(i);
+			}
+			if(roomInstances[i].hasEnemy) {
+				for(var j = 0; j < roomInstances[i].content.length; j ++) {
+					if(roomInstances[i].content[j] instanceof Enemy) {
+						for(var k = 0; k < roomInstances[i].content.length; k ++) {
+							if(roomInstances[i].content[k] instanceof Door && roomInstances[i].content[k].dest === inRoom) {
+								var distance = Math.dist(roomInstances[i].content[j].x, roomInstances[i].content[j].y, roomInstances[i].content[k].x, roomInstances[i].content[k].y);
+								roomInstances[inRoom].content.push(new EnemyRequest(roomInstances[i].content[k].x, roomInstances[i].content[k].y, Object.create(roomInstances[i].content[j])));
+							}
+						}
+					}
+				}
+			}
+		}
+		   
+		p.display();
+		p.gui();
+		
+		//load enemies in other rooms
+		var unseenEnemy = false;
+		for(var i = 0; i < roomInstances.length; i ++) {
+			for(var j = 0; j < roomInstances[i].content.length; j ++) {
+				if(roomInstances[i].content[j] instanceof Enemy && i !== inRoom) {
+					unseenEnemy = true;
+					break;
+				}
+			}
+		}
+		if(unseenEnemy) {
+			for(var i = 0; i < roomInstances.length; i ++) {
+				enemyLoop: for(var j = 0; j < roomInstances[i].content.length; j ++) {
+					if(roomInstances[i].content[j] instanceof Enemy) { // roomInstances[i].content[j] is the enemy
+						var doorLoc = null;
+						for(var k = 0; k < roomInstances[i].content.length; k ++) { // roomInstances[i].content[k] is the door
+							if(typeof roomInstances[i].content[k].dest !== "object" && !roomInstances[i].content[k].barricaded) {
+								if(roomInstances[i].content[k] instanceof Door && roomInstances[roomInstances[i].content[k].dest].pathScore < roomInstances[i].pathScore) {
+									doorLoc = {x: roomInstances[i].content[k].x, y: roomInstances[i].content[k].y};
+									break;
+								}
+							}
+						}
+						if(doorLoc === null) {
+							continue enemyLoop;
+						}
+						doorLoop: for(var k = 0; k < roomInstances[i].content.length; k ++) {
+							if(roomInstances[i].content[k] instanceof Door && typeof roomInstances[i].content[k].dest !== "object") {
+								var door = roomInstances[i].content[k];
+								var enemy = roomInstances[i].content[j];
+								if(enemy.x > door.x - 3 && enemy.x < door.x + 3 && enemy.y + enemy.bottomY > door.y - 3 && enemy.y + enemy.bottomY < door.y + 3) {
+									roomInstances[door.dest].content.push(new enemy.constructor());
+									var newIndex = roomInstances[door.dest].content.length - 1;
+									var exitDoorIndex = null;
+									for(var l = 0; l < roomInstances[door.dest].content.length; l ++) {
+										if(roomInstances[door.dest].content[l] instanceof Door && roomInstances[door.dest].content[l].dest === i) {
+											exitDoorIndex = l;
+											break;
+										}
+									}
+									roomInstances[door.dest].content[newIndex].x = roomInstances[door.dest].content[exitDoorIndex].x;
+									roomInstances[door.dest].content[newIndex].y = roomInstances[door.dest].content[exitDoorIndex].y - roomInstances[door.dest].content[newIndex].bottomY;
+									roomInstances[door.dest].content[newIndex].opacity = 0;
+									roomInstances[door.dest].content[newIndex].fadingIn = true;
+									roomInstances[door.dest].content[newIndex].seesPlayer = true;
+									roomInstances[i].content.splice(j, 1);
+									continue enemyLoop;
+								}
+							}
+						}
+						roomInstances[i].content[j].update(doorLoc);
+					}
+					else if(roomInstances[i].content[j] instanceof Block) {
+						roomInstances[i].content[j].update(i, true);
+					}
+				}
 			}
 		}
 	}
-	if(unseenEnemy) {
-		for(var i = 0; i < roomInstances.length; i ++) {
-			enemyLoop: for(var j = 0; j < roomInstances[i].content.length; j ++) {
-				if(roomInstances[i].content[j] instanceof Enemy) { // roomInstances[i].content[j] is the enemy
-					var doorLoc = null;
-					for(var k = 0; k < roomInstances[i].content.length; k ++) { // roomInstances[i].content[k] is the door
-						if(typeof roomInstances[i].content[k].dest !== "object" && !roomInstances[i].content[k].barricaded) {
-							if(roomInstances[i].content[k] instanceof Door && roomInstances[roomInstances[i].content[k].dest].pathScore < roomInstances[i].pathScore) {
-								doorLoc = {x: roomInstances[i].content[k].x, y: roomInstances[i].content[k].y};
-								break;
-							}
-						}
-					}
-					if(doorLoc === null) {
-						continue enemyLoop;
-					}
-					doorLoop: for(var k = 0; k < roomInstances[i].content.length; k ++) {
-						if(roomInstances[i].content[k] instanceof Door && typeof roomInstances[i].content[k].dest !== "object") {
-							var door = roomInstances[i].content[k];
-							var enemy = roomInstances[i].content[j];
-							if(enemy.x > door.x - 3 && enemy.x < door.x + 3 && enemy.y + enemy.bottomY > door.y - 3 && enemy.y + enemy.bottomY < door.y + 3) {
-								roomInstances[door.dest].content.push(new enemy.constructor());
-								var newIndex = roomInstances[door.dest].content.length - 1;
-								var exitDoorIndex = null;
-								for(var l = 0; l < roomInstances[door.dest].content.length; l ++) {
-									if(roomInstances[door.dest].content[l] instanceof Door && roomInstances[door.dest].content[l].dest === i) {
-										exitDoorIndex = l;
-										break;
-									}
-								}
-								roomInstances[door.dest].content[newIndex].x = roomInstances[door.dest].content[exitDoorIndex].x;
-								roomInstances[door.dest].content[newIndex].y = roomInstances[door.dest].content[exitDoorIndex].y - roomInstances[door.dest].content[newIndex].bottomY;
-								roomInstances[door.dest].content[newIndex].opacity = 0;
-								roomInstances[door.dest].content[newIndex].fadingIn = true;
-								roomInstances[door.dest].content[newIndex].seesPlayer = true;
-								roomInstances[i].content.splice(j, 1);
-								continue enemyLoop;
-							}
-						}
-					}
-					roomInstances[i].content[j].update(doorLoc);
-				}
-				else if(roomInstances[i].content[j] instanceof Block) {
-					roomInstances[i].content[j].update(i, true);
-				}
+	else if(p.onScreen === "home") {
+		p.worldX = 0;
+		p.worldY = 0;
+		new Block(-100, 600, 1000, 200).display();
+		c.fillStyle = "rgb(20, 20, 20)";
+		//left door
+		c.fillRect(120, 440, 130, 140);
+		c.beginPath();
+		c.arc(185, 440, 65, 0, 2 * Math.PI);
+		c.fill();
+		//left door text - drawn by hand b/c I couldn't find any ancient-looking fonts
+		{
+			c.strokeStyle = "rgb(255, 255, 255)";
+			c.save();
+			c.translate(150, 495);
+			c.beginPath();
+			c.moveTo(0, 0);
+			c.lineTo(5, 0);
+			c.moveTo(2.5, 0);
+			c.lineTo(2.5, -20);
+			c.moveTo(0, -20);
+			c.lineTo(5, -20);
+			c.moveTo(2.5, -12.5);
+			c.lineTo(17.5, -7.5);
+			c.moveTo(15, 0);
+			c.lineTo(20, 0);
+			c.moveTo(17.5, 0);
+			c.lineTo(17.5, -20);
+			c.moveTo(15, -20);
+			c.lineTo(20, -20);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(175, 495);
+			c.beginPath();
+			c.moveTo(0, -10);
+			c.lineTo(10, -20);
+			c.lineTo(20, -10);
+			c.lineTo(10, 0);
+			c.lineTo(0, -10);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(200, 495);
+			c.beginPath();
+			c.moveTo(5, -20);
+			c.lineTo(0, -20);
+			c.lineTo(5, 0);
+			c.lineTo(10, -10);
+			c.lineTo(15, 0);
+			c.lineTo(20, -20);
+			c.lineTo(15, -20);
+			c.stroke();
+			c.restore();
+			
+			// c.fillStyle = "rgb(255, 0, 0)";
+			// c.fillRect(185 - 10, 500, 20, 5);
+			// c.fillRect(185 + 15, 500, 20, 5);
+			// c.fillRect(185 - 35, 500, 20, 5);
+		}
+		c.fillStyle = "rgb(20, 20, 20)";
+		//middle door
+		c.fillRect(320, 380, 160, 200);
+		c.beginPath();
+		c.arc(400, 380, 80, 0, 2 * Math.PI);
+		c.fill();
+		//middle door text
+		{
+			c.strokeStyle = "rgb(255, 255, 255)";
+			
+			c.save();
+			c.beginPath();
+			c.translate(400 - 47.5, 455);
+			c.moveTo(10, 0);
+			c.lineTo(5, 0);
+			c.lineTo(5, -20);
+			c.lineTo(0, -20);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(5, -20);
+			c.lineTo(20, -15);
+			c.lineTo(5, -10);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(400 - 22.5, 455);
+			c.beginPath();
+			c.moveTo(0, -20);
+			c.lineTo(5, -20);
+			c.lineTo(5, 0);
+			c.lineTo(0, 0);
+			c.lineTo(20, 0);
+			c.lineTo(20, -5);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(402.5, 455);
+			c.beginPath();
+			c.moveTo(0, 0);
+			c.lineTo(10, -20);
+			c.lineTo(20, 0);
+			c.stroke();
+			c.restore();
+			
+			c.save();
+			c.translate(427.5, 455);
+			c.beginPath();
+			c.moveTo(5, 0);
+			c.lineTo(15, 0);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(10, 0);
+			c.lineTo(10, -10);
+			c.lineTo(0, -20);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(10, -10);
+			c.lineTo(20, -20);
+			c.stroke();
+			c.restore();
+			
+			c.fillStyle = "rgb(255, 0, 0)";
+			// c.fillRect(400 - 22.5, 460, 20, 5);
+			// c.fillRect(400 + 2.5, 460, 20, 5);
+			// c.fillRect(400 - 47.5, 460, 20, 5);
+			// c.fillRect(400 + 27.5, 460, 20, 5);
+		}
+		//right door
+		c.fillStyle = "rgb(20, 20, 20)";
+		c.fillRect(590, 420, 170, 160);
+		c.beginPath();
+		c.arc(675, 420, 85, 0, 2 * Math.PI);
+		c.fill();
+		//right door text
+		{
+			c.fillStyle = "rgb(255, 0, 0)";
+			c.fillRect(675 - 22.5, 500, 20, 5);
+			c.fillRect(675 + 2.5, 500, 20, 5);
+			c.fillRect(675 + 27.5, 500, 20, 5);
+			c.fillRect(675 - 47.5, 500, 20, 5);
+			c.fillRect(675 - 72.5, 500, 20, 5);
+			c.fillRect(675 + 52.5, 500, 20, 5);
+		}
+		for(var i = 0; i < boxFronts.length; i ++) {
+			if(boxFronts[i].type === "boulder void") {
+				c.globalAlpha = (boxFronts[i].opacity <= 0) ? 0 : boxFronts[i].opacity;
+				c.fillStyle = "rgb(150, 150, 150)";
+				c.beginPath();
+				c.moveTo(boxFronts[i].pos1.x, boxFronts[i].pos1.y);
+				c.lineTo(boxFronts[i].pos2.x, boxFronts[i].pos2.y);
+				c.lineTo(boxFronts[i].pos3.x, boxFronts[i].pos3.y);
+				c.lineTo(boxFronts[i].pos4.x, boxFronts[i].pos4.y);
+				c.fill();
+				c.globalAlpha = 1;
+			}
+			if(boxFronts[i].type === "rect") {
+				c.fillStyle = boxFronts[i].col;
+				c.fillRect(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3]);
+			}
+			else if(boxFronts[i].type === "circle") {
+				c.fillStyle = boxFronts[i].col;
+				c.beginPath();
+				c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], 0, 2 * Math.PI);
+				c.fill();
 			}
 		}
 	}
