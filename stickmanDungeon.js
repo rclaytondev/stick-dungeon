@@ -387,23 +387,25 @@ Player.prototype.init = function() {
 		}
 	}
 };
-Player.prototype.display = function() {
-	//side scrolling (in display b/c it has to be done before)
-	if(this.y > 400 && (this.worldY > roomInstances[inRoom].minWorldY || roomInstances[inRoom].minWorldY === undefined)) {
-		this.worldY -= Math.dist(0, this.y, 0, 400);
-		this.y = 400;
-	}
-	else if(this.y < 400) {
-		this.worldY += Math.dist(0, this.y, 0, 400);
-		this.y = 400;
-	}
-	if(this.x > 400) {
-		this.worldX -= Math.dist(this.x, 0, 400, 0);
-		this.x = 400;
-	}
-	else if(this.x < 400) {
-		this.worldX += Math.dist(this.x, 0, 400, 0);
-		this.x = 400;
+Player.prototype.display = function(noSideScroll, straightArm) {
+	//parameters are only for custom stick figures on class selection screens
+	if(!noSideScroll) {
+		if(this.y > 400 && (this.worldY > roomInstances[inRoom].minWorldY || roomInstances[inRoom].minWorldY === undefined)) {
+			this.worldY -= Math.dist(0, this.y, 0, 400);
+			this.y = 400;
+		}
+		else if(this.y < 400) {
+			this.worldY += Math.dist(0, this.y, 0, 400);
+			this.y = 400;
+		}
+		if(this.x > 400) {
+			this.worldX -= Math.dist(this.x, 0, 400, 0);
+			this.x = 400;
+		}
+		else if(this.x < 400) {
+			this.worldX += Math.dist(this.x, 0, 400, 0);
+			this.x = 400;
+		}
 	}
 	c.lineWidth = 5;
 	c.lineCap = "round";
@@ -450,7 +452,7 @@ Player.prototype.display = function() {
 	if((!this.attacking && !this.aiming) || this.facing === "left") {
 		c.beginPath();
 		c.moveTo(this.x, this.y + 26);
-		c.lineTo(this.x + 10, this.y + 36);
+		c.lineTo(this.x + 10, this.y + (straightArm ? 16 : 36));
 		c.stroke();
 	}
 	if((!this.attacking && !this.aiming) || this.facing === "right") {
@@ -576,55 +578,57 @@ Player.prototype.display = function() {
 	}
 	c.lineCap = "butt";
 	c.globalAlpha = 1;
-	//health bar
-	c.fillStyle = "rgb(150, 150, 150)";
-	c.fillRect(550, 12.5, 225, 25);
-	c.beginPath();
-	c.arc(550, 25, 12, 0, 2 * Math.PI);
-	c.arc(775, 25, 12, 0, 2 * Math.PI);
-	c.fill();
-	c.fillStyle = "rgb(255, 0, 0)";
-	c.fillRect(550, 12.5, (this.visualHealth / this.maxHealth) * 225, 25);
-	c.beginPath();
-	c.arc(550, 25, 12, 0, 2 * Math.PI);
-	c.arc(550 + ((this.visualHealth / this.maxHealth) * 225), 25, 12, 0, 2 * Math.PI);
-	c.fill();
-	c.fillStyle = "rgb(100, 100, 100)";
-	c.font = "bold 10pt monospace";
-	c.fillText("Health: " + this.health + " / " + this.maxHealth, 662, 28);
-	this.visualHealth += (this.health - this.visualHealth) / 10;
-	//mana bar
-	c.fillStyle = "rgb(150, 150, 150)";
-	c.fillRect(550, 50, 225, 25);
-	c.beginPath();
-	c.arc(550, 62.5, 12, 0, 2 * Math.PI);
-	c.arc(775, 62.5, 12, 0, 2 * Math.PI);
-	c.fill();
-	c.fillStyle = "rgb(20, 20, 255)";
-	c.fillRect(550, 50, this.visualMana * 22.5, 25);
-	c.beginPath();
-	c.arc(550, 62.5, 12, 0, 2 * Math.PI);
-	c.arc(550 + (this.visualMana * 22.5), 62.5, 12, 0, 2 * Math.PI);
-	c.fill();
-	c.fillStyle = "rgb(100, 100, 100)";
-	c.fillText("Mana: " + this.mana + " / 10", 662, 65.5);
-	this.visualMana += (this.mana - this.visualMana) / 10;
-	//gold bar
-	c.fillStyle = "rgb(150, 150, 150)";
-	c.fillRect(550, 87.5, 225, 25);
-	c.beginPath();
-	c.arc(550, 100, 12, 0, 2 * Math.PI);
-	c.arc(775, 100, 12, 0, 2 * Math.PI);
-	c.fill();
-	c.fillStyle = "rgb(255, 255, 0)";
-	c.fillRect(550, 87.5, ((this.visualGold / this.maxGold) * 225), 25);
-	c.beginPath();
-	c.arc(550, 100, 12, 0, 2 * Math.PI);
-	c.arc(550 + ((this.visualGold / this.maxGold) * 225), 100, 12, 0, 2 * Math.PI);
-	c.fill();
-	c.fillStyle = "rgb(100, 100, 100)";
-	c.fillText("Gold: " + this.gold, 662, 102.5);
-	this.visualGold += (this.gold - this.visualGold) / 10;
+	if(this.onScreen === "play") {
+		//health bar
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(550, 12.5, 225, 25);
+		c.beginPath();
+		c.arc(550, 25, 12, 0, 2 * Math.PI);
+		c.arc(775, 25, 12, 0, 2 * Math.PI);
+		c.fill();
+		c.fillStyle = "rgb(255, 0, 0)";
+		c.fillRect(550, 12.5, (this.visualHealth / this.maxHealth) * 225, 25);
+		c.beginPath();
+		c.arc(550, 25, 12, 0, 2 * Math.PI);
+		c.arc(550 + ((this.visualHealth / this.maxHealth) * 225), 25, 12, 0, 2 * Math.PI);
+		c.fill();
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.font = "bold 10pt monospace";
+		c.fillText("Health: " + this.health + " / " + this.maxHealth, 662, 28);
+		this.visualHealth += (this.health - this.visualHealth) / 10;
+		//mana bar
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(550, 50, 225, 25);
+		c.beginPath();
+		c.arc(550, 62.5, 12, 0, 2 * Math.PI);
+		c.arc(775, 62.5, 12, 0, 2 * Math.PI);
+		c.fill();
+		c.fillStyle = "rgb(20, 20, 255)";
+		c.fillRect(550, 50, this.visualMana * 22.5, 25);
+		c.beginPath();
+		c.arc(550, 62.5, 12, 0, 2 * Math.PI);
+		c.arc(550 + (this.visualMana * 22.5), 62.5, 12, 0, 2 * Math.PI);
+		c.fill();
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillText("Mana: " + this.mana + " / 10", 662, 65.5);
+		this.visualMana += (this.mana - this.visualMana) / 10;
+		//gold bar
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(550, 87.5, 225, 25);
+		c.beginPath();
+		c.arc(550, 100, 12, 0, 2 * Math.PI);
+		c.arc(775, 100, 12, 0, 2 * Math.PI);
+		c.fill();
+		c.fillStyle = "rgb(255, 255, 0)";
+		c.fillRect(550, 87.5, ((this.visualGold / this.maxGold) * 225), 25);
+		c.beginPath();
+		c.arc(550, 100, 12, 0, 2 * Math.PI);
+		c.arc(550 + ((this.visualGold / this.maxGold) * 225), 100, 12, 0, 2 * Math.PI);
+		c.fill();
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillText("Gold: " + this.gold, 662, 102.5);
+		this.visualGold += (this.gold - this.visualGold) / 10;
+	}
 };
 Player.prototype.update = function() {
 	//changing selected slots
@@ -1169,6 +1173,31 @@ Block.prototype.display = function() {
 Block.prototype.exist = function(parentRoom) {
 	this.display();
 	this.update(parentRoom);
+};
+function loadBoxFronts() {
+	for(var i = 0; i < boxFronts.length; i ++) {
+		if(boxFronts[i].type === "boulder void") {
+			c.globalAlpha = (boxFronts[i].opacity <= 0) ? 0 : boxFronts[i].opacity;
+			c.fillStyle = "rgb(150, 150, 150)";
+			c.beginPath();
+			c.moveTo(boxFronts[i].pos1.x, boxFronts[i].pos1.y);
+			c.lineTo(boxFronts[i].pos2.x, boxFronts[i].pos2.y);
+			c.lineTo(boxFronts[i].pos3.x, boxFronts[i].pos3.y);
+			c.lineTo(boxFronts[i].pos4.x, boxFronts[i].pos4.y);
+			c.fill();
+			c.globalAlpha = 1;
+		}
+		if(boxFronts[i].type === "rect") {
+			c.fillStyle = boxFronts[i].col;
+			c.fillRect(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3]);
+		}
+		else if(boxFronts[i].type === "circle") {
+			c.fillStyle = boxFronts[i].col;
+			c.beginPath();
+			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], 0, 2 * Math.PI);
+			c.fill();
+		}
+	}
 };
 function Platform(x, y, w) {
 	this.x = x;
@@ -2079,29 +2108,7 @@ Room.prototype.exist = function(index) {
 		}
 	}
 	//load block fronts after everything else
-	for(var i = 0; i < boxFronts.length; i ++) {
-		if(boxFronts[i].type === "boulder void") {
-			c.globalAlpha = (boxFronts[i].opacity <= 0) ? 0 : boxFronts[i].opacity;
-			c.fillStyle = "rgb(150, 150, 150)";
-			c.beginPath();
-			c.moveTo(boxFronts[i].pos1.x, boxFronts[i].pos1.y);
-			c.lineTo(boxFronts[i].pos2.x, boxFronts[i].pos2.y);
-			c.lineTo(boxFronts[i].pos3.x, boxFronts[i].pos3.y);
-			c.lineTo(boxFronts[i].pos4.x, boxFronts[i].pos4.y);
-			c.fill();
-			c.globalAlpha = 1;
-		}
-		if(boxFronts[i].type === "rect") {
-			c.fillStyle = boxFronts[i].col;
-			c.fillRect(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3]);
-		}
-		else if(boxFronts[i].type === "circle") {
-			c.fillStyle = boxFronts[i].col;
-			c.beginPath();
-			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], 0, 2 * Math.PI);
-			c.fill();
-		}
-	}
+	loadBoxFronts();
 	//load boulders
 	for(var i = 0; i < boulderIndexes.length; i ++) {
 		this.content[boulderIndexes[i]].exist();
@@ -4612,6 +4619,21 @@ Troll.prototype.update = function() {
 	}
 };
 
+var warriorClass = new Player();
+warriorClass.x = 175;
+warriorClass.y = 504;
+var archerClass = new Player();
+archerClass.addItem(new WoodBow());
+archerClass.attackingWith = new WoodBow();
+archerClass.activeSlot = 0;
+archerClass.x = 400;
+archerClass.y = 504;
+var mageClass = new Player();
+mageClass.x = 625;
+mageClass.y = 504;
+mageClass.addItem(new EnergyStaff());
+mageClass.attackingWith = new EnergyStaff();
+mageClass.activeSlot = 0;
 /** FRAMES **/
 function doByTime() {
 	frameCount ++;
@@ -4931,34 +4953,44 @@ function doByTime() {
 			// c.fillRect(675 - 72.5, 500, 20, 5);
 			// c.fillRect(675 + 52.5, 500, 20, 5);
 		}
-		for(var i = 0; i < boxFronts.length; i ++) {
-			if(boxFronts[i].type === "boulder void") {
-				c.globalAlpha = (boxFronts[i].opacity <= 0) ? 0 : boxFronts[i].opacity;
-				c.fillStyle = "rgb(150, 150, 150)";
-				c.beginPath();
-				c.moveTo(boxFronts[i].pos1.x, boxFronts[i].pos1.y);
-				c.lineTo(boxFronts[i].pos2.x, boxFronts[i].pos2.y);
-				c.lineTo(boxFronts[i].pos3.x, boxFronts[i].pos3.y);
-				c.lineTo(boxFronts[i].pos4.x, boxFronts[i].pos4.y);
-				c.fill();
-				c.globalAlpha = 1;
-			}
-			if(boxFronts[i].type === "rect") {
-				c.fillStyle = boxFronts[i].col;
-				c.fillRect(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3]);
-			}
-			else if(boxFronts[i].type === "circle") {
-				c.fillStyle = boxFronts[i].col;
-				c.beginPath();
-				c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], 0, 2 * Math.PI);
-				c.fill();
-			}
-		}
+		loadBoxFronts();
 		if(mouseIsPressed) {
 			if(Math.dist(mouseX, mouseY, 400, 380) <= 80 || (mouseX > 320 && mouseX < 480 && mouseY > 380 && mouseY < 580)) {
-				p.onScreen = "play";
+				p.onScreen = "class-select";
 			}
 		}
+	}
+	else if(p.onScreen === "class-select") {
+		keys = [];
+		//ground
+		new Block(-100, 600, 1000, 200).display();
+		new Block(100, 550, 150, 200).display();
+		new Block(550, 550, 150, 200).display();
+		new Block(325, 550, 150, 200).display();
+		//warrior
+		warriorClass.display(true, true);
+		c.save();
+		c.translate(185, 520);
+		c.rotate(Math.PI);
+		new Sword().display("attacking");
+		c.restore();
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(160, 550, 40, 20);
+		//archer
+		archerClass.aiming = true;
+		archerClass.aimRot = 45;
+		archerClass.display(true);
+		//mage
+		mageClass.aiming = true;
+		mageClass.facing = "left";
+		mageClass.display(true);
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.font = "bolder 40px Arial black";
+		c.textAlign = "center";
+		c.fillText("Warrior", 175, 200);
+		c.fillText("Archer", 400, 200);
+		c.fillText("Mage", 625, 200);
+		loadBoxFronts();
 	}
 	window.setTimeout(doByTime, 1000 / fps);
 };
