@@ -11,6 +11,7 @@ const floorWidth = 0.1;
 var frameCount = 0;
 var hitboxes = []; //for showing hitboxes when debugging
 var mouseIsPressed = false;
+var pMouseIsPressed;
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
 	mouseX = (evt.clientX - canvasRect.left) / (canvasRect.right - canvasRect.left) * canvas.width;
@@ -452,7 +453,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	if((!this.attacking && !this.aiming) || this.facing === "left") {
 		c.beginPath();
 		c.moveTo(this.x, this.y + 26);
-		c.lineTo(this.x + 10, this.y + (straightArm ? 16 : 36));
+		c.lineTo(this.x + (straightArm ? 15 : 10), this.y + (straightArm ? 16 : 36));
 		c.stroke();
 	}
 	if((!this.attacking && !this.aiming) || this.facing === "right") {
@@ -1153,6 +1154,31 @@ Player.prototype.hurt = function(amount) {
 	}
 	damage = Math.round(damage);
 	this.health -= damage;
+};
+Player.prototype.reset = function() {
+	this.health = 10;
+	this.maxHealth = 10;
+	this.visualHealth = 10;
+	this.mana = 10;
+	this.maxMana = 10;
+	this.visualMana = 10;
+	this.invSlots = [];
+	this.init();
+	switch(this["class"]) {
+		case "warrior":
+			this.addItem(new Sword());
+			this.addItem(new Helmet());
+			break;
+		case "archer":
+			this.addItem(new WoodBow());
+			this.addItem(new Dagger());
+			this.addItem(new Arrow(10));
+			break;
+		case "mage":
+			this.addItem(new EnergyStaff());
+			this.addItem(new Dagger());
+			break;
+	}
 };
 var p = new Player();
 p.init();
@@ -2663,6 +2689,27 @@ EnergyStaff.prototype.getDesc = function() {
 //equipables
 function Equipable() {
 	Item.call(this);	
+	this.equipable = true;
+};
+Equipable.prototype.init = function() {
+	return;
+};
+function Helmet() {
+	Equipable.call(this);
+	this.defLow = 3;
+	this.defHigh = 5;
+};
+Helmet.prototype.display = function() {
+	
+};
+Helmet.prototype.getDesc = function() {
+	return [
+		{
+			content: "something",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		}
+	];
 };
 
 //extras
@@ -4634,6 +4681,9 @@ mageClass.y = 504;
 mageClass.addItem(new EnergyStaff());
 mageClass.attackingWith = new EnergyStaff();
 mageClass.activeSlot = 0;
+var platHeight1 = 550;
+var platHeight2 = 550;
+var platHeight3 = 550;
 /** FRAMES **/
 function doByTime() {
 	frameCount ++;
@@ -4962,25 +5012,28 @@ function doByTime() {
 	}
 	else if(p.onScreen === "class-select") {
 		keys = [];
+		boxFronts = [];
 		//ground
 		new Block(-100, 600, 1000, 200).display();
-		new Block(100, 550, 150, 200).display();
-		new Block(550, 550, 150, 200).display();
-		new Block(325, 550, 150, 200).display();
+		new Block(100, platHeight1, 150, 200).display();
+		new Block(325, platHeight2, 150, 200).display();
+		new Block(550, platHeight3, 150, 200).display();
 		//warrior
+		warriorClass.y = platHeight1 - 46;
 		warriorClass.display(true, true);
 		c.save();
-		c.translate(185, 520);
+		c.translate(190, platHeight1 - 30);
+		c.scale(1, 0.65);
 		c.rotate(Math.PI);
 		new Sword().display("attacking");
 		c.restore();
-		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(160, 550, 40, 20);
 		//archer
+		archerClass.y = platHeight2 - 46;
 		archerClass.aiming = true;
 		archerClass.aimRot = 45;
 		archerClass.display(true);
 		//mage
+		mageClass.y = platHeight3 - 46;
 		mageClass.aiming = true;
 		mageClass.facing = "left";
 		mageClass.display(true);
@@ -4990,8 +5043,53 @@ function doByTime() {
 		c.fillText("Warrior", 175, 200);
 		c.fillText("Archer", 400, 200);
 		c.fillText("Mage", 625, 200);
+		c.font = "20px monospace";
+		c.textAlign = "left";
+		c.fillText("+1 melee damage", 100, 250);
+		c.fillText("+Start with sword", 100, 290);
+		c.fillText("+Start with helmet", 100, 330);
+		c.fillText("+1 ranged damage", 325, 250);
+		c.fillText("+Start with bow", 325, 290);
+		c.fillText("+Start with dagger", 325, 330);
+		c.fillText("+1 magic damage", 550, 250);
+		c.fillText("+Start with staff", 550, 290);
+		c.fillText("+Start with dagger", 550, 330);
+		if(mouseX < 300) {
+			platHeight1 -= Math.dist(platHeight1, 0, 500, 0) / 30;
+			if(mouseIsPressed && !pMouseIsPressed) {
+				p["class"] = "warrior";
+				p.onScreen = "play";
+				p.reset();
+			}
+		}
+		else {
+			platHeight1 += Math.dist(platHeight1, 0, 550, 0) / 30;
+		}
+		if(mouseX > 300 && mouseX < 500) {
+			platHeight2 -= Math.dist(platHeight2, 0, 500, 0) /30;
+			if(mouseIsPressed && !pMouseIsPressed) {
+				p["class"] = "archer";
+				p.onScreen = "play";
+				p.reset();
+			}
+		}
+		else {
+			platHeight2 += Math.dist(platHeight2, 0, 550, 0) / 30;
+		}
+		if(mouseX > 500) {
+			platHeight3 -= Math.dist(platHeight3, 0, 500, 0) / 30;
+			if(mouseIsPressed && !pMouseIsPressed) {
+				p["class"] = "mage";
+				p.onScreen = "play";
+				p.reset();
+			}
+		}
+		else {
+			platHeight3 += Math.dist(platHeight3, 0, 550, 0) / 30;
+		}
 		loadBoxFronts();
 	}
+	pMouseIsPressed = mouseIsPressed;
 	window.setTimeout(doByTime, 1000 / fps);
 };
 window.setTimeout(doByTime, 1000 / fps);
