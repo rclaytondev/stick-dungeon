@@ -377,6 +377,8 @@ function Player() {
 	this.aimRot = null;
 	this.aiming = false;
 	this.shootReload = 0;
+	this.healthAltarsFound = 0;
+	this.manaAltarsFound = 0;
 };
 Player.prototype.init = function() {
 	for(var x = 0; x < 3; x ++) {
@@ -1168,7 +1170,7 @@ Player.prototype.reset = function() {
 	switch(this["class"]) {
 		case "warrior":
 			this.addItem(new Sword());
-			this.addItem(new Helmet());
+			//this.addItem(new Helmet());
 			break;
 		case "archer":
 			this.addItem(new WoodBow());
@@ -1447,6 +1449,9 @@ Door.prototype.exist = function(parentRoom) {
 					);
 					break;
 				case "reward2":
+					var chooser = Math.random();
+					p.healthAltarsFound += (chooser < 0.5) ? 1 : 0;
+					p.manaAltarsFound += (chooser > 0.5) ? 1 : 0;
 					roomInstances.push(
 						new Room(
 							"reward",
@@ -1457,9 +1462,12 @@ Door.prototype.exist = function(parentRoom) {
 								new Block(0, -2000, 8000, 1800), //roof
 								new Door(1100, 0, ["combat", "parkour"], false, true),
 								new Door(1400, 0, ["combat", "parkour"], false, true),
-								new Block(1200, -40, 100, 100),
+								new Block(1210, -40, 80, 100),
 								new Block(1200, -201, 100, 41),
-								new Stairs(1200, 0, 2, "right")
+								new Stairs(1290, 0, 2, "right"),
+								new Stairs(1210, 0, 2, "left"),
+								new Block(1180, -200, 140, 20),
+								new Altar(1250, -100, chooser < 0.5 ? "health" : "mana")
 							],
 							"?"
 						)
@@ -2015,15 +2023,46 @@ Stairs.prototype.exist = function() {
 			}
 		}
 	}
+	else {
+		for(var i = 0; i < this.steps.length; i ++) {
+			this.steps[i].display();
+			if(p.x + 5 > this.steps[i].x + p.worldX && p.x - 5 < this.steps[i].x + p.worldX + this.steps[i].w && p.y + 46 > this.steps[i].y + p.worldY && p.y - 7 < this.steps[i].y + this.steps[i].h + p.worldY) {
+				p.velY = 0;
+				p.y = this.steps[i].y + p.worldY - 46;
+				p.canJump = true;
+			}
+		}
+	}
 	partOfAStair = false;
 };
 function Altar(x, y, type) {
 	this.x = x;
 	this.y = y;
 	this.type = type;
+	this.particles = [];
 };
 Altar.prototype.exist = function() {
-	
+	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 46 > this.y + p.worldY - 20 && p.y - 5 < this.y + p.worldY + 20) {
+		if(this.type === "health") {
+			p.health ++;
+			p.maxHealth ++;
+		}
+		else if(this.type === "mana") {
+			p.mana ++;
+			p.maxMana ++;
+		}
+		this.splicing = true;
+	}
+	for(var i = 0; i < 5; i ++) {
+		this.particles.push(new Particle(this.type === "health" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)", this.x + Math.random() * 40 - 20, this.y + Math.random() * 40 - 20, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
+	}
+	for(var i = 0; i < this.particles.length; i ++) {
+		this.particles[i].exist();
+		if(this.particles[i].opacity <= 0) {
+			this.particles.splice(i, 1);
+			continue;
+		}
+	}
 };
 
 /** ROOM DATA **/
@@ -2143,6 +2182,15 @@ Room.prototype.exist = function(index) {
 			}
 			boulderIndexes.push(i);
 		}
+		else if(this.content[i] instanceof Altar) {
+			this.content[i].exist();
+			if(this.content[i].splicing) {
+				for(var j = 0; j < this.content[i].particles.length; j ++) {
+					this.content.push(Object.create(this.content[i].particles[j]));
+				}
+				this.content.splice(i, 1);
+			}
+		}
 		else {
 			this.content[i].exist();
 			if(this.content[i].splicing) {
@@ -2195,7 +2243,7 @@ var roomInstances = [
 			new Block(-400, -1000, 2000, 1300),
 			new Block(700, -200, 500, 1000),
 			new Door(400,  500, ["ambient", "combat", "parkour", "secret"]),
-			new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
+			new Door(500,  500, ["reward"]),
 			new Door(600,  500, ["ambient", "combat", "parkour", "secret"])
 		],
 		"?"
