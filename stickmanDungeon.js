@@ -2064,6 +2064,27 @@ Altar.prototype.exist = function() {
 		}
 	}
 };
+function Words(x, y, words, color) {
+	this.x = x;
+	this.y = y;
+	this.words = words;
+	this.color = color;
+	this.opacity = 1;
+};
+Words.prototype.exist = function() {
+	c.save();
+	c.globalAlpha = this.opacity;
+	c.fillStyle = this.color;
+	c.font = "bold 10pt monospace";
+	c.textAlign = "center";
+	c.fillText(this.words, this.x, this.y);
+	c.restore();
+	this.y -= 3;
+	this.opacity -= 0.05;
+	if(this.opacity <= 0) {
+		this.splicing = true;
+	}
+};
 
 /** ROOM DATA **/
 var inRoom = 0;
