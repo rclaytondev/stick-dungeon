@@ -357,9 +357,9 @@ function Player() {
 	this.op = 1;
 	this.health = 10;
 	this.maxHealth = 10;
-	this.visualHealth = 9;
+	this.visualHealth = 1;
 	this.mana = 10;
-	this.visualMana = 10;
+	this.visualMana = 1;
 	this.gold = 0;
 	this.maxGold = 1;
 	this.visualGold = 1;
@@ -591,15 +591,15 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.arc(775, 25, 12, 0, 2 * Math.PI);
 		c.fill();
 		c.fillStyle = "rgb(255, 0, 0)";
-		c.fillRect(550, 12.5, (this.visualHealth / this.maxHealth) * 225, 25);
+		c.fillRect(550, 12.5, this.visualHealth * 225, 25);
 		c.beginPath();
 		c.arc(550, 25, 12, 0, 2 * Math.PI);
-		c.arc(550 + ((this.visualHealth / this.maxHealth) * 225), 25, 12, 0, 2 * Math.PI);
+		c.arc(550 + (this.visualHealth * 225), 25, 12, 0, 2 * Math.PI);
 		c.fill();
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.font = "bold 10pt monospace";
 		c.fillText("Health: " + this.health + " / " + this.maxHealth, 662, 28);
-		this.visualHealth += (this.health - this.visualHealth) / 10;
+		this.visualHealth += ((this.health / this.maxHealth) - this.visualHealth) / 10;
 		//mana bar
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(550, 50, 225, 25);
@@ -608,14 +608,14 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.arc(775, 62.5, 12, 0, 2 * Math.PI);
 		c.fill();
 		c.fillStyle = "rgb(20, 20, 255)";
-		c.fillRect(550, 50, this.visualMana * 22.5, 25);
+		c.fillRect(550, 50, this.visualMana * 225, 25);
 		c.beginPath();
 		c.arc(550, 62.5, 12, 0, 2 * Math.PI);
-		c.arc(550 + (this.visualMana * 22.5), 62.5, 12, 0, 2 * Math.PI);
+		c.arc(550 + (this.visualMana * 225), 62.5, 12, 0, 2 * Math.PI);
 		c.fill();
 		c.fillStyle = "rgb(100, 100, 100)";
-		c.fillText("Mana: " + this.mana + " / 10", 662, 65.5);
-		this.visualMana += (this.mana - this.visualMana) / 10;
+		c.fillText("Mana: " + this.mana + " / " + this.maxMana, 662, 65.5);
+		this.visualMana += ((this.mana / this.maxMana) - this.visualMana) / 10;
 		//gold bar
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(550, 87.5, 225, 25);
@@ -2046,10 +2046,12 @@ Altar.prototype.exist = function() {
 		if(this.type === "health") {
 			p.health ++;
 			p.maxHealth ++;
+			roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max health", "rgb(255, 0, 0)"));
 		}
 		else if(this.type === "mana") {
 			p.mana ++;
 			p.maxMana ++;
+			roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max mana", "rgb(0, 0, 255)"));
 		}
 		this.splicing = true;
 	}
@@ -2072,12 +2074,13 @@ function Words(x, y, words, color) {
 	this.opacity = 1;
 };
 Words.prototype.exist = function() {
+	console.log(this);
 	c.save();
 	c.globalAlpha = this.opacity;
 	c.fillStyle = this.color;
 	c.font = "bold 10pt monospace";
 	c.textAlign = "center";
-	c.fillText(this.words, this.x, this.y);
+	c.fillText(this.words, this.x + p.worldX, this.y + p.worldY);
 	c.restore();
 	this.y -= 3;
 	this.opacity -= 0.05;
