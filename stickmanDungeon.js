@@ -6,7 +6,7 @@ var mouseX;
 var mouseY;
 var keys = [];
 var fps = 60;
-const showHitboxes = true;
+const showHitboxes = false;
 const floorWidth = 0.1;
 var frameCount = 0;
 var hitboxes = []; //for showing hitboxes when debugging
@@ -580,6 +580,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	c.lineCap = "butt";
 	c.globalAlpha = 1;
 	if(this.onScreen === "play") {
+		c.textAlign = "center";
 		//health bar
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(550, 12.5, 225, 25);
@@ -870,7 +871,7 @@ Player.prototype.update = function() {
 		this.health ++;
 		this.numHeals --;
 	}
-	if(frameCount % 180 === 0) {
+	if(frameCount % 180 === 0 && this.mana < this.maxMana) {
 		this.mana ++;
 	}
 	for(var i = 0; i < this.invSlots.length; i ++) {
@@ -1234,11 +1235,12 @@ Platform.prototype.exist = function() {
 	cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(139, 69, 19");
 	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, 3, [true, false, false, false]);
 };
-function Door(x, y, dest, noEntry) {
+function Door(x, y, dest, noEntry, invertEntries) {
 	this.x = x;
 	this.y = y;
 	this.dest = dest;
 	this.noEntry = noEntry || false;
+	this.invertEntries = invertEntries || false;
 	this.onPath = false;
 };
 Door.prototype.exist = function(parentRoom) {
@@ -1444,6 +1446,25 @@ Door.prototype.exist = function(parentRoom) {
 						)
 					);
 					break;
+				case "reward2":
+					roomInstances.push(
+						new Room(
+							"reward",
+							[
+								new Block(0, 0, 4000, 4000), //floor
+								new Block(0, -4000, 1000, 5000), //left wall
+								new Block(1500, -4000, 1000, 5000), //right wall
+								new Block(0, -2000, 8000, 1800), //roof
+								new Door(1100, 0, ["combat", "parkour"], false, true),
+								new Door(1400, 0, ["combat", "parkour"], false, true),
+								new Block(1200, -40, 100, 100),
+								new Block(1200, -201, 100, 41),
+								new Stairs(1200, 0, 2, "right")
+							],
+							"?"
+						)
+					);
+					break;
 				case "combat1":
 					roomInstances.push(
 						new Room(
@@ -1484,10 +1505,11 @@ Door.prototype.exist = function(parentRoom) {
 					//select a door for the player to come out of
 					var doorIndexes = [];
 					for(var j = 0; j < roomInstances[i].content.length; j ++) {
-						if(roomInstances[i].content[j] instanceof Door && !roomInstances[i].content[j].noEntry) {
+						if(roomInstances[i].content[j] instanceof Door && (!!roomInstances[i].content[j].noEntry) === (!!this.invertEntries)) {
 							doorIndexes.push(j);
 						}
 					}
+					console.log(doorIndexes);
 					var theIndex = doorIndexes[Math.round(Math.random() * (doorIndexes.length - 1))];
 					//move the player to the door they exit out of
 					p.worldX = 0;
@@ -1995,6 +2017,14 @@ Stairs.prototype.exist = function() {
 	}
 	partOfAStair = false;
 };
+function Altar(x, y, type) {
+	this.x = x;
+	this.y = y;
+	this.type = type;
+};
+Altar.prototype.exist = function() {
+	
+};
 
 /** ROOM DATA **/
 var inRoom = 0;
@@ -2153,7 +2183,7 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-const rooms = [/*"ambient1", "ambient2", "ambient3", "secret1", */"combat1", "parkour1", "reward1"];
+const rooms = [/*"ambient1", "ambient2", "ambient3", "secret1", */"combat1", "parkour1", "reward2"];
 const items = [/*Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow*/EnergyStaff];
 const enemies = [/*Spider, Bat, Skeleton, */SkeletonWarrior/*, SkeletonArcher, Wraith/*, /*Troll*/];
 var roomInstances = [
@@ -3440,18 +3470,6 @@ ShotArrow.prototype.exist = function() {
 		this.opacity -= 0.05;	
 	}
 };
-p.addItem(new Sword());
-p.addItem(new WoodBow());
-p.addItem(new EnergyStaff());
-p.addItem(new MetalBow());
-p.addItem(new Arrow(10));
-p.addItem(new EarthCrystal());
-p.addItem(new Dagger());
-p.addItem(new WaterCrystal());
-p.addItem(new FireCrystal());
-p.addItem(new AirCrystal());
-p.addItem(new Barricade());
-p.addItem(new Coin(10));
 
 /** ENEMIES **/
 function RandomEnemy(x, y) {
@@ -4666,6 +4684,7 @@ Troll.prototype.update = function() {
 	}
 };
 
+/** CLASSES **/
 var warriorClass = new Player();
 warriorClass.x = 175;
 warriorClass.y = 504;
