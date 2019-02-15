@@ -2014,12 +2014,12 @@ Chest.prototype.exist = function() {
 				var theItem = possibleItems[selector];
 				if(new theItem() instanceof Weapon) {
 					var modifier = Math.random();
-					if(modifier < 0.16 || true) {
+					if(modifier < 0.5) {
 						console.log("a stable thing");
-						roomInstances[inRoom].content.push(new theItem("stable"));
+						roomInstances[inRoom].content.push(new theItem("predictable"));
 					}
-					else if(modifier < 0.33) {
-						roomInstances[inRoom].content.push(new theItem("unstable"));
+					else if(modifier < 1) {
+						roomInstances[inRoom].content.push(new theItem("unpredictable"));
 					}
 					else {
 						roomInstances[inRoom].content.push(new theItem("none"));
@@ -2399,8 +2399,26 @@ Item.prototype.animate = function() {
 		this.opacity -= 0.05;
 	}
 };
-Item.prototype.checkInteraction = function() {};
 Item.prototype.displayDesc = function(x, y) {
+	//split overflow into multiple lines
+	for(var i = 0; i < this.desc.length; i ++) {
+		if(c.measureText(this.desc[i].content).width >= 190) {
+			var line1 = this.desc[i].content;
+			var line2 = "";
+			while(c.measureText(line1).width >= 190) {
+				textLoop: for(var j = line1.length; j > 0; j --) {
+					if(line1.substr(j, 1) === " ") {
+						line2 = line1.substr(j, Infinity) + line2;
+						line1 = line1.substr(0, j);
+						break textLoop;
+					}
+				}
+			}
+			this.desc[i].content = line1;
+			this.desc.splice((i - 1) > 0 ? i - 1 : 0, 0, {content: line2, font: this.desc[i].font, color: this.desc[i].color});
+		}
+	}
+	//add special stat text for elemental weapons
 	if(this instanceof Weapon && this.element !== "none") {
 		var propertiesOfWeapons = ["damage", "range", "special"];
 		loop1: for(var i = 1; i < this.desc.length; i ++) {
@@ -2461,7 +2479,7 @@ Item.prototype.displayDesc = function(x, y) {
 function Weapon(modifier) {
 	Item.call(this);
 	this.equipable = false;
-	this.modifier = (modifier === undefined) ? "none" : modifier; // stable, unstable, lucky, unlucky, enhanced, or degraded
+	this.modifier = (modifier === undefined) ? "none" : modifier;
 	this.element = "none";
 	this.particles = [];
 };
