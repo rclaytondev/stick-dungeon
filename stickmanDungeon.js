@@ -635,6 +635,12 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	}
 };
 Player.prototype.update = function() {
+	keys = this.enteringDoor ? [] : keys;
+	if(!keys[37] && !keys[39]) {
+		this.legDir = (this.legs < 0) ? -0.5 : 0.5;
+		this.legDir = (this.legs >= 5 || this.legs <= -5) ? 0 : this.legDir;
+		this.legs += this.legDir;
+	}
 	//changing selected slots
 	if(this.guiOpen !== "crystal-infusion") {
 		if(keys[49]) {
@@ -866,6 +872,7 @@ Player.prototype.update = function() {
 	this.aimingBefore = this.aiming;
 	this.facingBefore = this.facing;
 	this.shootReload --;
+	//update health bars
 	if(this.health >= this.maxHealth) {
 		this.numHeals = 0;
 	}
@@ -1167,6 +1174,8 @@ Player.prototype.reset = function() {
 	this.visualMana = 10;
 	this.invSlots = [];
 	this.init();
+	this.screenOp = 1;
+	this.exitingDoor = true;
 	switch(this["class"]) {
 		case "warrior":
 			this.addItem(new Sword());
@@ -1365,22 +1374,42 @@ Door.prototype.exist = function(parentRoom) {
 					);
 					break;
 				case "ambient3":
-					roomInstances.push(
-						new Room(
-							"ambient",
-							[
-								new Block(-4000, 0, 8000, 1000), //floor
-								new Stairs(200, 0, 10, "right"),
-								new Block(600, -4000, 4000, 4100), //right wall
-								new Door(500, 0, ["combat", "parkour", "secret"], true),
-								new Block(-800, -200, 1001, 1000), //higher floor
-								new Door(100, -200, ["combat", "parkour", "secret"]),
-								new Block(-1000, -4000, 1000, 8000), //left wall
-								new Block(-4000, -1400, 8000, 1000), //roof
-							],
-							"?"
-						)
-					);
+					if(Math.random() < 0.5) {
+						roomInstances.push(
+							new Room(
+								"ambient",
+								[
+									new Block(-4000, 0, 8000, 1000), //floor
+									new Stairs(200, 0, 10, "right"),
+									new Block(600, -4000, 4000, 4100), //right wall
+									new Door(500, 0, ["combat", "parkour", "secret"], true),
+									new Block(-800, -200, 1001, 1000), //higher floor
+									new Door(100, -200, ["combat", "parkour", "secret"]),
+									new Block(-1000, -4000, 1000, 8000), //left wall
+									new Block(-4000, -1400, 8000, 1000) //roof
+								],
+								"?"
+							)
+						);
+					}
+					else {
+						roomInstances.push(
+							new Room(
+								"ambient",
+								[
+									new Block(-4000, 0, 8000, 1000), //floor
+									new Stairs(-200, 0, 10, "left"),
+									new Block(-4600, -4000, 4000, 4100), //left wall
+									new Door(-500, 0, ["combat", "parkour", "secret"], true),
+									new Block(-200, -200, 1000, 1000), //higher floor
+									new Door(-100, -200, ["combat", "parkour", "secret"]),
+									new Block(0, -4000, 1000, 8000), //right wall
+									new Block(-4000, -1400, 8000, 1000) //roof
+								],
+								"?"
+							)
+						);
+					}
 					break;
 				case "secret1":
 					roomInstances.push(
@@ -1450,6 +1479,40 @@ Door.prototype.exist = function(parentRoom) {
 					break;
 				case "reward2":
 					var chooser = Math.random();
+					var hasAStaff = false;
+					magicLoop: for(var i = 0; i < p.invSlots.length; i ++) {
+						if(p.invSlots[i].content instanceof MagicWeapon) {
+							hasAStaff = true;
+							break magicLoop;
+						}
+					}
+					if(!hasAStaff) {
+						chooser = 0;
+					}
+					if(p.healthAltarsFound >= 5) {
+						chooser = 1;
+					}
+					if(p.manaAltarsFound >= 5) {
+						chooser = 0;
+					}
+					if(p.healthAltarsFound >= 5 && p.manaAltarsFound >= 5) {
+						roomInstances.push(
+							new Room(
+								"reward",
+								[
+									new Block(-2000, 500, 4000, 500), //floor
+									new Block(-1000, -1000, 800, 2000), //left wall
+									new Block(200, -1000, 500, 3000), //right wall
+									new Block(-1000, -2000, 2000, 2300), //roof,
+									new Door(0, 500, ["things should go here... maybe? i dont think so lol"], false),
+									new Chest(-100, 500),
+									new Chest(100, 500)
+								],
+								"?"
+							)
+						);
+						break;
+					}
 					p.healthAltarsFound += (chooser < 0.5) ? 1 : 0;
 					p.manaAltarsFound += (chooser > 0.5) ? 1 : 0;
 					roomInstances.push(
@@ -1517,7 +1580,6 @@ Door.prototype.exist = function(parentRoom) {
 							doorIndexes.push(j);
 						}
 					}
-					console.log(doorIndexes);
 					var theIndex = doorIndexes[Math.round(Math.random() * (doorIndexes.length - 1))];
 					//move the player to the door they exit out of
 					p.worldX = 0;
@@ -1910,17 +1972,8 @@ Chest.prototype.exist = function() {
 					else if(modifier < 0.33) {
 						roomInstances[inRoom].content.push(new theItem("unstable"));
 					}
-					else if(modifier < 0.33) {
-						roomInstances[inRoom].content.push(new theItem("lucky"));
-					}
-					else if(modifier < 0.38) {
-						roomInstances[inRoom].content.push(new theItem("unlucky"));
-					}
-					else if(modifier < 0.5) {
-						roomInstances[inRoom].content.push(new theItem("enhanced"));
-					}
-					else if(modifier < 0.16) {
-						roomInstances[inRoom].content.push(new theItem("stable"));
+					else {
+						roomInstances[inRoom].content.push(new theItem("none"));
 					}
 				}
 				else {
@@ -1930,11 +1983,51 @@ Chest.prototype.exist = function() {
 		}
 		else {
 			var chooser = Math.random();
+			console.log(chooser);
 			if(chooser <= 0.5) {
-				
+				roomInstances[inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
 			}
 			else {
-				
+				//give the player a random item (not coins or arrows)
+				var possibleItems = [];
+				for(var i = 0; i < items.length; i ++) {
+					possibleItems.push(items[i]);
+				}
+				for(var i = 0; i < p.invSlots.length; i ++) {
+					for(var j = 0; j < items.length; j ++) {
+						if(p.invSlots[i].content instanceof items[j]) {
+							for(var k = 0; k < possibleItems.length; k ++) {
+								if(new possibleItems[k]() instanceof items[j]) {
+									possibleItems.splice(k, 1);
+								}
+							}
+						}
+					}
+				}
+				console.log(possibleItems);
+				if(possibleItems.length === 0) {
+					//the player already has every item in the game, so just give them coins
+					roomInstances[inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
+					return;
+				}
+				var selector = Math.floor(Math.random() * possibleItems.length);
+				var theItem = possibleItems[selector];
+				if(new theItem() instanceof Weapon) {
+					var modifier = Math.random();
+					if(modifier < 0.16 || true) {
+						console.log("a stable thing");
+						roomInstances[inRoom].content.push(new theItem("stable"));
+					}
+					else if(modifier < 0.33) {
+						roomInstances[inRoom].content.push(new theItem("unstable"));
+					}
+					else {
+						roomInstances[inRoom].content.push(new theItem("none"));
+					}
+				}
+				else {
+					roomInstances[inRoom].content.push(new theItem());
+				}
 			}
 		}
 	}
@@ -2046,12 +2139,12 @@ Altar.prototype.exist = function() {
 		if(this.type === "health") {
 			p.health ++;
 			p.maxHealth ++;
-			roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max health", "rgb(255, 0, 0)"));
+			// roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max health", "rgb(255, 0, 0)"));
 		}
 		else if(this.type === "mana") {
 			p.mana ++;
 			p.maxMana ++;
-			roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max mana", "rgb(0, 0, 255)"));
+			// roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max mana", "rgb(0, 0, 255)"));
 		}
 		this.splicing = true;
 	}
@@ -2130,6 +2223,7 @@ Room.prototype.exist = function(index) {
 				this.content[i].init();
 			}
 			c.save();
+			c.globalAlpha = (this.content[i].opacity < 0) ? 0 : this.content[i].opacity;
 			c.translate(this.content[i].x + p.worldX, this.content[i].y + p.worldY);
 			this.content[i].display("item");
 			c.fillStyle = "rgb(255, 0, 0)";
@@ -2255,9 +2349,9 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-const rooms = [/*"ambient1", "ambient2", "ambient3", "secret1", */"combat1", "parkour1", "reward2"];
-const items = [/*Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow*/EnergyStaff];
-const enemies = [/*Spider, Bat, Skeleton, */SkeletonWarrior/*, SkeletonArcher, Wraith/*, /*Troll*/];
+const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1", "reward2"];
+const items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
+const enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith/*, /*Troll*/];
 var roomInstances = [
 	new Room(
 		"ambient",
@@ -2267,8 +2361,10 @@ var roomInstances = [
 			new Block(-400, -1000, 2000, 1300),
 			new Block(700, -200, 500, 1000),
 			new Door(400,  500, ["ambient", "combat", "parkour", "secret"]),
-			new Door(500,  500, ["reward"]),
-			new Door(600,  500, ["ambient", "combat", "parkour", "secret"])
+			new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
+			new Door(600,  500, ["ambient", "combat", "parkour", "secret"]),
+			new Chest(650, 500),
+			new Chest(350, 500)
 		],
 		"?"
 	)
@@ -2406,15 +2502,14 @@ MeleeWeapon.prototype.attack = function() {
 };
 function Sword(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = 7;
-	this.damHigh = 10;
+	this.damLow = p["class"] === "warrior" ? 8 : 7;
+	this.damHigh = p["class"] === "warrior" ? 11 : 10;
 	this.range = 60;
 };
 inheritsFrom(Sword, MeleeWeapon);
 Sword.prototype.display = function(type) {
 	if(type === "holding" || type === "item") {
 		c.fillStyle = "rgb(139, 69, 19)";
-		c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
 		c.translate(-20, 20);
 		c.rotate(0.7853);
 		c.beginPath();
@@ -2429,7 +2524,6 @@ Sword.prototype.display = function(type) {
 		c.lineTo(3, -10);
 		c.lineTo(0, -60);
 		c.fill();
-		c.globalAlpha = 1;
 	}
 	else if(type === "attacking") {
 		c.fillStyle = "rgb(139, 69, 19)";
@@ -2478,8 +2572,8 @@ Sword.prototype.getDesc = function() {
 };
 function Dagger(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = 5;
-	this.damHigh = 7;
+	this.damLow = p["class"] === "warrior" ? 6 : 5;
+	this.damHigh = p["class"] === "warrior" ? 8 : 7;
 	this.range = 30;
 };
 inheritsFrom(Dagger, MeleeWeapon);
@@ -2517,7 +2611,6 @@ Dagger.prototype.getDesc = function() {
 };
 Dagger.prototype.display = function(type) {
 	c.fillStyle = "rgb(139, 69, 19)";
-	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
 	if(type !== "attacking") {
 		c.translate(-13, 13);
 		c.rotate(0.7853);
@@ -2534,7 +2627,6 @@ Dagger.prototype.display = function(type) {
 	c.lineTo(3, -10);
 	c.lineTo(0, -30);
 	c.fill();
-	c.globalAlpha = 1;
 };
 
 function RangedWeapon(modifier) {
@@ -2551,9 +2643,6 @@ function Arrow(quantity) {
 inheritsFrom(Arrow, RangedWeapon);
 Arrow.prototype.display = function(type) {
 	if(type === "item" || type === "holding") {
-		if(type === "item") {
-			c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
-		}
 		c.strokeStyle = "rgb(139, 69, 19)";
 		c.lineWidth = 4;
 		c.beginPath();
@@ -2578,7 +2667,6 @@ Arrow.prototype.display = function(type) {
 			c.lineTo(-x - 8, x);
 			c.stroke();
 		}
-		c.globalAlpha = 1;
 	}
 };
 Arrow.prototype.getDesc = function() {
@@ -2662,8 +2750,8 @@ WoodBow.prototype.getDesc = function() {
 		}
 	];
 };
-function MetalBow() {
-	RangedWeapon.call(this);
+function MetalBow(modifier) {
+	RangedWeapon.call(this, modifier);
 	this.damLow = 10;
 	this.damHigh = 12;
 	this.reload = 60;
@@ -2830,7 +2918,6 @@ Crystal.prototype.graphics = function(type) {
 	if(type === "holding") {
 		c.translate(0, 13);
 	}
-	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
 	c.lineWidth = 2;
 	c.beginPath();
 	c.moveTo(0, 0);
@@ -2859,7 +2946,6 @@ Crystal.prototype.graphics = function(type) {
 	c.moveTo(0, 0);
 	c.lineTo(0, -23);
 	c.stroke();
-	c.globalAlpha = 1;
 };
 Crystal.prototype.use = function() {
 	p.guiOpen = "crystal-infusion";
@@ -3276,6 +3362,7 @@ Barricade.prototype.display = function(type) {
 		c.lineWidth = 2;
 		
 		c.save();
+		c.scale(type === "item" ? 0.75 : 1, type === "item" ? 0.75 : 1);
 		c.rotate(22 / 180 * Math.PI);
 		c.fillRect(-30, -10, 60, 20);
 		c.fillStyle = "rgb(200, 200, 200)";
@@ -3300,6 +3387,7 @@ Barricade.prototype.display = function(type) {
 		c.restore();
 		
 		c.save();
+		c.scale(type === "item" ? 0.75 : 1, type === "item" ? 0.75 : 1);
 		c.rotate(-22 / 180 * Math.PI);
 		c.fillRect(-30, -10, 60, 20);
 		c.fillStyle = "rgb(200, 200, 200)";
@@ -3429,7 +3517,6 @@ Coin.prototype.getDesc = function() {
 Coin.prototype.display = function(type) {
 	c.save();
 	c.lineWidth = 2;
-	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
 	c.fillStyle = "rgb(255, 255, 0)";
 	c.strokeStyle = "rgb(255, 128, 0)";
 	c.beginPath();
@@ -3441,7 +3528,6 @@ Coin.prototype.display = function(type) {
 	c.font = "bolder 20px monospace";
 	c.textAlign = "center";
 	c.fillText(this.quantity, 0, 7);
-	c.globalAlpha = 1;
 	c.restore();
 };
 function ShotArrow(x, y, velX, velY, damage, shotBy, element) {
@@ -3588,6 +3674,7 @@ Enemy.prototype.hurt = function(amount, ignoreDef) {
 		amount -= def;
 	}
 	amount = (amount < 0) ? 0 : amount;
+	roomInstances[inRoom].content.push(new Words(this.x, this.y, "-" + amount, "rgb(255, 0, 0)"));
 	this.health -= amount;
 };
 Enemy.prototype.displayStats = function() {
@@ -4756,7 +4843,7 @@ Troll.prototype.update = function() {
 	}
 };
 
-/** CLASSES **/
+/** MENUS & UI **/
 var warriorClass = new Player();
 warriorClass.x = 175;
 warriorClass.y = 504;
@@ -4775,6 +4862,10 @@ mageClass.activeSlot = 0;
 var platHeight1 = 550;
 var platHeight2 = 550;
 var platHeight3 = 550;
+var fading = "none";
+var fadeOp = 0;
+var fadeDest = "none";
+
 /** FRAMES **/
 function doByTime() {
 	frameCount ++;
@@ -4873,8 +4964,16 @@ function doByTime() {
 		p.worldX = 0;
 		p.worldY = 0;
 		new Block(-100, 600, 1000, 200).display();
-		c.fillStyle = "rgb(20, 20, 20)";
+		//title
+		c.fillStyle = "rgb(0, 0, 0)";
+		c.font = "80px Cursive";
+		c.textAlign = "center";
+		c.fillText("stick", 400, 100);
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.font = "bolder 80px Arial black";
+		c.fillText("DUNGEON", 400, 200);
 		//left door
+		c.fillStyle = "rgb(20, 20, 20)";
 		c.fillRect(40, 440, 170, 140);
 		c.beginPath();
 		c.arc(125, 440, 85, 0, 2 * Math.PI);
@@ -5097,7 +5196,8 @@ function doByTime() {
 		loadBoxFronts();
 		if(mouseIsPressed) {
 			if(Math.dist(mouseX, mouseY, 400, 380) <= 80 || (mouseX > 320 && mouseX < 480 && mouseY > 380 && mouseY < 580)) {
-				p.onScreen = "class-select";
+				fading = "out";
+				fadeDest = "class-select";
 			}
 		}
 	}
@@ -5149,7 +5249,8 @@ function doByTime() {
 			platHeight1 -= Math.dist(platHeight1, 0, 500, 0) / 30;
 			if(mouseIsPressed && !pMouseIsPressed) {
 				p["class"] = "warrior";
-				p.onScreen = "play";
+				fading = "out";
+				fadeDest = "play";
 				p.reset();
 			}
 		}
@@ -5160,7 +5261,8 @@ function doByTime() {
 			platHeight2 -= Math.dist(platHeight2, 0, 500, 0) /30;
 			if(mouseIsPressed && !pMouseIsPressed) {
 				p["class"] = "archer";
-				p.onScreen = "play";
+				fading = "out";
+				fadeDest = "play";
 				p.reset();
 			}
 		}
@@ -5171,7 +5273,8 @@ function doByTime() {
 			platHeight3 -= Math.dist(platHeight3, 0, 500, 0) / 30;
 			if(mouseIsPressed && !pMouseIsPressed) {
 				p["class"] = "mage";
-				p.onScreen = "play";
+				fading = "out";
+				fadeDest = "play";
 				p.reset();
 			}
 		}
@@ -5179,6 +5282,26 @@ function doByTime() {
 			platHeight3 += Math.dist(platHeight3, 0, 550, 0) / 30;
 		}
 		loadBoxFronts();
+	}
+	if(p.onScreen !== "play") {
+		if(fading === "out") {
+			fadeOp += 0.05;
+			if(fadeOp >= 1) {
+				fading = "in";
+				p.onScreen = fadeDest;
+			}
+		}
+		else if(fading === "in") {
+			fadeOp -= 0.05;
+			if(fadeOp <= 0) {
+				fading = "none";
+			}
+		}
+		c.save();
+		c.globalAlpha = (fadeOp >= 0) ? fadeOp : 0;
+		c.fillStyle = "rgb(0, 0, 0)";
+		c.fillRect(0, 0, 800, 800);
+		c.restore();
 	}
 	pMouseIsPressed = mouseIsPressed;
 	window.setTimeout(doByTime, 1000 / fps);
