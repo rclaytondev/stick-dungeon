@@ -2350,7 +2350,7 @@ Room.prototype.exist = function(index) {
 	c.fillRect(0, 0, 800, 800);
 };
 const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1", "reward2"];
-const items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
+const items = [/*Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, */Sword, WoodBow, MetalBow, EnergyStaff];
 const enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith/*, /*Troll*/];
 var roomInstances = [
 	new Room(
@@ -2402,6 +2402,7 @@ Item.prototype.animate = function() {
 Item.prototype.displayDesc = function(x, y) {
 	//split overflow into multiple lines
 	for(var i = 0; i < this.desc.length; i ++) {
+		console.log(c.measureText(this.desc[i].content).width);
 		if(c.measureText(this.desc[i].content).width >= 190) {
 			var line1 = this.desc[i].content;
 			var line2 = "";
@@ -2415,22 +2416,20 @@ Item.prototype.displayDesc = function(x, y) {
 				}
 			}
 			this.desc[i].content = line1;
-			this.desc.splice((i - 1) > 0 ? i - 1 : 0, 0, {content: line2, font: this.desc[i].font, color: this.desc[i].color});
+			this.desc.splice(i + 1, 0, {content: line2, font: this.desc[i].font, color: this.desc[i].color});
 		}
 	}
+	for(var i = 0; i < this.desc.length; i ++) {
+		if(this.desc[i].content.substr(0, 1) === " ") {
+			this.desc[i].content = this.desc[i].content.substr(1, Infinity);
+		}
+	}
+	console.log(this.desc);
 	//add special stat text for elemental weapons
 	if(this instanceof Weapon && this.element !== "none") {
-		var propertiesOfWeapons = ["damage", "range", "special"];
 		loop1: for(var i = 1; i < this.desc.length; i ++) {
-			var isAStat = false;
-			loop2: for(var j = 0; j < propertiesOfWeapons.length; j ++) {
-				if(this.desc[i].content.substr(0, propertiesOfWeapons[j].length) === propertiesOfWeapons[j]) {
-					isAStat = true;
-					break loop2;
-				}
-			}
-			if(!isAStat) {
-				this.desc.splice(i, 0, {
+			if(this.desc[i].font !== "bold 10pt Courier") {
+				this.desc.splice(i + 1, 0, {
 					content: "Special: " + ((this.element === "fire" || this.element === "water") ? 
 					((this.element === "fire") ? "Burning" : "Freezing") : 
 					((this.element === "earth") ? "Crushing" : "Knockback")), 
@@ -4861,6 +4860,11 @@ Troll.prototype.update = function() {
 	}
 };
 
+
+//hax
+p["class"] = "mage";
+p.reset();
+p.onScreen = "play";
 /** MENUS & UI **/
 var warriorClass = new Player();
 warriorClass.x = 175;
