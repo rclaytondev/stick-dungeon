@@ -1235,6 +1235,16 @@ function loadBoxFronts() {
 			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], 0, 2 * Math.PI);
 			c.fill();
 		}
+		else if(boxFronts[i].type === "arc") {
+			c.fillStyle = boxFronts[i].col;
+			c.strokeStyle = boxFronts[i].col;
+			c.beginPath();
+			c.moveTo(boxFronts[i].loc[0], boxFronts[i].loc[1]);
+			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3], boxFronts[i].loc[4]);
+			c.closePath();
+			c.fill();
+			c.stroke();
+		}
 	}
 };
 function Platform(x, y, w) {
@@ -1326,7 +1336,7 @@ Door.prototype.exist = function(parentRoom) {
 			var possibleRooms = [];
 			for(var i = 0; i < rooms.length; i ++) {
 				for(var j = 0; j < this.dest.length; j ++) {
-					if(this.dest[j] === rooms[i].substr(0, 7)) {
+					if(this.dest[j] === rooms[i].substr(0, 7) && rooms[i] !== roomInstances[inRoom].type) {
 						possibleRooms.push(rooms[i]);
 					}
 					if(this.dest[j] === rooms[i].substr(0, 6)) {
@@ -1339,7 +1349,7 @@ Door.prototype.exist = function(parentRoom) {
 				case "ambient1":
 					roomInstances.push(
 						new Room(
-							"ambient",
+							"ambient1",
 							[
 								new Block(-200, 500, 2000, 600), //floor
 								new Block(-400, -200, 700, 900), //left wall
@@ -1356,7 +1366,7 @@ Door.prototype.exist = function(parentRoom) {
 				case "ambient2":
 					roomInstances.push(
 						new Room(
-							"ambient",
+							"ambient2",
 							[
 								new Block(-1000, -1000, 1300, 2000), //left wall
 								new Block(-100, 500, 1500, 500), //floor
@@ -1414,7 +1424,7 @@ Door.prototype.exist = function(parentRoom) {
 				case "secret1":
 					roomInstances.push(
 						new Room(
-							"secret",
+							"secret1",
 							[
 								new Chest(100, 0),
 								new Chest(800, 0),
@@ -1437,7 +1447,7 @@ Door.prototype.exist = function(parentRoom) {
 				case "parkour1":
 					roomInstances.push(
 						new Room(
-							"parkour",
+							"parkour1",
 							[
 								new Block(-1000, -1000, 1000, 2000), //left wall
 								new Block(-1000, 500, 1200, 1000), //left floor
@@ -1463,7 +1473,7 @@ Door.prototype.exist = function(parentRoom) {
 				case "reward1":
 					roomInstances.push(
 						new Room(
-							"reward",
+							"reward1",
 							[
 								new Block(-2000, 500, 4000, 500), //floor
 								new Block(-1000, -1000, 800, 2000), //left wall
@@ -1517,7 +1527,7 @@ Door.prototype.exist = function(parentRoom) {
 					p.manaAltarsFound += (chooser > 0.5) ? 1 : 0;
 					roomInstances.push(
 						new Room(
-							"reward",
+							"reward2",
 							[
 								new Block(0, 0, 4000, 4000), //floor
 								new Block(0, -4000, 1000, 5000), //left wall
@@ -1536,10 +1546,25 @@ Door.prototype.exist = function(parentRoom) {
 						)
 					);
 					break;
+				case "reward3":
+					var chooser = Math.random();
+					roomInstances.push(new Room(
+						"reward3",
+						[
+							new Block(0, 0, 4000, 4000), //floor
+							new Block(0, -4000, 1000, 5000), //left wall
+							new Block(1500, -4000, 1000, 5000), //right wall
+							new Block(0, -2000, 8000, 1700), //roof
+							new Forge(1250, 0),
+							new Door(1050, 0, ["blargh"])
+						],
+						"?"
+					));
+					break;
 				case "combat1":
 					roomInstances.push(
 						new Room(
-							"combat",
+							"combat1",
 							[
 								new Block(-2000, 0, 4000, 1000), //floor
 								new Block(-1000, -4000, 500, 8000), //left wall
@@ -1966,14 +1991,14 @@ Chest.prototype.exist = function() {
 				var theItem = possibleItems[selector];
 				if(theItem instanceof Weapon) {
 					var modifier = Math.random();
-					if(modifier < 0.16) {
+					if(modifier < 0.25) {
 						roomInstances[inRoom].content.push(new theItem("stable"));
 					}
-					else if(modifier < 0.33) {
-						roomInstances[inRoom].content.push(new theItem("unstable"));
+					else if(modifier < 0.5) {
+						roomInstances[inRoom].content.push(new theItem("predictable"));
 					}
 					else {
-						roomInstances[inRoom].content.push(new theItem("none"));
+						roomInstances[inRoom].content.push(new theItem("unpredictable"));
 					}
 				}
 				else {
@@ -1983,7 +2008,6 @@ Chest.prototype.exist = function() {
 		}
 		else {
 			var chooser = Math.random();
-			console.log(chooser);
 			if(chooser <= 0.5) {
 				roomInstances[inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
 			}
@@ -2004,7 +2028,6 @@ Chest.prototype.exist = function() {
 						}
 					}
 				}
-				console.log(possibleItems);
 				if(possibleItems.length === 0) {
 					//the player already has every item in the game, so just give them coins
 					roomInstances[inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
@@ -2014,11 +2037,10 @@ Chest.prototype.exist = function() {
 				var theItem = possibleItems[selector];
 				if(new theItem() instanceof Weapon) {
 					var modifier = Math.random();
-					if(modifier < 0.5) {
-						console.log("a stable thing");
+					if(modifier < 0.25) {
 						roomInstances[inRoom].content.push(new theItem("predictable"));
 					}
-					else if(modifier < 1) {
+					else if(modifier < 0.5) {
 						roomInstances[inRoom].content.push(new theItem("unpredictable"));
 					}
 					else {
@@ -2167,7 +2189,6 @@ function Words(x, y, words, color) {
 	this.opacity = 1;
 };
 Words.prototype.exist = function() {
-	console.log(this);
 	c.save();
 	c.globalAlpha = this.opacity;
 	c.fillStyle = this.color;
@@ -2180,6 +2201,55 @@ Words.prototype.exist = function() {
 	if(this.opacity <= 0) {
 		this.splicing = true;
 	}
+};
+function Forge(x, y) {
+	this.x = x;
+	this.y = y;
+	this.used = false;
+	this.curveArray = findPointsCircular(0, 0, 50);
+	for(var i = 0; i < this.curveArray.length; i ++) {
+		if(this.curveArray[i].y > 0) {
+			this.curveArray.splice(i, 1);
+			continue;
+		}
+	}
+};
+Forge.prototype.exist = function() {
+	console.log("i exist");
+	cube(this.x + p.worldX - 100, this.y + p.worldY - 75, 50, 75, 0.9, 1.05);
+	cube(this.x + p.worldX + 50, this.y + p.worldY - 75, 50, 75, 0.9, 1.05);
+	for(var i = 0; i < this.curveArray.length - 1; i ++) {
+		if(this.curveArray[i].x > 0) {
+			var p1 = point3d(this.x + p.worldX + this.curveArray[i].x + 50, this.y + p.worldY + this.curveArray[i].y - 75, 0.9);
+			var p2 = point3d(this.x + p.worldX + this.curveArray[i].x + 50, this.y + p.worldY + this.curveArray[i].y - 75, 1.05);
+			var p3 = point3d(this.x + p.worldX + this.curveArray[i + 1].x + 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 1.05);
+			var p4 = point3d(this.x + p.worldX + this.curveArray[i + 1].x + 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 0.9);
+			c.fillStyle = "rgb(150, 150, 150)";
+			c.beginPath();
+			c.moveTo(p1.x, p1.y);
+			c.lineTo(p2.x, p2.y);
+			c.lineTo(p3.x, p3.y);
+			c.lineTo(p4.x, p4.y);
+			c.fill();
+		}
+	}
+	for(var i = 0; i < this.curveArray.length - 1; i ++) {
+		if(this.curveArray[i].x < 0) {
+			var p1 = point3d(this.x + p.worldX + this.curveArray[i].x - 50, this.y + p.worldY + this.curveArray[i].y - 75, 0.9);
+			var p2 = point3d(this.x + p.worldX + this.curveArray[i].x - 50, this.y + p.worldY + this.curveArray[i].y - 75, 1.05);
+			var p3 = point3d(this.x + p.worldX + this.curveArray[i + 1].x - 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 1.05);
+			var p4 = point3d(this.x + p.worldX + this.curveArray[i + 1].x - 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 0.9);
+			c.fillStyle = "rgb(150, 150, 150)";
+			c.beginPath();
+			c.moveTo(p1.x, p1.y);
+			c.lineTo(p2.x, p2.y);
+			c.lineTo(p3.x, p3.y);
+			c.lineTo(p4.x, p4.y);
+			c.fill();
+		}
+	}
+	boxFronts.push({type: "arc", loc: [point3d(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).x, point3d(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).y, 50, 1.5 * Math.PI, 2 * Math.PI], col: "rgb(100, 100, 100)"});
+	boxFronts.push({type: "arc", loc: [point3d(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).x, point3d(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).y, 50, Math.PI, 1.5 * Math.PI], col: "rgb(100, 100, 100)"});
 };
 
 /** ROOM DATA **/
@@ -2349,8 +2419,8 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1", "reward2"];
-const items = [/*Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, */Sword, WoodBow, MetalBow, EnergyStaff];
+const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1", "reward2", /*"reward3"*/];
+const items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 const enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith/*, /*Troll*/];
 var roomInstances = [
 	new Room(
@@ -2362,9 +2432,7 @@ var roomInstances = [
 			new Block(700, -200, 500, 1000),
 			new Door(400,  500, ["ambient", "combat", "parkour", "secret"]),
 			new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
-			new Door(600,  500, ["ambient", "combat", "parkour", "secret"]),
-			new Chest(650, 500),
-			new Chest(350, 500)
+			new Door(600,  500, ["ambient", "combat", "parkour", "secret"])
 		],
 		"?"
 	)
@@ -2385,6 +2453,14 @@ Item.prototype.init = function() {
 			break;
 		}
 	}
+	if(this.modifier === "predictable") {
+		this.damLow ++;
+		this.damHigh --;
+	}
+	else if(this.modifier === "unpredictable") {
+		this.damLow --;
+		this.damHigh ++;
+	}
 	this.initialized = true;
 	this.velY = -4;
 	this.opacity = 1;
@@ -2402,7 +2478,9 @@ Item.prototype.animate = function() {
 Item.prototype.displayDesc = function(x, y) {
 	//split overflow into multiple lines
 	for(var i = 0; i < this.desc.length; i ++) {
-		console.log(c.measureText(this.desc[i].content).width);
+		if(this instanceof WoodBow) {
+		}
+		c.font = this.desc[i].font;
 		if(c.measureText(this.desc[i].content).width >= 190) {
 			var line1 = this.desc[i].content;
 			var line2 = "";
@@ -2424,7 +2502,6 @@ Item.prototype.displayDesc = function(x, y) {
 			this.desc[i].content = this.desc[i].content.substr(1, Infinity);
 		}
 	}
-	console.log(this.desc);
 	//add special stat text for elemental weapons
 	if(this instanceof Weapon && this.element !== "none") {
 		loop1: for(var i = 1; i < this.desc.length; i ++) {
@@ -2614,12 +2691,7 @@ Dagger.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "A small dagger, the kind used",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "for stabbing in the dark.",
+			content: "A small dagger, the kind used for stabbing in the dark.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -2694,12 +2766,7 @@ Arrow.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "It's an arrow. You can shoot it",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "with a bow",
+			content: "It's an arrow. You can shoot it with a bow",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -2756,12 +2823,7 @@ WoodBow.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "It's a bow. You can shoot",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "arrows with it.",
+			content: "It's a bow. You can shoot arrows with it.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -2818,17 +2880,7 @@ MetalBow.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "The reinforced metal on this",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "bow makes it slightly stronger",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "than it's wooden counterpart.",
+			content: "The reinforced metal on this bow makes it slightly stronger than it's wooden counterpart.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -2843,8 +2895,8 @@ function EnergyStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.chargeType = "energy";
 	this.manaCost = 2;
-	this.damLow = 7;
-	this.damHigh = 10;
+	this.damLow = (p["class"] === "mage") ? 8 : 7;
+	this.damHigh = (p["class"] === "mage") ? 11 : 10;
 };
 inheritsFrom(EnergyStaff, MagicWeapon);
 EnergyStaff.prototype.display = function(type) {
@@ -2881,12 +2933,7 @@ EnergyStaff.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "Shoots a bolt of magical",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "energy.",
+			content: "Shoots a bolt of magical energy.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -2991,22 +3038,7 @@ FireCrystal.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "When a weapon is infused with",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "power from this crystal,",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "attacks will set enemies on",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "fire.",
+			content: "When a weapon is infused with power from this crystal, attacks will set enemies on fire.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -3035,22 +3067,7 @@ WaterCrystal.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "When a weapon is infused with",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "power from this crystal,",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "attacks will freeze water",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "vapor, encasing enemies in ice.",
+			content: "When a weapon is infused with power from this crystal, attacks will freeze water vapor, encasing enemies in ice.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -3078,25 +3095,10 @@ EarthCrystal.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "When a weapon is infused with",
+			content: "When a weapon is infused with power from this crystal, attackis will crush enemies with a chunk of rock.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
-		{
-			content: "power from this crystal,",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "attacks will crush enemies",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "using a chunk of rock.",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		}
 	]
 };
 function Boulder(x, y, damage) {
@@ -3443,17 +3445,7 @@ Barricade.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "Can be placed on a door to",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "prevent enemies from chasing",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "you.",
+			content: "Can be placed on a door to prevent enemies from chasing you.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -3559,7 +3551,6 @@ function ShotArrow(x, y, velX, velY, damage, shotBy, element) {
 	this.hitSomething = false;
 };
 ShotArrow.prototype.exist = function() {
-	console.log(this.element);
 	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
 	var angle = Math.atan2(this.velX, this.velY);
 	c.save();
@@ -3601,7 +3592,6 @@ ShotArrow.prototype.exist = function() {
 				if(this.x > enemy.x + enemy.leftX && this.x < enemy.x + enemy.rightX && this.y > enemy.y + enemy.topY && this.y < enemy.y + enemy.bottomY) {
 					enemy.hurt(this.damage);
 					if(this.element === "fire") {
-						console.log("IT BURNS");
 						enemy.timeBurning = (enemy.timeBurning <= 0) ? 120 : enemy.timeBurning;
 					}
 					else if(this.element === "water") {
