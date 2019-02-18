@@ -12,6 +12,7 @@ var frameCount = 0;
 var hitboxes = []; //for showing hitboxes when debugging
 var mouseIsPressed = false;
 var pMouseIsPressed;
+var cursorHand = false;
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
 	mouseX = (evt.clientX - canvasRect.left) / (canvasRect.right - canvasRect.left) * canvas.width;
@@ -168,6 +169,19 @@ function point3d(x, y, z) {
 		x: 400 - (400 - x) * z,
 		y: 400 - (400 - y) * z,
 	}
+};
+function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
+	var p1 = point3d(x1, y1, startDepth);
+	var p2 = point3d(x1, y1, endDepth);
+	var p3 = point3d(x2, y2, endDepth);
+	var p4 = point3d(x2, y2, startDepth);
+	c.fillStyle = col;
+	c.beginPath();
+	c.moveTo(p1.x, p1.y);
+	c.lineTo(p2.x, p2.y);
+	c.lineTo(p3.x, p3.y);
+	c.lineTo(p4.x, p4.y);
+	c.fill();
 };
 function hitboxRect(x, y, w, h) {
 	if(showHitboxes) {
@@ -371,7 +385,7 @@ function Player() {
 	this.facing = "right";
 	this.attacking = false;
 	this.attackArmRot = 0;
-	this.attackArmDir = 2;
+	this.attackArmDir = null;
 	this.canHit = true;
 	this.numHeals = 0;
 	this.aimRot = null;
@@ -379,6 +393,7 @@ function Player() {
 	this.shootReload = 0;
 	this.healthAltarsFound = 0;
 	this.manaAltarsFound = 0;
+	this.attackSpeed = 5;
 };
 Player.prototype.init = function() {
 	for(var x = 0; x < 3; x ++) {
@@ -476,14 +491,14 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		this.attackingWith.display("attacking");
 		c.restore();
 		if(this.attackArmRot > 75) {
-			this.attackArmDir = -5;
-			if(this.timeSinceAttack > 15) {
+			this.attackArmDir = -this.attackSpeed;
+			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
 		else if(this.attackArmRot < 0) {
-			this.attackArmDir = 5;
-			if(this.timeSinceAttack > 15) {
+			this.attackArmDir = this.attackSpeed;
+			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
@@ -500,14 +515,14 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		this.attackingWith.display("attacking");
 		c.restore();
 		if(this.attackArmRot > 75) {
-			this.attackArmDir = -5;
-			if(this.timeSinceAttack > 15) {
+			this.attackArmDir = -this.attackSpeed;
+			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
 		else if(this.attackArmRot < 0) {
-			this.attackArmDir = 5;
-			if(this.timeSinceAttack > 15) {
+			this.attackArmDir = this.attackSpeed;
+			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
@@ -696,13 +711,24 @@ Player.prototype.update = function() {
 	this.facing = keys[37] ? "left" : this.facing;
 	this.attacking = false;
 	this.aiming = false;
+	if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon) {
+		if(this.invSlots[this.activeSlot].content.attackSpeed === "fast") {
+			this.attackSpeed = 7;
+		}
+		else if(this.invSlots[this.activeSlot].content.attackSpeed === "normal") {
+			this.attackSpeed = 5;
+		}
+		else if(this.invSlots[this.activeSlot].content.attackSpeed === "slow") {
+			this.attackSpeed = 3;
+		}
+	}
 	if(keys[65] && this.invSlots[this.activeSlot].content !== "empty") {
 		if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon) {
 			this.invSlots[this.activeSlot].content.attack();
 			this.attacking = true;
 			if(this.attackArmRot === null) {
 				this.attackArmRot = 0;
-				this.attackArmDir = 5;
+				this.attackArmDir = this.attackSpeed;
 			}
 		}
 		else if(this.invSlots[this.activeSlot].content instanceof RangedWeapon || this.invSlots[this.activeSlot].content instanceof MagicWeapon) {
@@ -819,7 +845,8 @@ Player.prototype.update = function() {
 					velocity.x += (this.x - this.worldX + 10);
 					velocity.y += (this.y - this.worldY + 26);
 					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player", this.invSlots[this.activeSlot].content.element));
+					var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
+					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 				}
 				else {
 					var velocity = getRotated(-10, 0, -this.aimRot);
@@ -828,7 +855,8 @@ Player.prototype.update = function() {
 					velocity.x += (this.x - this.worldX + 10);
 					velocity.y += (this.y - this.worldY + 26);
 					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / 2, velY / 2, damage, "player", this.invSlots[this.activeSlot].content.element));
+					var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
+					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 				}
 				for(var i = 0; i < this.invSlots.length; i ++) {
 					if(this.invSlots[i].content instanceof Arrow) {
@@ -1007,7 +1035,7 @@ Player.prototype.gui = function() {
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
 		//text
-		c.font = "bold 20px monospace";
+		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.beginPath();
@@ -1041,7 +1069,6 @@ Player.prototype.gui = function() {
 					c.globalAlpha = 1;
 				}
 			}
-			
 			//graphic for selection
 			if(i === this.activeSlot) {
 				c.fillStyle = "rgb(100, 100, 100)";
@@ -1083,6 +1110,404 @@ Player.prototype.gui = function() {
 				this.guiOpen = "none";
 				this.invSlots[this.activeSlot].content = "empty";
 				return;
+			}
+		}
+	}
+	else if(this.guiOpen === "reforge-item") {
+		//background rect
+		c.strokeStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(0, 0, 800, 800);
+		//text
+		c.font = "bold 20pt monospace";
+		c.textAlign = "center";
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.beginPath();
+		c.fillText("Select a weapon to reforge", 400, 165);
+		c.fill();
+		var hoverIndex = null;
+		for(var i = 0; i < this.invSlots.length; i ++) {
+			c.fillStyle = "rgb(150, 150, 150)";
+			c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
+			c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
+			if(this.invSlots[i].content !== "empty") {
+				if(!this.invSlots[i].content.initialized) {
+					this.invSlots[i].content.init();
+				}
+				c.save();
+				c.translate(this.invSlots[i].x + 35, this.invSlots[i].y + 35);
+				this.invSlots[i].content.display("holding");
+				c.restore();
+				//load weapon particles
+				if(this.invSlots[i].content instanceof Weapon) {
+					c.save();
+					c.translate(this.invSlots[i].x - this.worldX, this.invSlots[i].y - this.worldY);
+					this.invSlots[i].content.displayParticles();
+					c.restore();
+				}
+				//gray out invalid choices
+				if(!(this.invSlots[i].content instanceof Weapon || this.invSlots[i].content instanceof Equipable)) {
+					c.globalAlpha = 0.75;
+					c.fillStyle = "rgb(150, 150, 150)";
+					c.fillRect(this.invSlots[i].x + 2, this.invSlots[i].y + 2, 66, 66);
+					c.globalAlpha = 1;
+				}
+			}
+			//graphic for selection
+			if(i === this.activeSlot) {
+				c.fillStyle = "rgb(100, 100, 100)";
+				c.beginPath();
+				c.moveTo(this.invSlots[i].x + 10, this.invSlots[i].y + 35);
+				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 25);
+				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 45);
+				c.fill();
+				c.beginPath();
+				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 10);
+				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y);
+				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y);
+				c.fill();
+				c.beginPath();
+				c.moveTo(this.invSlots[i].x + 60, this.invSlots[i].y + 35);
+				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 25);
+				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 45);
+				c.fill();
+				c.beginPath();
+				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 60);
+				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y + 70);
+				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y + 70);
+				c.fill();
+			}
+		}
+		//find which you are hovering over
+		for(var i = 0; i < this.invSlots.length; i ++) {
+			if(mouseX > this.invSlots[i].x && mouseX < this.invSlots[i].x + 70 && mouseY > this.invSlots[i].y && mouseY < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
+				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
+				hoverIndex = i;
+				break;
+			}
+		}
+		if(hoverIndex !== null) {
+			//display desc of hovered item
+			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + 70, this.invSlots[hoverIndex].y + 35);
+			if(mouseIsPressed && (this.invSlots[hoverIndex].content instanceof Weapon || this.invSlots[hoverIndex].content instanceof Equipable) && !(this.invSlots[hoverIndex].content instanceof Arrow)) {
+				this.reforgeIndex = hoverIndex;
+				if(this.invSlots[hoverIndex].content.modifier === "none") {
+					this.guiOpen = "reforge-trait-none";
+				}
+				else if(this.invSlots[hoverIndex].content.modifier === "light" || this.invSlots[hoverIndex].content.modifier === "distant" || this.invSlots[hoverIndex].content.modifier === "efficient" || this.invSlots[hoverIndex].content.modifier === "empowering") {
+					this.guiOpen = "reforge-trait-light";
+				}
+				else if(this.invSlots[hoverIndex].content.modifier === "heavy" || this.invSlots[hoverIndex].content.modifier === "forceful" || this.invSlots[hoverIndex].content.modifier === "arcane" || this.invSlots[hoverIndex].content.modifier === "sturdy") {
+					this.guiOpen = "reforge-trait-heavy";
+				}
+				if(this.invSlots[hoverIndex].content instanceof MeleeWeapon) {
+					this.reforgeType = "melee";
+				}
+				else if(this.invSlots[hoverIndex].content instanceof RangedWeapon) {
+					this.reforgeType = "ranged";
+				}
+				else if(this.invSlots[hoverIndex].content instanceof MagicWeapon) {
+					this.reforgeType = "magic";
+				}
+				else if(this.invSlots[hoverIndex].content instanceof Equipable) {
+					this.reforgeType = "equipable";
+				}
+				return;
+			}
+		}
+	}
+	else if(this.guiOpen === "reforge-trait-none") {
+		//background rect
+		c.strokeStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(0, 0, 800, 800);
+		//text
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.textAlign = "center";
+		c.font = "bold 20pt monospace";
+		c.fillText("Choose a trait to reforge for", 400, 200);
+		c.fillText((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "Speed" : "Range") : (this.reforgeType === "magic" ? "Mana Cost" : "Bonuses"), 300, 500);
+		c.fillText("Damage", 500, 500);
+		//choice 1
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(300 - 35, 400 - 35, 70, 70);
+		c.strokeRect(300 - 35, 400 - 35, 70, 70);
+		var choice1 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering"));
+		choice1.element = this.invSlots[this.reforgeIndex].content.element;
+		choice1.damLow -= 1;
+		choice1.damHigh -= 1;
+		if(choice1 instanceof MeleeWeapon) {
+			if(choice1.attackSpeed === "normal") {
+				choice1.attackSpeed = "fast";
+			}
+			else if(choice1.attackSpeed === "slow") {
+				choice1.attackSpeed = "normal";
+			}
+		}
+		else if(choice1 instanceof RangedWeapon) {
+			if(choice1.range === "long") {
+				choice1.range = "very long";
+			}
+			else if(choice1.range === "very long") {
+				choice1.range = "super long";
+			}
+		}
+		c.save();
+		c.translate(300, 400);
+		choice1.display("holding");
+		c.restore();
+		//choice 2
+		c.fillRect(500 - 35, 400 - 35, 70, 70);
+		c.strokeRect(500 - 35, 400 - 35, 70, 70);
+		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy"));
+		choice2.element = this.invSlots[this.reforgeIndex].content.element;
+		choice2.damLow += 1;
+		choice2.damHigh += 1;
+		if(choice2 instanceof MeleeWeapon) {
+			if(choice2.attackSpeed === "normal") {
+				choice2.attackSpeed = "slow";
+			}
+			else if(choice2.attackSpeed === "slow") {
+				choice2.attackSpeed = "very slow";
+			}
+		}
+		else if(choice2 instanceof RangedWeapon) {
+			if(choice2.range === "long") {
+				choice2.range = "medium";
+			}
+			else if(choice2.range === "very long") {
+				choice2.range = "long";
+			}
+		}
+		c.save();
+		c.translate(500, 400);
+		choice2.display("holding");
+		c.restore();
+		//select choices and add to item
+		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
+			cursorHand = true;
+			choice1.desc = choice1.getDesc();
+			choice1.displayDesc(335, 400);
+			if(mouseIsPressed) {
+				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering");
+				this.guiOpen = "none";
+				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
+				this.invSlots[this.reforgeIndex].content.damHigh = choice1.damHigh;
+				this.invSlots[this.reforgeIndex].content.modifier = theModifier;
+				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
+					this.invSlots[this.reforgeIndex].content.attackSpeed = choice1.attackSpeed;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof RangedWeapon) {
+					this.invSlots[this.reforgeIndex].content.range = choice1.range;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
+					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
+				}
+			}
+		}
+		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
+			cursorHand = true;
+			choice2.desc = choice2.getDesc();
+			choice2.displayDesc(535, 400);
+			if(mouseIsPressed) {
+				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy");
+				this.guiOpen = "none";
+				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
+				this.invSlots[this.reforgeIndex].content.damHigh = choice2.damHigh;
+				this.invSlots[this.reforgeIndex].content.modifier = theModifier;
+				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
+					this.invSlots[this.reforgeIndex].content.attackSpeed = choice2.attackSpeed;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof RangedWeapon) {
+					this.invSlots[this.reforgeIndex].content.range = choice2.range;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
+					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
+			}
+		}
+	}
+	else if(this.guiOpen === "reforge-trait-light") {
+		//background rect
+		c.strokeStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(0, 0, 800, 800);
+		//text
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.textAlign = "center";
+		c.font = "bold 20pt monospace";
+		c.fillText("Choose a trait to reforge for", 400, 200);
+		c.fillText("Balance", 300, 500);
+		c.fillText("Damage", 500, 500);
+		//choice 1
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(300 - 35, 400 - 35, 70, 70);
+		c.strokeRect(300 - 35, 400 - 35, 70, 70);
+		var choice1 = new this.invSlots[this.reforgeIndex].content.constructor("none");
+		choice1.element = this.invSlots[this.reforgeIndex].content.element;
+		c.save();
+		c.translate(300, 400);
+		choice1.display("holding");
+		c.restore();
+		//choice 2
+		c.fillRect(500 - 35, 400 - 35, 70, 70);
+		c.strokeRect(500 - 35, 400 - 35, 70, 70);
+		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy"));
+		choice2.element = this.invSlots[this.reforgeIndex].content.element;
+		choice2.damLow += 1;
+		choice2.damHigh += 1;
+		if(choice2 instanceof MeleeWeapon) {
+			if(choice2.attackSpeed === "normal") {
+				choice2.attackSpeed = "slow";
+			}
+			else if(choice2.attackSpeed === "slow") {
+				choice2.attackSpeed = "very slow";
+			}
+		}
+		else if(choice2 instanceof RangedWeapon) {
+			if(choice2.range === "long") {
+				choice2.range = "medium";
+			}
+			else if(choice2.range === "very long") {
+				choice2.range = "long";
+			}
+		}
+		c.save();
+		c.translate(500, 400);
+		choice2.display("holding");
+		c.restore();
+		//select choices and add to item
+		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
+			cursorHand = true;
+			choice1.desc = choice1.getDesc();
+			choice1.displayDesc(335, 400);
+			if(mouseIsPressed) {
+				this.guiOpen = "none";
+				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
+				this.invSlots[this.reforgeIndex].content.damHigh = choice1.damHigh;
+				this.invSlots[this.reforgeIndex].content.modifier = "none";
+				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
+					this.invSlots[this.reforgeIndex].content.attackSpeed = choice1.attackSpeed;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof RangedWeapon) {
+					this.invSlots[this.reforgeIndex].content.range = choice1.range;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
+					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
+				}
+			}
+		}
+		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
+			cursorHand = true;
+			choice2.desc = choice2.getDesc();
+			choice2.displayDesc(535, 400);
+			if(mouseIsPressed) {
+				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy");
+				this.guiOpen = "none";
+				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
+				this.invSlots[this.reforgeIndex].content.damHigh = choice2.damHigh;
+				this.invSlots[this.reforgeIndex].content.modifier = theModifier;
+				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
+					this.invSlots[this.reforgeIndex].content.attackSpeed = choice2.attackSpeed;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof RangedWeapon) {
+					this.invSlots[this.reforgeIndex].content.range = choice2.range;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
+					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
+			}
+		}
+	}
+	else if(this.guiOpen === "reforge-trait-heavy") {
+		//background rect
+		c.strokeStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(0, 0, 800, 800);
+		//text
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.textAlign = "center";
+		c.font = "bold 20pt monospace";
+		c.fillText("Choose a trait to reforge for", 400, 200);
+		c.fillText((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "Speed" : "Range") : (this.reforgeType === "magic" ? "Mana Cost" : "Bonuses"), 300, 500);
+		c.fillText("Balance", 500, 500);
+		//choice 1
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(300 - 35, 400 - 35, 70, 70);
+		c.strokeRect(300 - 35, 400 - 35, 70, 70);	
+		var choice1 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering"));
+		choice1.element = this.invSlots[this.reforgeIndex].content.element;
+		choice1.damLow -= 1;
+		choice1.damHigh -= 1;
+		if(choice1 instanceof MeleeWeapon) {
+			if(choice1.attackSpeed === "normal") {
+				choice1.attackSpeed = "fast";
+			}
+			else if(choice1.attackSpeed === "slow") {
+				choice1.attackSpeed = "normal";
+			}
+		}
+		else if(choice1 instanceof RangedWeapon) {
+			if(choice1.range === "long") {
+				choice1.range = "very long";
+			}
+			else if(choice1.range === "very long") {
+				choice1.range = "super long";
+			}
+		}
+		c.save();
+		c.translate(300, 400);
+		choice1.display("holding");
+		c.restore();
+		//choice 2
+		c.fillRect(500 - 35, 400 - 35, 70, 70);
+		c.strokeRect(500 - 35, 400 - 35, 70, 70);
+		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor("none");
+		choice2.element = this.invSlots[this.reforgeIndex].content.element;
+		c.save();
+		c.translate(500, 400);
+		choice2.display("holding");
+		c.restore();
+		//select choices and add to item
+		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
+			cursorHand = true;
+			choice1.desc = choice1.getDesc();
+			choice1.displayDesc(335, 400);
+			if(mouseIsPressed) {
+				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering");
+				this.guiOpen = "none";
+				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
+				this.invSlots[this.reforgeIndex].content.damHigh = choice1.damHigh;
+				this.invSlots[this.reforgeIndex].content.modifier = theModifier;
+				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
+					this.invSlots[this.reforgeIndex].content.attackSpeed = choice1.attackSpeed;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof RangedWeapon) {
+					this.invSlots[this.reforgeIndex].content.range = choice1.range;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
+					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
+				}
+			}
+		}
+		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
+			cursorHand = true;
+			choice2.desc = choice2.getDesc();
+			choice2.displayDesc(535, 400);
+			if(mouseIsPressed) {
+				this.guiOpen = "none";
+				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
+				this.invSlots[this.reforgeIndex].content.damHigh = choice2.damHigh;
+				this.invSlots[this.reforgeIndex].content.modifier = "none";
+				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
+					this.invSlots[this.reforgeIndex].content.attackSpeed = choice2.attackSpeed;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof RangedWeapon) {
+					this.invSlots[this.reforgeIndex].content.range = choice2.range;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
+					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
 			}
 		}
 	}
@@ -1168,10 +1593,10 @@ Player.prototype.hurt = function(amount) {
 Player.prototype.reset = function() {
 	this.health = 10;
 	this.maxHealth = 10;
-	this.visualHealth = 10;
+	this.visualHealth = 1;
 	this.mana = 10;
 	this.maxMana = 10;
-	this.visualMana = 10;
+	this.visualMana = 1;
 	this.invSlots = [];
 	this.init();
 	this.screenOp = 1;
@@ -1243,6 +1668,8 @@ function loadBoxFronts() {
 			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3], boxFronts[i].loc[4]);
 			c.closePath();
 			c.fill();
+			c.beginPath();
+			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3], boxFronts[i].loc[4]);
 			c.stroke();
 		}
 	}
@@ -1436,6 +1863,7 @@ Door.prototype.exist = function(parentRoom) {
 								new Block(-300, -1300, 500, 1100), //left roof,
 								new Block(700, -1300, 500, 1100), //right roof
 								new Door(100, 500, ["ambient", "combat", "parkour"]),
+								new Door(800, 500, ["ambient", "combat", "parkour"]),
 								new LightRay(200, 500),
 								new Tree(450, 500)
 								   
@@ -1989,21 +2417,7 @@ Chest.prototype.exist = function() {
 				}
 				var selector = Math.floor(Math.random() * possibleItems.length);
 				var theItem = possibleItems[selector];
-				if(theItem instanceof Weapon) {
-					var modifier = Math.random();
-					if(modifier < 0.25) {
-						roomInstances[inRoom].content.push(new theItem("stable"));
-					}
-					else if(modifier < 0.5) {
-						roomInstances[inRoom].content.push(new theItem("predictable"));
-					}
-					else {
-						roomInstances[inRoom].content.push(new theItem("unpredictable"));
-					}
-				}
-				else {
-					roomInstances[inRoom].content.push(new theItem());
-				}
+				roomInstances[inRoom].content.push(new theItem());
 			}
 		}
 		else {
@@ -2035,21 +2449,7 @@ Chest.prototype.exist = function() {
 				}
 				var selector = Math.floor(Math.random() * possibleItems.length);
 				var theItem = possibleItems[selector];
-				if(new theItem() instanceof Weapon) {
-					var modifier = Math.random();
-					if(modifier < 0.25) {
-						roomInstances[inRoom].content.push(new theItem("predictable"));
-					}
-					else if(modifier < 0.5) {
-						roomInstances[inRoom].content.push(new theItem("unpredictable"));
-					}
-					else {
-						roomInstances[inRoom].content.push(new theItem("none"));
-					}
-				}
-				else {
-					roomInstances[inRoom].content.push(new theItem());
-				}
+				roomInstances[inRoom].content.push(new theItem());
 			}
 		}
 	}
@@ -2207,49 +2607,70 @@ function Forge(x, y) {
 	this.y = y;
 	this.used = false;
 	this.curveArray = findPointsCircular(0, 0, 50);
-	for(var i = 0; i < this.curveArray.length; i ++) {
-		if(this.curveArray[i].y > 0) {
-			this.curveArray.splice(i, 1);
-			continue;
-		}
-	}
+	this.init = false;
+	this.particles = [];
 };
 Forge.prototype.exist = function() {
-	console.log("i exist");
-	cube(this.x + p.worldX - 100, this.y + p.worldY - 75, 50, 75, 0.9, 1.05);
-	cube(this.x + p.worldX + 50, this.y + p.worldY - 75, 50, 75, 0.9, 1.05);
+	/* 
+	melee - light (+ speed, - damage) & heavy (- speed, + damage)
+	ranged - distant (+ range, - damage) & forceful (- range, + damage)
+	magic - efficient (+ mana cost, - damage) & arcane (- mana cost, + damage)
+	equipable - sturdy (+ defense, - ids) & empowering (- defense, + ids)
+	*/
+	//initialize curved segments
+	if(!this.init) {
+		for(var i = 0; i < this.curveArray.length; i ++) {
+			if(this.curveArray[i].y > 0) {
+				this.curveArray.splice(i, 1);
+				continue;
+			}
+		}
+	}
+	//main stone forge body
+	cube(this.x + p.worldX - 100, this.y + p.worldY - 76, 50, 76, 0.9, 1.05);
+	cube(this.x + p.worldX + 50, this.y + p.worldY - 76, 50, 76, 0.9, 1.05);
+	cube(this.x + p.worldX - 51, this.y + p.worldY - 1125, 102, 1025, 0.9, 1.05);
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 60, 100, 20, 0.9, 1.05);
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 10, 100, 10, 0.9, 1.05);
+	//curved segments
 	for(var i = 0; i < this.curveArray.length - 1; i ++) {
-		if(this.curveArray[i].x > 0) {
-			var p1 = point3d(this.x + p.worldX + this.curveArray[i].x + 50, this.y + p.worldY + this.curveArray[i].y - 75, 0.9);
-			var p2 = point3d(this.x + p.worldX + this.curveArray[i].x + 50, this.y + p.worldY + this.curveArray[i].y - 75, 1.05);
-			var p3 = point3d(this.x + p.worldX + this.curveArray[i + 1].x + 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 1.05);
-			var p4 = point3d(this.x + p.worldX + this.curveArray[i + 1].x + 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 0.9);
-			c.fillStyle = "rgb(150, 150, 150)";
-			c.beginPath();
-			c.moveTo(p1.x, p1.y);
-			c.lineTo(p2.x, p2.y);
-			c.lineTo(p3.x, p3.y);
-			c.lineTo(p4.x, p4.y);
-			c.fill();
+		if(this.curveArray[i].x > 0 && this.curveArray[i + 1].x > 0) {
+			line3d(this.x + p.worldX + this.curveArray[i].x + 50, this.y + p.worldY + this.curveArray[i].y - 75, this.x + p.worldX + this.curveArray[i + 1].x + 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 0.9, 1.05, "rgb(150, 150, 150)");
 		}
 	}
 	for(var i = 0; i < this.curveArray.length - 1; i ++) {
 		if(this.curveArray[i].x < 0) {
-			var p1 = point3d(this.x + p.worldX + this.curveArray[i].x - 50, this.y + p.worldY + this.curveArray[i].y - 75, 0.9);
-			var p2 = point3d(this.x + p.worldX + this.curveArray[i].x - 50, this.y + p.worldY + this.curveArray[i].y - 75, 1.05);
-			var p3 = point3d(this.x + p.worldX + this.curveArray[i + 1].x - 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 1.05);
-			var p4 = point3d(this.x + p.worldX + this.curveArray[i + 1].x - 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 0.9);
-			c.fillStyle = "rgb(150, 150, 150)";
-			c.beginPath();
-			c.moveTo(p1.x, p1.y);
-			c.lineTo(p2.x, p2.y);
-			c.lineTo(p3.x, p3.y);
-			c.lineTo(p4.x, p4.y);
-			c.fill();
+			line3d(this.x + p.worldX + this.curveArray[i].x - 50, this.y + p.worldY + this.curveArray[i].y - 75, this.x + p.worldX + this.curveArray[i + 1].x - 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 0.9, 1.05, "rgb(150, 150, 150)");
 		}
 	}
+	line3d(this.x + p.worldX + 50, this.y + p.worldY - 75, this.x + p.worldX + 50, this.y + p.worldY - 125, 0.9, 1.05, "rgb(150, 150, 150)");
+	line3d(this.x + p.worldX - 50, this.y + p.worldY - 75, this.x + p.worldX - 50, this.y + p.worldY - 125, 0.9, 1.05, "rgb(150, 150, 150)");
 	boxFronts.push({type: "arc", loc: [point3d(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).x, point3d(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).y, 50, 1.5 * Math.PI, 2 * Math.PI], col: "rgb(100, 100, 100)"});
 	boxFronts.push({type: "arc", loc: [point3d(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).x, point3d(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).y, 50, Math.PI, 1.5 * Math.PI], col: "rgb(100, 100, 100)"});
+	//bars underneath
+	for(var x = -30; x <= 30; x += 30) {
+		cube(this.x + p.worldX + x - 10, this.y + p.worldY - 40, 20, 40, 0.9, 1.05);
+	}
+	//fire
+	for(var i = 0; i < 5; i ++) {
+		this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 10, Math.random() * 2 - 1, Math.random() * -2, 10));
+		this.particles[this.particles.length - 1].z = Math.random() * 0.15 + 0.9;
+	}
+	for(var i = 0; i < 5; i ++) {
+		this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 60, Math.random() * 2 - 1, Math.random() * -2, 10));
+		this.particles[this.particles.length - 1].z = Math.random() * 0.15 + 0.9;
+	}
+	for(var i = 0; i < this.particles.length; i ++) {
+		this.particles[i].exist();
+		if(this.particles[i].splicing) {
+			this.particles.splice(i, 1);
+			continue;
+		}
+	}
+	//usage
+	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && keys[83]) {
+		p.guiOpen = "reforge-item";
+	}
 };
 
 /** ROOM DATA **/
@@ -2419,7 +2840,7 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1", "reward2", /*"reward3"*/];
+const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1", "reward2", "reward3"];
 const items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 const enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith/*, /*Troll*/];
 var roomInstances = [
@@ -2452,14 +2873,6 @@ Item.prototype.init = function() {
 			roomInstances[inRoom].content[i].requestingItem = false;
 			break;
 		}
-	}
-	if(this.modifier === "predictable") {
-		this.damLow ++;
-		this.damHigh --;
-	}
-	else if(this.modifier === "unpredictable") {
-		this.damLow --;
-		this.damHigh ++;
 	}
 	this.initialized = true;
 	this.velY = -4;
@@ -2589,6 +3002,8 @@ Weapon.prototype.displayParticles = function() {
 };
 function MeleeWeapon(modifier) {
 	Weapon.call(this, modifier);
+	this.attackSpeed = (this.modifier === "none") ? "normal" : (this.modifier === "light" ? "fast" : "slow");
+	this.attackSpeed = "normal";
 };
 inheritsFrom(MeleeWeapon, Weapon);
 MeleeWeapon.prototype.attack = function() {
@@ -2657,6 +3072,11 @@ Sword.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
+			content: "Attack Speed: " + this.attackSpeed.substr(0, 1).toUpperCase() + this.attackSpeed.substr(1, Infinity),
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
 			content: "A nice, solid weapon.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
@@ -2687,6 +3107,11 @@ Dagger.prototype.getDesc = function() {
 		},
 		{
 			content: "Range: Very Short",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Attack Speed: " + this.attackSpeed.substr(0, 1).toUpperCase() + this.attackSpeed.substr(1, Infinity),
 			font: "10pt monospace",
 			color: "rgb(255, 255, 255)"
 		},
@@ -2777,6 +3202,10 @@ function WoodBow(modifier) {
 	this.damLow = 7;
 	this.damHigh = 10;
 	this.reload = 60;
+	this.range = "long";
+	/* 
+	ranges: very short (daggers), short (swords), medium (forceful bows), long (bows & forceful longbows), very long (longbows & distant bows), super long (distant longbows)
+	*/
 };
 inheritsFrom(WoodBow, RangedWeapon);
 WoodBow.prototype.display = function(type) {
@@ -2818,7 +3247,7 @@ WoodBow.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "Range: Long",
+			content: "Range: " + this.range.substr(0, 1).toUpperCase() + this.range.substr(1, Infinity),
 			font: "10pt monospace",
 			color: "rgb(255, 255, 255)"
 		},
@@ -2894,7 +3323,7 @@ inheritsFrom(MagicWeapon, Weapon);
 function EnergyStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.chargeType = "energy";
-	this.manaCost = 2;
+	this.manaCost = (this.modifier === "none") ? 3 : (this.modifier === "arcane" ? 4 : 2);
 	this.damLow = (p["class"] === "mage") ? 8 : 7;
 	this.damHigh = (p["class"] === "mage") ? 11 : 10;
 };
@@ -4562,9 +4991,17 @@ Particle.prototype.exist = function() {
 	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
 	c.fillStyle = "rgb(255, 0, 0)";
 	c.fillStyle = this.color;
-	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY, this.size, 0, 2 * Math.PI);
-	c.fill();
+	if(this.z === undefined) {
+		c.beginPath();
+		c.arc(this.x + p.worldX, this.y + p.worldY, this.size, 0, 2 * Math.PI);
+		c.fill();
+	}
+	else {
+		var loc = point3d(this.x + p.worldX, this.y + p.worldY, this.z);
+		c.beginPath();
+		c.arc(loc.x, loc.y, this.size * this.z, 0, 2 * Math.PI);
+		c.fill();
+	}
 	c.globalAlpha = prevOp;
 	this.x += this.velX;
 	this.y += this.velY;
@@ -4852,9 +5289,9 @@ Troll.prototype.update = function() {
 
 
 //hax
-p["class"] = "mage";
-p.reset();
-p.onScreen = "play";
+// p["class"] = "archer";
+// p.reset();
+// p.onScreen = "play";
 /** MENUS & UI **/
 var warriorClass = new Player();
 warriorClass.x = 175;
@@ -4880,6 +5317,7 @@ var fadeDest = "none";
 
 /** FRAMES **/
 function doByTime() {
+	cursorHand = false;
 	frameCount ++;
 	resizeCanvas();
 	c.fillStyle = "rgb(100, 100, 100)";
@@ -5316,6 +5754,12 @@ function doByTime() {
 		c.restore();
 	}
 	pMouseIsPressed = mouseIsPressed;
+	if(cursorHand) {
+		canvas.style.cursor = "pointer";
+	}
+	else {
+		canvas.style.cursor = "auto";
+	}
 	window.setTimeout(doByTime, 1000 / fps);
 };
 window.setTimeout(doByTime, 1000 / fps);
