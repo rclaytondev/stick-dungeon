@@ -6,7 +6,7 @@ var mouseX;
 var mouseY;
 var keys = [];
 var fps = 60;
-const showHitboxes = false;
+const showHitboxes = true;
 const floorWidth = 0.1;
 var frameCount = 0;
 var hitboxes = []; //for showing hitboxes when debugging
@@ -1680,7 +1680,7 @@ function Platform(x, y, w) {
 	this.w = w;
 };
 Platform.prototype.exist = function() {
-	cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(139, 69, 19");
+	cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
 	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, 3, [true, false, false, false]);
 };
 function Door(x, y, dest, noEntry, invertEntries) {
@@ -1898,6 +1898,26 @@ Door.prototype.exist = function(parentRoom) {
 						)
 					);
 					break;
+				case "parkour2":
+					roomInstances.push(
+						new Room(
+							"parkour2",
+							[
+								new Block(0, -4000, 1000, 8000), //left wall
+								new Block(200, 0, 1000, 4000), //left floor
+								new Door(1100, 0, ["ambient"]),
+								new Block(1550, 200, 200, 8000), //middle platform
+								new Pulley(1300, 150, 1850, 150, 200),
+								new Door(1650, 200, ["reward"], true),
+								new Block(2100, 0, 1000, 4000), //right floor
+								new Block(2300, -4000, 1000, 8000), //right wall
+								new Door(2200, 0, ["ambient"])
+							],
+							"?",
+							0
+						)
+					);
+					break;
 				case "reward1":
 					roomInstances.push(
 						new Room(
@@ -1984,7 +2004,8 @@ Door.prototype.exist = function(parentRoom) {
 							new Block(1500, -4000, 1000, 5000), //right wall
 							new Block(0, -2000, 8000, 1700), //roof
 							new Forge(1250, 0),
-							new Door(1050, 0, ["blargh"])
+							new Door(1050, 0, ["combat", "parkour"], false, true),
+							new Door(1450, 0, ["combat", "parkour"], false, true)
 						],
 						"?"
 					));
@@ -2652,13 +2673,15 @@ Forge.prototype.exist = function() {
 		cube(this.x + p.worldX + x - 10, this.y + p.worldY - 40, 20, 40, 0.9, 1.05);
 	}
 	//fire
-	for(var i = 0; i < 5; i ++) {
-		this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 10, Math.random() * 2 - 1, Math.random() * -2, 10));
-		this.particles[this.particles.length - 1].z = Math.random() * 0.15 + 0.9;
-	}
-	for(var i = 0; i < 5; i ++) {
-		this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 60, Math.random() * 2 - 1, Math.random() * -2, 10));
-		this.particles[this.particles.length - 1].z = Math.random() * 0.15 + 0.9;
+	if(!this.used) {
+		for(var i = 0; i < 5; i ++) {
+			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 10, Math.random() * 2 - 1, Math.random() * -2, 10));
+			this.particles[this.particles.length - 1].z = Math.random() * 0.15 + 0.9;
+		}
+		for(var i = 0; i < 5; i ++) {
+			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 60, Math.random() * 2 - 1, Math.random() * -2, 10));
+			this.particles[this.particles.length - 1].z = Math.random() * 0.15 + 0.9;
+		}
 	}
 	for(var i = 0; i < this.particles.length; i ++) {
 		this.particles[i].exist();
@@ -2668,8 +2691,76 @@ Forge.prototype.exist = function() {
 		}
 	}
 	//usage
-	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && keys[83]) {
+	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && keys[83] && !this.used) {
 		p.guiOpen = "reforge-item";
+		this.used = true;
+	}
+};
+function Pulley(x1, w1, x2, w2, y) {
+	this.x1 = x1;
+	this.y1 = y;
+	this.w1 = w1;
+	this.x2 = x2;
+	this.y2 = y;
+	this.w2 = w2;
+	this.velY = 0;
+};
+Pulley.prototype.exist = function() {
+	//first platform
+	new Platform(this.x1, this.y1, this.w1).exist();
+	var leftBack = point3d(this.x1 + p.worldX, this.y1 + p.worldY, 0.9);
+	var leftFront = point3d(this.x1 + p.worldX, this.y1 + p.worldY, 1.1);
+	var rightBack = point3d(this.x1 + this.w1 + p.worldX, this.y1 + p.worldY, 0.9);
+	var rightFront = point3d(this.x1 + this.w1 + p.worldX, this.y1 + p.worldY, 1.1);
+	c.strokeStyle = "rgb(150, 150, 150)";
+	c.beginPath();
+	c.moveTo(leftBack.x, leftBack.y);
+	c.lineTo(leftBack.x, 0);
+	c.moveTo(leftFront.x, leftFront.y);
+	c.lineTo(leftFront.x, 0);
+	c.moveTo(rightBack.x, rightBack.y);
+	c.lineTo(rightBack.x, 0);
+	c.moveTo(rightFront.x, rightFront.y);
+	c.lineTo(rightFront.x, 0);
+	c.stroke();
+	//second platform
+	new Platform(this.x2, this.y2, this.w2).exist();
+	var leftBack = point3d(this.x2 + p.worldX, this.y2 + p.worldY, 0.9);
+	var leftFront = point3d(this.x2 + p.worldX, this.y2 + p.worldY, 1.1);
+	var rightBack = point3d(this.x2 + this.w1 + p.worldX, this.y2 + p.worldY, 0.9);
+	var rightFront = point3d(this.x2 + this.w1 + p.worldX, this.y2 + p.worldY, 1.1);
+	c.beginPath();
+	c.moveTo(leftBack.x, leftBack.y);
+	c.lineTo(leftBack.x, 0);
+	c.moveTo(leftFront.x, leftFront.y);
+	c.lineTo(leftFront.x, 0);
+	c.moveTo(rightBack.x, rightBack.y);
+	c.lineTo(rightBack.x, 0);
+	c.moveTo(rightFront.x, rightFront.y);
+	c.lineTo(rightFront.x, 0);
+	c.stroke();
+	//moving
+	this.steppedOn1 = false;
+	this.steppedOn2 = false;
+	if(p.x + 5 > this.x1 + p.worldX && p.x - 5 < this.x1 + this.w1 + p.worldX && p.canJump && this.y1 < 300) {
+		this.velY += (this.velY < 3) ? 0.05 : 0;
+		this.steppedOn1 = true;
+	}
+	if(p.x + 5 > this.x2 + p.worldX && p.x - 5 < this.x2 + this.w2 + p.worldX && p.canJump && this.y2 < 300) {
+		this.velY += (this.velY > -3) ? -0.05 : 0;
+		this.steppedOn2 = true;
+	}
+	this.y1 += this.velY;
+	this.y2 -= this.velY;
+	console.log(this.velY);
+	if(!this.steppedOn1 && !this.steppedOn2) {
+		this.velY *= 0.94;
+	}
+	if(this.steppedOn1) {
+		p.y = this.y1 + p.worldY - 45;
+	}
+	else if(this.steppedOn2) {
+		p.y = this.y2 + p.worldY - 45;
 	}
 };
 
@@ -2840,9 +2931,9 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-const rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "reward1", "reward2", "reward3"];
-const items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
-const enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith/*, /*Troll*/];
+var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"*/];
+var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
+var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, Troll];
 var roomInstances = [
 	new Room(
 		"ambient",
@@ -4883,8 +4974,8 @@ SkeletonArcher.prototype.attack = function() {
 			var velocity = getRotated(50, 0, this.aimRot);
 			velocity.x /= 5;
 			velocity.y /= 5;
-			var velY = velocity.y / 2;
-			var velX = velocity.x / 2;
+			var velY = velocity.y / 1.75;
+			var velX = velocity.x / 1.75;
 			var simulationVelY = velY;
 			velocity.x += this.x + p.worldX + 8;
 			velocity.y += this.y + p.worldY + 15;
@@ -4930,8 +5021,8 @@ SkeletonArcher.prototype.attack = function() {
 			var velocity = getRotated(-50, 0, -this.aimRot);
 			velocity.x /= 5;
 			velocity.y /= 5;
-			var velY = velocity.y / 2;
-			var velX = velocity.x / 2;
+			var velY = velocity.y / 1.75;
+			var velX = velocity.x / 1.75;
 			var simulationVelY = velY;
 			velocity.x += this.x + p.worldX - 8;
 			velocity.y += this.y + p.worldY + 15;
@@ -5154,6 +5245,8 @@ function Troll(x, y) {
 	this.attackArmRot = 0;
 	this.legs = 0;
 	this.legDir = 1;
+	this.currentAction = "move";
+	this.timeDoingAction = 0;
 	
 	//hitbox
 	this.leftX = -60;
@@ -5270,8 +5363,8 @@ Troll.prototype.display = function() {
 	c.fillRect(-50, -15, 50, 30);
 	c.restore();
 	this.attackArmRot += this.attackArmDir;
-	this.attackArmDir = (this.attackArmRot > 45) ? -2 : this.attackArmDir;
-	this.attackArmDir = (this.attackArmRot < -45) ? 2 : this.attackArmDir;
+	this.attackArmDir = (this.attackArmRot > 80) ? -2 : this.attackArmDir;
+	this.attackArmDir = (this.attackArmRot < 0) ? 2 : this.attackArmDir;
 };
 Troll.prototype.update = function() {
 	//movement
