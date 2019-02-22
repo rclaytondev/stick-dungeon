@@ -6,7 +6,7 @@ var mouseX;
 var mouseY;
 var keys = [];
 var fps = 60;
-const showHitboxes = true;
+const showHitboxes = false;
 const floorWidth = 0.1;
 var frameCount = 0;
 var hitboxes = []; //for showing hitboxes when debugging
