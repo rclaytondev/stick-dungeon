@@ -2943,7 +2943,7 @@ var roomInstances = [
 			new Block(-400, -1000, 2000, 1300),
 			new Block(700, -200, 500, 1000),
 			new Door(400,  500, ["ambient", "combat", "parkour", "secret"]),
-			new Door(500,  500, ["reward"]),
+			new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
 			new Door(600,  500, ["ambient", "combat", "parkour", "secret"])
 		],
 		"?"
