@@ -2933,7 +2933,7 @@ Room.prototype.exist = function(index) {
 };
 var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
-var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, Troll];
+var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 var roomInstances = [
 	new Room(
 		"ambient",
