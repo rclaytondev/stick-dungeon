@@ -718,8 +718,9 @@ Player.prototype.update = function() {
 	this.fallOp += this.fallDir;
 	this.fallOp = this.fallOp < 0 ? 0 : this.fallOp;
 	if(this.fallOp > 1) {
+		this.roomsExplored ++;
 		this.fallDir = -0.05;
-		inRoom ++;
+		inRoom = numRooms;
 		this.worldX = 0;
 		this.worldY = 0;
 		this.x = 500;
@@ -5509,7 +5510,7 @@ Troll.prototype.update = function() {
 //hax
 // p["class"] = "archer";
 // p.reset();
-// p.onScreen = "dead";
+p.onScreen = "dead";
 /** MENUS & UI **/
 var warriorClass = new Player();
 warriorClass.x = 175;
@@ -5535,6 +5536,207 @@ var fadeDest = "none";
 var btn1 = 0;
 var btn2 = 0;
 var btn3 = 0;
+function fancyText(x, y, txt) {
+	c.strokeStyle = "rgb(255, 255, 255)";
+	if(txt === "play") {
+		c.save();
+		c.beginPath();
+		c.translate(x - 47.5, y);
+		c.moveTo(10, 0);
+		c.lineTo(5, 0);
+		c.lineTo(5, -20);
+		c.lineTo(0, -20);
+		c.stroke();
+		c.beginPath();
+		c.moveTo(5, -20);
+		c.lineTo(20, -15);
+		c.lineTo(5, -10);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x - 22.5, y);
+		c.beginPath();
+		c.moveTo(0, -20);
+		c.lineTo(5, -20);
+		c.lineTo(5, 0);
+		c.lineTo(0, 0);
+		c.lineTo(20, 0);
+		c.lineTo(20, -5);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 2.5, y);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(10, -20);
+		c.lineTo(20, 0);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 27.5, y);
+		c.beginPath();
+		c.moveTo(5, 0);
+		c.lineTo(15, 0);
+		c.stroke();
+		c.beginPath();
+		c.moveTo(10, 0);
+		c.lineTo(10, -10);
+		c.lineTo(0, -20);
+		c.stroke();
+		c.beginPath();
+		c.moveTo(10, -10);
+		c.lineTo(20, -20);
+		c.stroke();
+		c.restore();
+	}
+	else if(txt === "how") {
+		c.save();
+		c.translate(x - 35, y);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(5, 0);
+		c.moveTo(2.5, 0);
+		c.lineTo(2.5, -20);
+		c.moveTo(0, -20);
+		c.lineTo(5, -20);
+		c.moveTo(2.5, -12.5);
+		c.lineTo(17.5, -7.5);
+		c.moveTo(15, 0);
+		c.lineTo(20, 0);
+		c.moveTo(17.5, 0);
+		c.lineTo(17.5, -20);
+		c.moveTo(15, -20);
+		c.lineTo(20, -20);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x - 10, y);
+		c.beginPath();
+		c.moveTo(0, -10);
+		c.lineTo(10, -20);
+		c.lineTo(20, -10);
+		c.lineTo(10, 0);
+		c.lineTo(0, -10);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 15, y);
+		c.beginPath();
+		c.moveTo(5, -20);
+		c.lineTo(0, -20);
+		c.lineTo(5, 0);
+		c.lineTo(10, -10);
+		c.lineTo(15, 0);
+		c.lineTo(20, -20);
+		c.lineTo(15, -20);
+		c.stroke();
+		c.restore();
+	}
+	else if(txt === "scores") {
+		c.save();//675, 495
+		c.translate(x - 72.5, y);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(20, -6);
+		c.lineTo(0, -14);
+		c.lineTo(20, -20);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x - 47.5, y);
+		c.moveTo(0, 0);
+		c.lineTo(20, 0);
+		c.lineTo(20, -5);
+		c.moveTo(5, 0);
+		c.lineTo(5, -20);
+		c.moveTo(0, -20);
+		c.lineTo(20, -20);
+		c.lineTo(20, -15);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x - 22.5, y);
+		c.beginPath();
+		c.moveTo(0, -10);
+		c.lineTo(10, -20);
+		c.lineTo(20, -10);
+		c.lineTo(10, 0);
+		c.lineTo(0, -10);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 2.5, y);
+		c.beginPath();
+		c.moveTo(10, 0);
+		c.lineTo(5, 0);
+		c.lineTo(5, -20);
+		c.lineTo(0, -20);
+		c.stroke();
+		c.beginPath();
+		c.moveTo(5, -20);
+		c.lineTo(20, -15);
+		c.lineTo(5, -10);
+		c.lineTo(20, 0);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 27.5, y);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(20, 0);
+		c.lineTo(20, -5);
+		c.moveTo(5, 0);
+		c.lineTo(5, -20);
+		c.moveTo(0, -20);
+		c.lineTo(20, -20);
+		c.lineTo(20, -15);
+		c.moveTo(5, -10);
+		c.lineTo(20, -10);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 52.5, y);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(20, -6);
+		c.lineTo(0, -14);
+		c.lineTo(20, -20);
+		c.stroke();
+		c.restore();
+	}
+	else if(txt === "home") {
+		c.fillStyle = "rgb(255, 0, 0)";
+		c.fillRect(x - 22.5, y, 20, 5);
+		c.fillRect(x + 2.5, y, 20, 5);
+		c.fillRect(x - 47.5, y, 20, 5);
+		c.fillRect(x + 27.5, y, 20, 5);
+
+		c.save();
+		c.translate(x - 22.5, y - 5);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(5, 0);
+		c.moveTo(2.5, 0);
+		c.lineTo(2.5, -20);
+		c.moveTo(0, -20);
+		c.lineTo(5, -20);
+		c.moveTo(2.5, -10);
+		c.lineTo(17.5, -10);
+		c.moveTo(17.5, -20);
+		c.stroke();
+		c.restore();
+	}
+};
 /** FRAMES **/
 function doByTime() {
 	cursorHand = false;
@@ -5652,58 +5854,8 @@ function doByTime() {
 		c.beginPath();
 		c.arc(125, 440, 85, 0, 2 * Math.PI);
 		c.fill();
-		//left door text - drawn by hand b/c I couldn't find any ancient-looking fonts
-		{
-			c.strokeStyle = "rgb(255, 255, 255)";
-			c.save();
-			c.translate(125 - 35, 495);
-			c.beginPath();
-			c.moveTo(0, 0);
-			c.lineTo(5, 0);
-			c.moveTo(2.5, 0);
-			c.lineTo(2.5, -20);
-			c.moveTo(0, -20);
-			c.lineTo(5, -20);
-			c.moveTo(2.5, -12.5);
-			c.lineTo(17.5, -7.5);
-			c.moveTo(15, 0);
-			c.lineTo(20, 0);
-			c.moveTo(17.5, 0);
-			c.lineTo(17.5, -20);
-			c.moveTo(15, -20);
-			c.lineTo(20, -20);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(125 - 10, 495);
-			c.beginPath();
-			c.moveTo(0, -10);
-			c.lineTo(10, -20);
-			c.lineTo(20, -10);
-			c.lineTo(10, 0);
-			c.lineTo(0, -10);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(125 + 15, 495);
-			c.beginPath();
-			c.moveTo(5, -20);
-			c.lineTo(0, -20);
-			c.lineTo(5, 0);
-			c.lineTo(10, -10);
-			c.lineTo(15, 0);
-			c.lineTo(20, -20);
-			c.lineTo(15, -20);
-			c.stroke();
-			c.restore();
-
-			// c.fillStyle = "rgb(255, 0, 0)";
-			// c.fillRect(185 - 10, 500, 20, 5);
-			// c.fillRect(185 + 15, 500, 20, 5);
-			// c.fillRect(185 - 35, 500, 20, 5);
-		}
+		//left door text
+		fancyText(125, 495, "how");
 		c.fillStyle = "rgb(20, 20, 20)";
 		//middle door
 		c.fillRect(320, 380, 160, 200);
@@ -5711,78 +5863,16 @@ function doByTime() {
 		c.arc(400, 380, 80, 0, 2 * Math.PI);
 		c.fill();
 		//middle door text
-		{
-			c.strokeStyle = "rgb(255, 255, 255)";
-
-			c.save();
+		fancyText(400, 455, "play");
+		if(btn1 > 0) {
 			c.beginPath();
-			c.translate(400 - 47.5, 455);
-			c.moveTo(10, 0);
-			c.lineTo(5, 0);
-			c.lineTo(5, -20);
-			c.lineTo(0, -20);
+			c.moveTo(400 - btn1, 465);
+			c.lineTo(400 + btn1, 465);
 			c.stroke();
 			c.beginPath();
-			c.moveTo(5, -20);
-			c.lineTo(20, -15);
-			c.lineTo(5, -10);
+			c.moveTo(400 - btn1, 425);
+			c.lineTo(400 + btn1, 425);
 			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(400 - 22.5, 455);
-			c.beginPath();
-			c.moveTo(0, -20);
-			c.lineTo(5, -20);
-			c.lineTo(5, 0);
-			c.lineTo(0, 0);
-			c.lineTo(20, 0);
-			c.lineTo(20, -5);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(402.5, 455);
-			c.beginPath();
-			c.moveTo(0, 0);
-			c.lineTo(10, -20);
-			c.lineTo(20, 0);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(427.5, 455);
-			c.beginPath();
-			c.moveTo(5, 0);
-			c.lineTo(15, 0);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(10, 0);
-			c.lineTo(10, -10);
-			c.lineTo(0, -20);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(10, -10);
-			c.lineTo(20, -20);
-			c.stroke();
-			c.restore();
-
-			if(btn1 > 0) {
-				c.beginPath();
-				c.moveTo(400 - btn1, 465);
-				c.lineTo(400 + btn1, 465);
-				c.stroke();
-				c.beginPath();
-				c.moveTo(400 - btn1, 425);
-				c.lineTo(400 + btn1, 425);
-				c.stroke();
-			}
-
-			c.fillStyle = "rgb(255, 0, 0)";
-			// c.fillRect(400 - 22.5, 460, 20, 5);
-			// c.fillRect(400 + 2.5, 460, 20, 5);
-			// c.fillRect(400 - 47.5, 460, 20, 5);
-			// c.fillRect(400 + 27.5, 460, 20, 5);
 		}
 		//right door
 		c.fillStyle = "rgb(20, 20, 20)";
@@ -5791,93 +5881,7 @@ function doByTime() {
 		c.arc(675, 420, 85, 0, 2 * Math.PI);
 		c.fill();
 		//right door text
-		{
-			c.strokeStyle = "rgb(255, 255, 255)";
-
-			c.save();
-			c.translate(675 - 72.5, 495);
-			c.beginPath();
-			c.moveTo(0, 0);
-			c.lineTo(20, -6);
-			c.lineTo(0, -14);
-			c.lineTo(20, -20);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(675 - 47.5, 495);
-			c.moveTo(0, 0);
-			c.lineTo(20, 0);
-			c.lineTo(20, -5);
-			c.moveTo(5, 0);
-			c.lineTo(5, -20);
-			c.moveTo(0, -20);
-			c.lineTo(20, -20);
-			c.lineTo(20, -15);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(675 - 22.5, 495);
-			c.beginPath();
-			c.moveTo(0, -10);
-			c.lineTo(10, -20);
-			c.lineTo(20, -10);
-			c.lineTo(10, 0);
-			c.lineTo(0, -10);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(677.5, 495);
-			c.beginPath();
-			c.moveTo(10, 0);
-			c.lineTo(5, 0);
-			c.lineTo(5, -20);
-			c.lineTo(0, -20);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(5, -20);
-			c.lineTo(20, -15);
-			c.lineTo(5, -10);
-			c.lineTo(20, 0);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(675 + 27.5, 495);
-			c.beginPath();
-			c.moveTo(0, 0);
-			c.lineTo(20, 0);
-			c.lineTo(20, -5);
-			c.moveTo(5, 0);
-			c.lineTo(5, -20);
-			c.moveTo(0, -20);
-			c.lineTo(20, -20);
-			c.lineTo(20, -15);
-			c.moveTo(5, -10);
-			c.lineTo(20, -10);
-			c.stroke();
-			c.restore();
-
-			c.save();
-			c.translate(675 + 52.5, 495);
-			c.beginPath();
-			c.moveTo(0, 0);
-			c.lineTo(20, -6);
-			c.lineTo(0, -14);
-			c.lineTo(20, -20);
-			c.stroke();
-			c.restore();
-
-			// c.fillStyle = "rgb(255, 0, 0)";
-			// c.fillRect(675 - 22.5, 500, 20, 5);
-			// c.fillRect(675 + 2.5, 500, 20, 5);
-			// c.fillRect(675 + 27.5, 500, 20, 5);
-			// c.fillRect(675 - 47.5, 500, 20, 5);
-			// c.fillRect(675 - 72.5, 500, 20, 5);
-			// c.fillRect(675 + 52.5, 500, 20, 5);
-		}
+		fancyText(675, 495, "scores");
 		loadBoxFronts();
 		if(Math.dist(mouseX, mouseY, 400, 380) <= 80 || (mouseX > 320 && mouseX < 480 && mouseY > 380 && mouseY < 580)) {
 			cursorHand = true;
@@ -5989,6 +5993,13 @@ function doByTime() {
 		p.worldX = 0;
 		p.worldY = 0;
 		new Block(-100, 700, 1000, 200).display();
+		//buttons
+		c.fillStyle = "rgb(20, 20, 20)";
+		c.fillRect(100, 570, 150, 100);
+		c.beginPath();
+		c.arc(175, 570, 75, 0, 2 * Math.PI);
+		c.fill();
+		fancyText(175, 620, "home");
 	}
 	if(p.onScreen !== "play") {
 		if(fading === "out") {
