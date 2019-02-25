@@ -403,6 +403,7 @@ function Player() {
 	this.enemiesKilled = 0;
 	this.deathCause = null;
 	this.secretsFound = 0;
+	this.dead = false;
 };
 Player.prototype.init = function() {
 	for(var x = 0; x < 3; x ++) {
@@ -959,6 +960,13 @@ Player.prototype.update = function() {
 	}
 	if(this.gold > this.maxGold) {
 		this.maxGold = this.gold;
+	}
+	if(this.dead) {
+		this.op -= 0.05;
+		if(this.op <= 0) {
+			fading = "out";
+			fadeDest = "dead";
+		}
 	}
 };
 Player.prototype.gui = function() {
@@ -1619,7 +1627,7 @@ Player.prototype.addItem = function(item) {
 		}
 	}
 };
-Player.prototype.hurt = function(amount) {
+Player.prototype.hurt = function(amount, killer) {
 	this.defLow = 0;//work in progress, this will change depending on armor
 	this.defHigh = 0;
 	var defense = Math.random() * (this.defHigh - this.defLow) + this.defLow;
@@ -1629,6 +1637,10 @@ Player.prototype.hurt = function(amount) {
 	}
 	damage = Math.round(damage);
 	this.health -= damage;
+	if(this.health <= 0) {
+		this.dead = true;
+		this.deathCause = killer;
+	}
 };
 Player.prototype.reset = function() {
 	this.health = 10;
@@ -3052,7 +3064,7 @@ Room.prototype.exist = function(index) {
 	c.fillRect(0, 0, 800, 800);
 };
 var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
-// rooms = ["parkour1"];
+rooms = ["combat1"];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 var roomInstances = [
@@ -5508,9 +5520,9 @@ Troll.prototype.update = function() {
 
 
 //hax
-// p["class"] = "archer";
-// p.reset();
-p.onScreen = "dead";
+p["class"] = "archer";
+p.reset();
+p.onScreen = "play";
 /** MENUS & UI **/
 var warriorClass = new Player();
 warriorClass.x = 175;
@@ -5538,6 +5550,7 @@ var btn2 = 0;
 var btn3 = 0;
 function fancyText(x, y, txt) {
 	c.strokeStyle = "rgb(255, 255, 255)";
+	c.lineWidth = 1;
 	if(txt === "play") {
 		c.save();
 		c.beginPath();
@@ -5715,14 +5728,14 @@ function fancyText(x, y, txt) {
 		c.restore();
 	}
 	else if(txt === "home") {
-		c.fillStyle = "rgb(255, 0, 0)";
-		c.fillRect(x - 22.5, y, 20, 5);
-		c.fillRect(x + 2.5, y, 20, 5);
-		c.fillRect(x - 47.5, y, 20, 5);
-		c.fillRect(x + 27.5, y, 20, 5);
+		// c.fillStyle = "rgb(255, 0, 0)";
+		// c.fillRect(x - 22.5, y, 20, 5);
+		// c.fillRect(x + 2.5, y, 20, 5);
+		// c.fillRect(x - 47.5, y, 20, 5);
+		// c.fillRect(x + 27.5, y, 20, 5);
 
 		c.save();
-		c.translate(x - 22.5, y - 5);
+		c.translate(x - 47.5, y - 5);
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(5, 0);
@@ -5733,6 +5746,51 @@ function fancyText(x, y, txt) {
 		c.moveTo(2.5, -10);
 		c.lineTo(17.5, -10);
 		c.moveTo(17.5, -20);
+		c.lineTo(17.5, 0);
+		c.moveTo(15, -20);
+		c.lineTo(20, -20);
+		c.moveTo(15, 0);
+		c.lineTo(20, 0);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x - 22.5, y - 5);
+		c.beginPath();
+		c.moveTo(0, -10);
+		c.lineTo(10, -20);
+		c.lineTo(20, -10);
+		c.lineTo(10, 0);
+		c.lineTo(0, -10);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 2.5, y - 5);
+		c.beginPath();
+		c.moveTo(5, 0);
+		c.lineTo(0, 0);
+		c.lineTo(5, -20);
+		c.lineTo(10, -10);
+		c.lineTo(15, -20);
+		c.lineTo(20, 0);
+		c.lineTo(15, 0);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 27.5, y - 5);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(20, 0);
+		c.lineTo(20, -5);
+		c.moveTo(5, 0);
+		c.lineTo(5, -20);
+		c.moveTo(0, -20);
+		c.lineTo(20, -20);
+		c.lineTo(20, -15);
+		c.moveTo(5, -10);
+		c.lineTo(20, -10);
 		c.stroke();
 		c.restore();
 	}
@@ -6000,11 +6058,38 @@ function doByTime() {
 		c.arc(175, 570, 75, 0, 2 * Math.PI);
 		c.fill();
 		fancyText(175, 620, "home");
+		if(btn1 > 0) {
+			c.beginPath();
+			c.moveTo(175 - btn1, 590);
+			c.lineTo(175 + btn1, 590);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(175 - btn1, 620);
+			c.lineTo(175 + btn1, 620);
+			c.stroke();
+		}
+		if((mouseX > 100 && mouseX < 250 && mouseY > 570 && mouseY < 670) || Math.dist(mouseX, mouseY, 175, 570) <= 75) {
+			cursorHand = true;
+			if(btn1 < 50) {
+				btn1 += 5;
+			}
+			if(mouseIsPressed) {
+				fading = "out";
+				fadeDest = "home";
+			}
+		}
+		else if(btn1 > 0) {
+			btn1 -= 5;
+		}
 	}
-	if(p.onScreen !== "play") {
+	if(p.onScreen !== "play" || p.dead) {
+		console.log("fading");
 		if(fading === "out") {
 			fadeOp += 0.05;
 			if(fadeOp >= 1) {
+				btn1 = 0;
+				btn2 = 0;
+				btn3 = 0;
 				fading = "in";
 				p.onScreen = fadeDest;
 			}
