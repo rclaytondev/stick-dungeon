@@ -183,6 +183,30 @@ function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
 	c.lineTo(p4.x, p4.y);
 	c.fill();
 };
+function polygon3d(frontCol, sideCol, startDepth, endDepth, points) {
+	//front face
+	var fronts = [];
+	for(var i = 4; i < arguments.length; i += 2) {
+		fronts.push(point3d(arguments[i], arguments[i + 1], startDepth));
+	}
+	c.fillStyle = frontCol;
+	c.strokeStyle = frontCol;
+	c.beginPath();
+	c.moveTo(arguments[2], arguments[3]);
+	for(var i = 0; i < fronts.length; i ++) {
+		c.lineTo(fronts[i].x, fronts[i].y);
+	}
+	c.fill();
+	c.stroke();
+	//side faces
+	c.fillStyle = sideCol;
+	var backs = [];
+	for(var i = 4; i < arguments.length; i += 2) {
+		if(i !== arguments.length - 1) {
+			line3d(arguments[i].x, arguments[i].y, arguments[i + 1].x, arguments[i + 1].y, startDepth, endDepth, )
+		}
+	}
+};
 function hitboxRect(x, y, w, h) {
 	if(showHitboxes) {
 		hitboxes.push({x: x, y: y, w: w, h: h});
@@ -1964,6 +1988,21 @@ Door.prototype.exist = function(parentRoom) {
 						)
 					);
 					break;
+				case "secret2":
+					roomInstances.push(
+						new Room(
+							"secret2",
+							[
+								new Door(100, 500, ["ambient", "combat", "parkour"]),
+								new Block(-1000, -1000, 1000, 2000), //left wall
+								new Block(-100, 500, 1010, 500), //floor
+								new Block(600, -1000, 1000, 2000), //right wall,
+
+							],
+							"?"
+						)
+					);
+					break;
 				case "parkour1":
 					roomInstances.push(
 						new Room(
@@ -2925,6 +2964,14 @@ Pillar.prototype.exist = function() {
 	collisionRect(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12);
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10);
 };
+function Statue(x, y, itemHolding) {
+	this.x = x;
+	this.y = y;
+	this.itemHolding = itemHolding;
+};
+Statue.prototype.exist = function() {
+
+};
 /** ROOM DATA **/
 var inRoom = 0;
 var numRooms = 0;
@@ -3104,8 +3151,8 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = (p.screenOp < p.fallOp) ? p.fallOp : p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
-// rooms = ["combat1"];
+var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
+rooms = ["secret2"];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 var roomInstances = [
