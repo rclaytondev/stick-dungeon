@@ -358,47 +358,56 @@ function circle(x, y, r) {
 
 /** PLAYER **/
 function Player() {
+	//location
 	this.x = 500;
 	this.y = 300;
-	this.velX = 0;
-	this.velY = 0;
-	this.onScreen = "home";
-	this.legs = 5;
-	this.legDir = 1;
 	this.worldX = 0;
 	this.worldY = 0;
-	this.canJump = false;
+	this.onScreen = "home";
+	//animation
+	this.legs = 5;
+	this.legDir = 1;
 	this.enteringDoor = false;
-	this.screenOp = 0;
 	this.op = 1;
+	this.screenOp = 0;
+	this.fallOp = 0;
+	this.fallDir = 0;
+	this.fallDmg = 0;
+	//health bars
 	this.health = 10;
 	this.maxHealth = 10;
 	this.visualHealth = 1;
 	this.mana = 10;
+	this.maxMana = 10;
 	this.visualMana = 1;
 	this.gold = 0;
 	this.maxGold = 1;
 	this.visualGold = 1;
-	this.guiOpen = "none";
+	//movement
+	this.canJump = false;
+	this.velX = 0;
+	this.velY = 0;
+	//inventory + gui
 	this.invSlots = [];
-	this.openingBefore = false;
-	this.openCooldown = 0;
+	this.guiOpen = "none";
 	this.activeSlot = 0;
+	this.openCooldown = 0;
+	//attacking
 	this.facing = "right";
 	this.attacking = false;
 	this.attackArmRot = 0;
 	this.attackArmDir = null;
 	this.canHit = true;
-	this.numHeals = 0;
+	this.shootReload = 0;
 	this.aimRot = null;
 	this.aiming = false;
-	this.shootReload = 0;
+	this.numHeals = 0;
+	this.attackSpeed = 5;
+	//other object properties
 	this.healthAltarsFound = 0;
 	this.manaAltarsFound = 0;
-	this.attackSpeed = 5;
-	this.fallOp = 0;
-	this.fallDir = 0;
-	this.fallDmg = 0;
+	this.openingBefore = false;
+	//scoring / permanent values
 	this.roomsExplored = 0;
 	this.enemiesKilled = 0;
 	this.deathCause = null;
@@ -1643,16 +1652,42 @@ Player.prototype.hurt = function(amount, killer) {
 	}
 };
 Player.prototype.reset = function() {
-	this.health = 10;
-	this.maxHealth = 10;
-	this.visualHealth = 1;
-	this.mana = 10;
-	this.maxMana = 10;
-	this.visualMana = 1;
-	this.invSlots = [];
-	this.init();
-	this.screenOp = 1;
-	this.exitingDoor = true;
+	roomInstances = [
+		new Room(
+			"ambient",
+			[
+				new Pillar(200, 500, 200),
+				new Pillar(400, 500, 200),
+				new Pillar(600, 500, 200),
+				new Pillar(800, 500, 200),
+				new Block(-200, 500, 2000, 600),//floor
+				new Block(-600, -200, 700, 900), //left wall
+				new Block(-400, -1000, 2000, 1300), //ceiling
+				new Block(900, -200, 500, 1000), //right wall
+				new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
+				new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
+				new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
+			],
+			"?"
+		)
+	];
+	inRoom = 0;
+	numRooms = 0;
+	var permanentProperties = ["onScreen", "class"]; //properties that should not be reset
+	for(var i in this) {
+		var isPermanent = false;
+		permanentLoop: for(var j = 0; j < permanentProperties.length; j ++) {
+			if(i === permanentProperties[j]) {
+				isPermanent = true;
+				break permanentLoop;
+			}
+		}
+		if(!isPermanent) {
+			var newPlayer = new Player();
+			newPlayer.init();
+			this[i] = newPlayer[i];
+		}
+	}
 	switch(this["class"]) {
 		case "warrior":
 			this.addItem(new Sword());
@@ -2890,7 +2925,6 @@ Pillar.prototype.exist = function() {
 	collisionRect(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12);
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10);
 };
-
 /** ROOM DATA **/
 var inRoom = 0;
 var numRooms = 0;
@@ -2958,7 +2992,7 @@ Room.prototype.exist = function(index) {
 			if(this.content[i].x + p.worldX + this.content[i].rightX > p.x - 5 && this.content[i].x + p.worldX + this.content[i].leftX < p.x + 5 && this.content[i].y + p.worldY + this.content[i].bottomY > p.y - 5 && this.content[i].y + p.worldY + this.content[i].topY < p.y + 46 && this.content[i].attackRecharge < 0 && !this.content[i].complexAttack) {
 				this.content[i].attackRecharge = 45;
 				var damage = Math.random() * (this.content[i].damHigh - this.content[i].damLow) + this.content[i].damLow;
-				p.hurt(damage);
+				p.hurt(damage, this.content[i].name);
 			}
 			//remove dead enemies
 			if(this.content[i].splicing && this.content[i].opacity <= 0) {
@@ -3044,6 +3078,13 @@ Room.prototype.exist = function(index) {
 	//load magic charges
 	for(var i = 0; i < chargeIndexes.length; i ++) {
 		this.content[chargeIndexes[i]].exist();
+		if(this.content[chargeIndexes[i]].splicing) {
+			for(var j = 0; j < this.content[chargeIndexes[i]].particles.length; j ++) {
+				this.content.push(Object.create(this.content[chargeIndexes[i]].particles[j]));
+			}
+			this.content.splice(chargeIndexes[i], 1);
+			continue;
+		}
 	}
 	//load boulders
 	for(var i = 0; i < boulderIndexes.length; i ++) {
@@ -3064,7 +3105,7 @@ Room.prototype.exist = function(index) {
 	c.fillRect(0, 0, 800, 800);
 };
 var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
-rooms = ["combat1"];
+// rooms = ["combat1"];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 var roomInstances = [
@@ -3812,7 +3853,7 @@ Boulder.prototype.exist = function() {
 				this.hitAnEnemy = true;
 			}
 			if(this.x + p.worldX + 40 > p.x - 5 && this.x + p.worldX - 40 < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && !this.hitAPlayer) {
-				p.hurt(this.damage);
+				p.hurt(this.damage, "a chunk of rock");
 				this.hitAPlayer = true;
 			}
 		}
@@ -4196,7 +4237,7 @@ Coin.prototype.display = function(type) {
 	c.fillText(this.quantity, 0, 7);
 	c.restore();
 };
-function ShotArrow(x, y, velX, velY, damage, shotBy, element) {
+function ShotArrow(x, y, velX, velY, damage, shotBy, element, name) {
 	this.x = x;
 	this.y = y;
 	this.velX = velX;
@@ -4205,6 +4246,7 @@ function ShotArrow(x, y, velX, velY, damage, shotBy, element) {
 	this.opacity = 1;
 	this.damage = damage;
 	this.element = element;
+	this.name = name;
 	this.hitSomething = false;
 };
 ShotArrow.prototype.exist = function() {
@@ -4284,7 +4326,7 @@ ShotArrow.prototype.exist = function() {
 			}
 		}
 		if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && this.shotBy === "enemy") {
-			p.hurt(this.damage);
+			p.hurt(this.damage, this.name);
 			this.hitSomething = true;
 		}
 	}
@@ -4447,6 +4489,7 @@ function Spider(x, y) {
 	this.defHigh = 3;
 	this.damLow = 2;
 	this.damHigh = 3;
+	this.name = "a giant spider";
 };
 inheritsFrom(Spider, Enemy);
 Spider.prototype.display = function() {
@@ -4594,6 +4637,7 @@ function Bat(x, y) {
 	this.defHigh = 3;
 	this.damLow = 2;
 	this.damHigh = 3;
+	this.name = "a blood-sucking bat"
 };
 inheritsFrom(Bat, Enemy);
 Bat.prototype.display = function() {
@@ -4701,6 +4745,7 @@ function Skeleton(x, y) {
 	this.rightX = 13;
 	this.topY = -8;
 	this.bottomY = 43;
+	this.name = "a skeleton";
 };
 inheritsFrom(Skeleton, Enemy);
 Skeleton.prototype.display = function() {
@@ -4803,6 +4848,7 @@ function SkeletonWarrior(x, y) {
 	this.damLow = 5;
 	this.damHigh = 7;
 	this.complexAttack = true;
+	this.name = "a skeletal warrior";
 };
 inheritsFrom(SkeletonWarrior, Enemy);
 SkeletonWarrior.prototype.display = function() {
@@ -4936,7 +4982,7 @@ SkeletonWarrior.prototype.attack = function() {
 		swordEnd.y += this.y + p.worldY + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
 			var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-			p.hurt(damage);
+			p.hurt(damage, this.name);
 			this.canHit = false;
 			this.timeSinceAttack = 0;
 			this.attackArmDir = -this.attackArmDir;
@@ -4948,7 +4994,7 @@ SkeletonWarrior.prototype.attack = function() {
 		swordEnd.y += this.y + p.worldY + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
 			var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-			p.hurt(damage);
+			p.hurt(damage, this.name);
 			this.canHit = false;
 			this.timeSinceAttack = 0;
 			this.attackArmDir = -this.attackArmDir;
@@ -4979,6 +5025,7 @@ function SkeletonArcher(x, y) {
 	this.damLow = 5;
 	this.damHigh = 7;
 	this.complexAttack = true;
+	this.name = "a skeletal archer";
 };
 inheritsFrom(SkeletonArcher, Enemy);
 SkeletonArcher.prototype.display = function() {
@@ -5128,7 +5175,7 @@ SkeletonArcher.prototype.attack = function() {
 				this.timeSinceAttack = 0;
 				this.timeAiming = 0;
 				var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy"));
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "a skeletal archer"));
 			}
 			else if(y <= p.y - 7) {
 				this.aimRot ++;
@@ -5138,7 +5185,7 @@ SkeletonArcher.prototype.attack = function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy"));
+						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "a skeletal archer"));
 					}
 				}
 			}
@@ -5150,7 +5197,7 @@ SkeletonArcher.prototype.attack = function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy"));
+						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "a skeletal archer"));
 					}
 				}
 			}
@@ -5258,6 +5305,7 @@ function Wraith(x, y) {
 	this.defLow = 4;
 	this.defHigh = 5;
 	this.complexAttack = true;
+	this.name = "a wraith of shadow";
 };
 inheritsFrom(Wraith, Enemy);
 Wraith.prototype.display = function() {
@@ -5371,7 +5419,7 @@ MagicCharge.prototype.exist = function() {
 	}
 	if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && this.type === "shadow") {
 		var damage = Math.round(Math.random()) + 4;
-		p.hurt(damage);
+		p.hurt(damage, this.name);
 		this.splicing = true;
 	}
 };
@@ -5400,6 +5448,7 @@ function Troll(x, y) {
 	this.damLow = 5;
 	this.damHigh = 7;
 	this.complexAttack = true;
+	this.name = "a troll";
 };
 inheritsFrom(Troll, Enemy);
 Troll.prototype.display = function() {
@@ -5522,7 +5571,7 @@ Troll.prototype.update = function() {
 //hax
 p["class"] = "archer";
 p.reset();
-p.onScreen = "play";
+p.onScreen = "home";
 /** MENUS & UI **/
 var warriorClass = new Player();
 warriorClass.x = 175;
@@ -5735,7 +5784,7 @@ function fancyText(x, y, txt) {
 		// c.fillRect(x + 27.5, y, 20, 5);
 
 		c.save();
-		c.translate(x - 47.5, y - 5);
+		c.translate(x - 47.5, y);
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(5, 0);
@@ -5755,7 +5804,7 @@ function fancyText(x, y, txt) {
 		c.restore();
 
 		c.save();
-		c.translate(x - 22.5, y - 5);
+		c.translate(x - 22.5, y);
 		c.beginPath();
 		c.moveTo(0, -10);
 		c.lineTo(10, -20);
@@ -5766,7 +5815,7 @@ function fancyText(x, y, txt) {
 		c.restore();
 
 		c.save();
-		c.translate(x + 2.5, y - 5);
+		c.translate(x + 2.5, y);
 		c.beginPath();
 		c.moveTo(5, 0);
 		c.lineTo(0, 0);
@@ -5779,7 +5828,7 @@ function fancyText(x, y, txt) {
 		c.restore();
 
 		c.save();
-		c.translate(x + 27.5, y - 5);
+		c.translate(x + 27.5, y);
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(20, 0);
@@ -5793,6 +5842,98 @@ function fancyText(x, y, txt) {
 		c.lineTo(20, -10);
 		c.stroke();
 		c.restore();
+	}
+	else if(txt === "retry") {
+
+		c.save();
+		c.translate(x - 60, y);
+		c.beginPath();
+		c.moveTo(10, 0);
+		c.lineTo(5, 0);
+		c.lineTo(5, -20);
+		c.lineTo(0, -20);
+		c.stroke();
+		c.beginPath();
+		c.moveTo(5, -20);
+		c.lineTo(20, -15);
+		c.lineTo(5, -10);
+		c.lineTo(20, 0);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x - 35, y);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(20, 0);
+		c.lineTo(20, -5);
+		c.moveTo(5, 0);
+		c.lineTo(5, -20);
+		c.moveTo(0, -20);
+		c.lineTo(20, -20);
+		c.lineTo(20, -15);
+		c.moveTo(5, -10);
+		c.lineTo(20, -10);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x - 10, y);
+		c.beginPath();
+		c.moveTo(7.5, 0);
+		c.lineTo(12.5, 0);
+		c.moveTo(10, 0);
+		c.lineTo(10, -17.5);
+		c.moveTo(0, -17.5);
+		c.lineTo(20, -17.5);
+		c.moveTo(20, -20);
+		c.lineTo(20, -15);
+		c.moveTo(0, -20);
+		c.lineTo(0, -15);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 15, y);
+		c.beginPath();
+		c.moveTo(10, 0);
+		c.lineTo(5, 0);
+		c.lineTo(5, -20);
+		c.lineTo(0, -20);
+		c.stroke();
+		c.beginPath();
+		c.moveTo(5, -20);
+		c.lineTo(20, -15);
+		c.lineTo(5, -10);
+		c.lineTo(20, 0);
+		c.stroke();
+		c.restore();
+
+		c.save();
+		c.translate(x + 40, y);
+		c.beginPath();
+		c.moveTo(7.5, 0);
+		c.lineTo(12.5, 0);
+		c.moveTo(10, 0);
+		c.lineTo(10, -10);
+		c.lineTo(20, -20);
+		c.moveTo(10, -10);
+		c.lineTo(0, -20);
+		c.moveTo(0, -15);
+		c.lineTo(0, -20);
+		c.lineTo(5, -20);
+		c.moveTo(20, -15);
+		c.lineTo(20, -20);
+		c.lineTo(15, -20);
+		c.stroke();
+		c.restore();
+
+		// c.fillStyle = "rgb(255, 0, 0)";
+		// c.fillRect(x - 10, y - 5, 20, 5);
+		// c.fillRect(x - 35, y - 5, 20, 5);
+		// c.fillRect(x + 15, y - 5, 20, 5);
+		// c.fillRect(x - 60, y - 5, 20, 5);
+		// c.fillRect(x + 40, y - 5, 20, 5);
 	}
 };
 /** FRAMES **/
@@ -5895,6 +6036,7 @@ function doByTime() {
 		}
 	}
 	else if(p.onScreen === "home") {
+		boxFronts = [];
 		p.worldX = 0;
 		p.worldY = 0;
 		new Block(-100, 600, 1000, 200).display();
@@ -6051,7 +6193,7 @@ function doByTime() {
 		p.worldX = 0;
 		p.worldY = 0;
 		new Block(-100, 700, 1000, 200).display();
-		//buttons
+		//home button
 		c.fillStyle = "rgb(20, 20, 20)";
 		c.fillRect(100, 570, 150, 100);
 		c.beginPath();
@@ -6064,8 +6206,8 @@ function doByTime() {
 			c.lineTo(175 + btn1, 590);
 			c.stroke();
 			c.beginPath();
-			c.moveTo(175 - btn1, 620);
-			c.lineTo(175 + btn1, 620);
+			c.moveTo(175 - btn1, 630);
+			c.lineTo(175 + btn1, 630);
 			c.stroke();
 		}
 		if((mouseX > 100 && mouseX < 250 && mouseY > 570 && mouseY < 670) || Math.dist(mouseX, mouseY, 175, 570) <= 75) {
@@ -6081,9 +6223,38 @@ function doByTime() {
 		else if(btn1 > 0) {
 			btn1 -= 5;
 		}
+		//retry button
+		c.fillStyle = "rgb(20, 20, 20)";
+		c.fillRect(550, 570, 150, 100);
+		c.beginPath();
+		c.arc(625, 570, 75, 0, 2 * Math.PI);
+		c.fill();
+		fancyText(625, 620, "retry");
+		if(btn2 > 0) {
+			c.beginPath();
+			c.moveTo(626 - btn2, 590);
+			c.lineTo(625 + btn2, 590);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(625 - btn2, 630);
+			c.lineTo(625 + btn2, 630);
+			c.stroke();
+		}
+		if((mouseX > 550 && mouseX < 700 && mouseY > 570 && mouseY < 670) || Math.dist(625, 570, mouseX, mouseY) <= 75) {
+			cursorHand = true;
+			if(btn2 < 62) {
+				btn2 += 5;
+			}
+			if(mouseIsPressed) {
+				fading = "out";
+				fadeDest = "class-select";
+			}
+		}
+		else if(btn2 > 0) {
+			btn2 -= 5;
+		}
 	}
-	if(p.onScreen !== "play" || p.dead) {
-		console.log("fading");
+	if(p.onScreen !== "play" || p.dead || true) {
 		if(fading === "out") {
 			fadeOp += 0.05;
 			if(fadeOp >= 1) {
