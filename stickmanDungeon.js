@@ -1035,8 +1035,10 @@ Player.prototype.gui = function() {
 				}
 				c.save();
 				c.translate(this.invSlots[i].x + 35, this.invSlots[i].y + 35);
+				c.globalAlpha = this.invSlots[i].content.opacity;
 				this.invSlots[i].content.display("holding");
 				c.restore();
+				this.invSlots[i].content.opacity += 0.05;
 				//load weapon particles
 				if(this.invSlots[i].content instanceof Weapon) {
 					c.save();
@@ -1601,8 +1603,10 @@ Player.prototype.gui = function() {
 				c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 				c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 				if(this.invSlots[i].content !== "empty") {
+					this.invSlots[i].content.opacity += 0.05;
 					c.save();
 					c.translate(this.invSlots[i].x + 35, this.invSlots[i].y + 35);
+					c.globalAlpha = (this.invSlots[i].content.opacity < 0) ? 0 : this.invSlots[i].content.opacity;
 					this.invSlots[i].content.display("holding");
 					c.restore();
 					//load weapon particles
@@ -1656,6 +1660,7 @@ Player.prototype.addItem = function(item) {
 			for(var j in item) {
 				this.invSlots[i].content[j] = item[j];
 			}
+			this.invSlots[i].content.opacity = 0;
 			return;
 		}
 	}
@@ -1996,7 +2001,9 @@ Door.prototype.exist = function(parentRoom) {
 								new Block(-1000, -1000, 1000, 2000), //left wall
 								new Block(-100, 500, 1010, 500), //floor
 								new Block(600, -1000, 1000, 2000), //right wall,
-								new Statue(300, 410, new Sword()),
+								new Block(-4000, -2000, 8000, 2200), //roof
+								new Statue(300, 370, new Sword()),
+								new Door(500, 500, ["ambient", "combat", "parkour"])
 							],
 							"?"
 						)
@@ -2963,47 +2970,145 @@ Pillar.prototype.exist = function() {
 	collisionRect(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12);
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10);
 };
-function Statue(x, y, itemHolding) {
+function Statue(x, y) {
 	this.x = x;
 	this.y = y;
-	this.itemHolding = itemHolding;
+	var possibleItems = Object.create(items);
+	itemLoop: for(var i = 0; i < possibleItems.length; i ++) {
+		if(!(new possibleItems[i]() instanceof Weapon) || new possibleItems[i]() instanceof Arrow) {
+			possibleItems.splice(i, 1);
+			i --;
+			continue;
+		}
+		for(var j = 0; j < p.invSlots.length; j ++) {
+			if(p.invSlots[j].content instanceof possibleItems[i]) {
+				possibleItems.splice(i, 1);
+				i --;
+				continue itemLoop;
+			}
+		}
+	}
+	this.itemHolding = new possibleItems[Math.floor(Math.random() * (possibleItems.length - 1))]();
+	// this.itemHolding = new Sword();
 	this.facing = Math.random() < 0.5 ? "left" : "right";
+	// this.facing = "left";
+	this.pose = "kneeling";
 };
 Statue.prototype.exist = function() {
+	//item in hands
+	if(this.itemHolding instanceof MeleeWeapon && this.pose === "standing" && !this.itemStolen) {
+		if(this.facing === "left") {
+			c.save();
+			c.translate(this.x + p.worldX - 20, this.y + p.worldY + 72);
+			c.rotate(-45 / 180 * Math.PI);
+			this.itemHolding.display("attacking");
+			c.restore();
+		}
+		else {
+			c.save();
+			c.translate(this.x + p.worldX + 20, this.y + p.worldY + 72);
+			c.rotate(45 / 180 * Math.PI);
+			this.itemHolding.display("attacking");
+			c.restore();
+		}
+	}
+	else if(this.itemHolding instanceof MeleeWeapon && this.pose === "kneeling" && !this.itemStolen) {
+		if(this.facing === "left") {
+			c.save();
+			c.translate(this.x + p.worldX - 24, this.y + p.worldY + 52);
+			// c.rotate(-45 / 180 * Math.PI);
+			this.itemHolding.display("attacking");
+			c.restore();
+		}
+		else {
+			c.save();
+			c.translate(this.x + p.worldX + 24, this.y + p.worldY + 52);
+			// c.rotate(45 / 180 * Math.PI);
+			this.itemHolding.display("attacking");
+			c.restore();
+		}
+	}
 	//pedestal
-	cube(this.x + p.worldX - 60, this.y + p.worldY + 46, 120, 44, 0.95, 1.05, "rgb(100, 100, 100)", "rgb(150, 150, 150)");
+	cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 38, 0.95, 1.05, "rgb(100, 100, 100)", "rgb(150, 150, 150)");
 	c.save();
 	c.fillStyle = "rgb(125, 125, 125)";
 	c.lineCap = "round";
+	c.lineWidth = 10;
 	c.translate(p.worldX, p.worldY);
 	c.save();
 	c.translate(this.x, this.y);
 	c.scale(1, 1.2);
 	c.beginPath();
-	c.arc(0, 12, 10, 0, 2 * Math.PI);
+	c.arc(0, 24, 20, 0, 2 * Math.PI);
 	c.fill();
 	c.restore();
 	//body
 	c.strokeStyle = "rgb(125, 125, 125)";
 	c.beginPath();
-	c.moveTo(this.x, this.y + 12);
-	c.lineTo(this.x, this.y + 36);
+	c.moveTo(this.x, this.y + 24);
+	c.lineTo(this.x, this.y + 72);
 	c.stroke();
 	//legs
-	c.beginPath();
-	c.moveTo(this.x, this.y + 36);
-	c.lineTo(this.x - 5, this.y + 46);
-	c.moveTo(this.x, this.y + 36);
-	c.lineTo(this.x + 5, this.y + 46);
-	c.stroke();
+	if(this.pose === "standing") {
+		c.beginPath();
+		c.moveTo(this.x, this.y + 72);
+		c.lineTo(this.x - 10, this.y + 92);
+		c.moveTo(this.x, this.y + 72);
+		c.lineTo(this.x + 10, this.y + 92);
+		c.stroke();
+	}
+	else if(this.facing === "left") {
+		c.beginPath();
+		c.moveTo(this.x, this.y + 72);
+		c.lineTo(this.x - 20, this.y + 72);
+		c.lineTo(this.x - 20, this.y + 92);
+		c.moveTo(this.x, this.y + 72);
+		c.lineTo(this.x, this.y + 92);
+		c.lineTo(this.x + 20, this.y + 92);
+		c.stroke();
+	}
+	else if(this.facing === "right") {
+		c.beginPath();
+		c.moveTo(this.x, this.y + 72);
+		c.lineTo(this.x + 20, this.y + 72);
+		c.lineTo(this.x + 20, this.y + 92);
+		c.moveTo(this.x, this.y + 72);
+		c.lineTo(this.x, this.y + 92);
+		c.lineTo(this.x - 20, this.y + 92);
+		c.stroke();
+	}
 	//arms
 	c.beginPath();
-	c.moveTo(this.x, this.y + 26);
-	c.lineTo(this.x - 10, this.y + ((this.facing === "left") ? 26 : 36));
-	c.moveTo(this.x, this.y + 26);
-	c.lineTo(this.x + 10, this.y + ((this.facing === "right") ? 26 : 36));
+	c.moveTo(this.x, this.y + 52);
+	c.lineTo(this.x - 20, this.y + ((this.facing === "left" && (!(this.itemHolding instanceof MeleeWeapon) || this.pose === "kneeling")) ? 52 : 72));
+	c.moveTo(this.x, this.y + 52);
+	c.lineTo(this.x + 20, this.y + ((this.facing === "right" && (!(this.itemHolding instanceof MeleeWeapon) || this.pose === "kneeling")) ? 52 : 72));
 	c.stroke();
 	c.restore();
+	//ranged weapon graphics - drawn after stick figure
+	if(!(this.itemHolding instanceof MeleeWeapon) && !this.itemStolen) {
+		if(this.facing === "left") {
+			c.save();
+			c.translate(this.x + p.worldX - (this.itemHolding instanceof MagicWeapon ? 28 : 20), this.y + p.worldY + (this.itemHolding instanceof MagicWeapon ? 32 : 52));
+			c.scale(-2, 2);
+			// c.rotate(-45 / 180 * Math.PI);
+			this.itemHolding.display("aiming");
+			c.restore();
+		}
+		else {
+			c.save();
+			c.translate(this.x + p.worldX + (this.itemHolding instanceof MagicWeapon ? 28 : 20), this.y + p.worldY + (this.itemHolding instanceof MagicWeapon ? 32 : 52));
+			c.scale(2, 2);
+			// c.rotate(45 / 180 * Math.PI);
+			this.itemHolding.display("aiming");
+			c.restore();
+		}
+	}
+	//stealing Weapons
+	if(keys[83] && Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) <= 100 && !this.itemStolen) {
+		this.itemStolen = true;
+		p.addItem(this.itemHolding);
+	}
 };
 /** ROOM DATA **/
 var inRoom = 0;
@@ -3106,6 +3211,13 @@ Room.prototype.exist = function(index) {
 		}
 		else if(this.content[i] instanceof MagicCharge) {
 			chargeIndexes.push(i);
+			if(this.content[i].splicing) {
+				for(var j = 0; j < this.content[i].particles.length; j ++) {
+					this.content.push(Object.create(this.content[i].particles[j]));
+				}
+				this.content.splice(i, 1);
+				continue;
+			}
 		}
 		else if(this.content[i] instanceof Block) {
 			this.content[i].exist(index);
@@ -3158,13 +3270,6 @@ Room.prototype.exist = function(index) {
 	//load magic charges
 	for(var i = 0; i < chargeIndexes.length; i ++) {
 		this.content[chargeIndexes[i]].exist();
-		if(this.content[chargeIndexes[i]].splicing) {
-			for(var j = 0; j < this.content[chargeIndexes[i]].particles.length; j ++) {
-				this.content.push(Object.create(this.content[chargeIndexes[i]].particles[j]));
-			}
-			this.content.splice(chargeIndexes[i], 1);
-			continue;
-		}
 	}
 	//load boulders
 	for(var i = 0; i < boulderIndexes.length; i ++) {
@@ -3184,7 +3289,7 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = (p.screenOp < p.fallOp) ? p.fallOp : p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
+var rooms = ["ambient1", "ambient2", "ambient3", "secret1", /*"secret2",*/ "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
 rooms = ["secret2"];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
@@ -3225,7 +3330,7 @@ Item.prototype.init = function() {
 	}
 	this.initialized = true;
 	this.velY = -4;
-	this.opacity = 1;
+	// this.opacity = 1;
 };
 Item.prototype.animate = function() {
 	/**
@@ -3367,6 +3472,7 @@ function Sword(modifier) {
 inheritsFrom(Sword, MeleeWeapon);
 Sword.prototype.display = function(type) {
 	if(type === "holding" || type === "item") {
+		c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
 		c.fillStyle = "rgb(139, 69, 19)";
 		c.translate(-20, 20);
 		c.rotate(0.7853);
@@ -3382,6 +3488,7 @@ Sword.prototype.display = function(type) {
 		c.lineTo(3, -10);
 		c.lineTo(0, -60);
 		c.fill();
+		c.globalAlpha = 1;
 	}
 	else if(type === "attacking") {
 		c.fillStyle = "rgb(139, 69, 19)";
@@ -3578,8 +3685,8 @@ WoodBow.prototype.display = function(type) {
 		c.stroke();
 		c.lineWidth = 1;
 		c.beginPath();
-		c.moveTo(-7, -20);
-		c.lineTo(-7, 20);
+		c.moveTo(-7, -22);
+		c.lineTo(-7, 22);
 		c.stroke();
 	}
 };
@@ -3635,8 +3742,8 @@ MetalBow.prototype.display = function(type) {
 		c.stroke();
 		c.lineWidth = 1;
 		c.beginPath();
-		c.moveTo(-7, -20);
-		c.lineTo(-7, 20);
+		c.moveTo(-7, -22);
+		c.lineTo(-7, 22);
 		c.stroke();
 	}
 };
@@ -5651,7 +5758,7 @@ Troll.prototype.update = function() {
 //hax
 p["class"] = "archer";
 p.reset();
-p.onScreen = "home";
+p.onScreen = "play";
 /** MENUS & UI **/
 var warriorClass = new Player();
 warriorClass.x = 175;
