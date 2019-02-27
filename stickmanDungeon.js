@@ -3289,8 +3289,8 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = (p.screenOp < p.fallOp) ? p.fallOp : p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-var rooms = ["ambient1", "ambient2", "ambient3", "secret1", /*"secret2",*/ "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
-rooms = ["secret2"];
+var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
+// rooms = ["secret2"];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 var roomInstances = [
