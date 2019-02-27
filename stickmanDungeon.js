@@ -1982,7 +1982,6 @@ Door.prototype.exist = function(parentRoom) {
 								new Door(800, 500, ["ambient", "combat", "parkour"]),
 								new LightRay(200, 500),
 								new Tree(450, 500)
-
 							],
 							"?"
 						)
@@ -1997,7 +1996,7 @@ Door.prototype.exist = function(parentRoom) {
 								new Block(-1000, -1000, 1000, 2000), //left wall
 								new Block(-100, 500, 1010, 500), //floor
 								new Block(600, -1000, 1000, 2000), //right wall,
-
+								new Statue(300, 410, new Sword()),
 							],
 							"?"
 						)
@@ -2968,9 +2967,43 @@ function Statue(x, y, itemHolding) {
 	this.x = x;
 	this.y = y;
 	this.itemHolding = itemHolding;
+	this.facing = Math.random() < 0.5 ? "left" : "right";
 };
 Statue.prototype.exist = function() {
-
+	//pedestal
+	cube(this.x + p.worldX - 60, this.y + p.worldY + 46, 120, 44, 0.95, 1.05, "rgb(100, 100, 100)", "rgb(150, 150, 150)");
+	c.save();
+	c.fillStyle = "rgb(125, 125, 125)";
+	c.lineCap = "round";
+	c.translate(p.worldX, p.worldY);
+	c.save();
+	c.translate(this.x, this.y);
+	c.scale(1, 1.2);
+	c.beginPath();
+	c.arc(0, 12, 10, 0, 2 * Math.PI);
+	c.fill();
+	c.restore();
+	//body
+	c.strokeStyle = "rgb(125, 125, 125)";
+	c.beginPath();
+	c.moveTo(this.x, this.y + 12);
+	c.lineTo(this.x, this.y + 36);
+	c.stroke();
+	//legs
+	c.beginPath();
+	c.moveTo(this.x, this.y + 36);
+	c.lineTo(this.x - 5, this.y + 46);
+	c.moveTo(this.x, this.y + 36);
+	c.lineTo(this.x + 5, this.y + 46);
+	c.stroke();
+	//arms
+	c.beginPath();
+	c.moveTo(this.x, this.y + 26);
+	c.lineTo(this.x - 10, this.y + ((this.facing === "left") ? 26 : 36));
+	c.moveTo(this.x, this.y + 26);
+	c.lineTo(this.x + 10, this.y + ((this.facing === "right") ? 26 : 36));
+	c.stroke();
+	c.restore();
 };
 /** ROOM DATA **/
 var inRoom = 0;
