@@ -2,22 +2,23 @@
 var canvas = document.getElementById("theCanvas");
 var c = canvas.getContext("2d");
 c.textAlign = "center";
-var mouseX;
-var mouseY;
 var keys = [];
 var fps = 60;
-const showHitboxes = false;
 const floorWidth = 0.1;
 var frameCount = 0;
-var hitboxes = []; //for showing hitboxes when debugging
-var mouseIsPressed = false;
-var pMouseIsPressed;
-var cursorHand = false;
+const hax = true;
+const showHitboxes = true;
+var hitboxes = [];
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
 	mouseX = (evt.clientX - canvasRect.left) / (canvasRect.right - canvasRect.left) * canvas.width;
 	mouseY = (evt.clientY - canvasRect.top) / (canvasRect.bottom - canvasRect.top) * canvas.height;
 };
+var mouseX;
+var mouseY;
+var mouseIsPressed = false;
+var pMouseIsPressed;
+var cursorHand = false;
 function resizeCanvas() {
 	if(window.innerWidth < window.innerHeight) {
 		canvas.style.width = "100%";
@@ -75,7 +76,6 @@ function getRotated(x, y, deg) {
 		y: rotArray[Math.round(endDeg / 360 * rotArray.length)].y
 	};
 };
-var ex = getRotated(100, -50, 90);
 function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
 	if(typeof sideCol !== "string") {
 		sideCol = "rgb(150, 150, 150)";
@@ -216,32 +216,24 @@ function hitboxRect(x, y, w, h) {
 function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandling) {
 	parentRoom = parentRoom || inRoom;
 	onlyEnemies = onlyEnemies || false;
+	walls = walls || [true, true, true, true];
+	illegalHandling = illegalHandling || "collide";
 	if(showHitboxes) {
 		hitboxes.push({x: x, y: y, w: w, h: h});
 	}
-	if(typeof walls !== "object") {
-		walls = [true, true, true, true];
-	}
-	if(illegalHandling === undefined) {
-		illegalHandling = "collide";
-	}
-	if(showHitboxes) {
-		c.strokeStyle = "rgb(0, " + (Math.sin(frameCount / 30) * 30 + 225) + ", " + (Math.sin(frameCount / 30) * 30 + 225) + ")";
-		//c.strokeStyle = "rgb(0, 255, 255)";
-		c.strokeRect(x, y, w, h);
-	}
 	if(!onlyEnemies) {
-		if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + p.velY + 1 && walls[0] && !onlyEnemies) {
+		if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + p.velY + 1 && walls[0]) {
 			p.velY = 0;
 			p.y = y - 46;
 			p.canJump = true;
 			p.health -= p.fallDmg;
 			p.fallDmg = 0;
 		}
-		if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h + p.velY - 1 && walls[1] && !onlyEnemies) {
+		if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h + p.velY - 1 && walls[1]) {
 			p.velY = 2;
 		}
-		if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + p.velX + 1 && walls[2] && !onlyEnemies) {
+		if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + p.velX + 1 && walls[2]) {
+			console.log("hit the walls");
 			if(illegalHandling === "collide") {
 				p.velX = -1;
 			}
@@ -249,7 +241,8 @@ function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandli
 				p.y = y - 46;
 			}
 		}
-		if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w + p.velX - 1 && walls[3] && !onlyEnemies) {
+		if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w + p.velX - 1 && walls[3]) {
+			console.log("hit the walls");
 			if(illegalHandling === "collide") {
 				p.velX = 1;
 			}
@@ -262,12 +255,50 @@ function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandli
 		if(roomInstances[parentRoom].content[i] instanceof Enemy) {
 			var enemy = roomInstances[parentRoom].content[i];
 			if(enemy.x + p.worldX + enemy.rightX > x && enemy.x + p.worldX + enemy.leftX < x + w) {
-				if(enemy.y + p.worldY + enemy.bottomY >= y && enemy.y + p.worldY + enemy.bottomY <= y + enemy.velY + 300) {
+				if(enemy.y + p.worldY + enemy.bottomY >= y && enemy.y + p.worldY + enemy.bottomY <= y + enemy.velY + 1) {
 					enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
 					enemy.y = y - p.worldY - Math.abs(enemy.bottomY);
 					enemy.canJump = true;
 				}
+				if(enemy.y + p.worldY + enemy.topY <= y + h && enemy.y + p.worldY + enemy.topY >= y + h + enemy.velY - 1) {
+					enemy.velY = 3;
+					enemy.y = y + h - p.worldY + Math.abs(enemy.topY);
+				}
 			}
+			if(enemy.y + enemy.bottomY + p.worldY > y && enemy.y + enemy.topY + p.worldY < y + h) {
+				if(enemy.x + p.worldX + enemy.rightX >= x && enemy.x + p.worldX + enemy.rightX <= x + enemy.velX + 1) {
+					if(illegalHandling === "teleport") {
+						enemy.y = y - p.worldY - Math.abs(enemy.bottomY);
+						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
+						enemy.canJump = true;
+					}
+					else {
+						enemy.velX = (enemy.velX > 0) ? -3 : enemy.velX;
+						enemy.x = x - p.worldX - Math.abs(enemy.rightX);
+					}
+				}
+				if(enemy.x + p.worldX + enemy.leftX <= x + w && enemy.x + p.worldX + enemy.leftX >= x + w + enemy.velX - 1) {
+				if(illegalHandling === "teleport") {
+					enemy.y = y - p.worldY - Math.abs(enemy.bottomY);
+					enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
+					enemy.canJump = true;
+				}
+				else {
+					enemy.velX = (enemy.velX < 0) ? 3 : enemy.velX;
+					enemy.x = x + w - p.worldX + Math.abs(enemy.leftX);
+				}
+			}
+				if(!(typeof enemy.velX === "number") && enemy.x + enemy.rightX + p.worldX > x && enemy.x + enemy.rightX + p.worldX < x + 5) {
+					enemy.x = x - p.worldX - Math.abs(enemy.rightX);
+				}
+				if(!(typeof enemy.velX === "number") && enemy.x + enemy.leftX + p.worldX < x + w && enemy.x + enemy.leftX + p.worldX > x + w - 5) {
+					enemy.x = x + w - p.worldX + Math.abs(enemy.leftX);
+				}
+			}
+		}
+		else if(roomInstances[parentRoom].content[i] instanceof MagicCharge && roomInstances[parentRoom].content[i].x + p.worldX > x && roomInstances[parentRoom].content[i].x + p.worldX < x + w && roomInstances[parentRoom].content[i].y + p.worldY > y && roomInstances[parentRoom].content[i].y + p.worldY < y + h) {
+			roomInstances[parentRoom].content[i].splicing = true;
+			continue;
 		}
 	}
 };
@@ -364,7 +395,7 @@ function findPointsLinear(x1, y1, x2, y2) {
 function collisionLine(x1, y1, x2, y2, walls) {
 	var points = findPointsLinear(x1, y1, x2, y2);
 	for(var i = 0; i < points.length; i ++) {
-		collisionRect(points[i].x, points[i].y, 1, 3, walls);
+		collisionRect(points[i].x, points[i].y, Math.abs(p.velX) + 3, Math.abs(p.velY) + 100000, walls, inRoom, false, "teleport");
 	}
 };
 function calcAngleDegrees(x, y) {
@@ -1000,6 +1031,9 @@ Player.prototype.update = function() {
 			fading = "out";
 			fadeDest = "dead";
 		}
+	}
+	if(this.health < 0) {
+		this.health = 0;
 	}
 };
 Player.prototype.gui = function() {
@@ -1935,7 +1969,7 @@ Door.prototype.exist = function(parentRoom) {
 					if(Math.random() < 0.5) {
 						roomInstances.push(
 							new Room(
-								"ambient",
+								"ambient3",
 								[
 									new Block(-4000, 0, 8000, 1000), //floor
 									new Stairs(200, 0, 10, "right"),
@@ -1953,7 +1987,7 @@ Door.prototype.exist = function(parentRoom) {
 					else {
 						roomInstances.push(
 							new Room(
-								"ambient",
+								"ambient3",
 								[
 									new Block(-4000, 0, 8000, 1000), //floor
 									new Stairs(-200, 0, 10, "left"),
@@ -1993,16 +2027,55 @@ Door.prototype.exist = function(parentRoom) {
 					);
 					break;
 				case "secret2":
+					var possibleItems = Object.create(items);
+					for(var i = 0; i < possibleItems.length; i ++) {
+						if(!(new possibleItems[i]() instanceof Weapon)) {
+							possibleItems.splice(i, 1);
+							continue;
+						}
+						var hasIt = false;
+						for(var j = 0; j < p.invSlots.length; j ++) {
+							if(p.invSlots[j].content instanceof possibleItems[i]) {
+								hasIt = true;
+							}
+						}
+						if(hasIt) {
+							possibleItems.splice(i, 1);
+							continue;
+						}
+					}
+					if(possibleItems.length === 0) {
+						//default to combat1 if the player has all the weapons in the
+						roomInstances.push(
+							new Room(
+								"combat1",
+								[
+									new Block(-2000, 0, 4000, 1000), //floor
+									new Block(-1000, -4000, 500, 8000), //left wall
+									new Block(500, -4000, 1000, 8000), //right wall
+									new Block(-2000, -1900, 4000, 1600), //roof
+									new Door(-450, 0, ["ambient"], false),
+									new Door(0, 0, ["reward"], true),
+									new Door(450, 0, ["ambient"], false),
+									new Window(300, -50), new Window(-300, -50),
+									new Window(150, -50), new Window(-150, -50),
+									new RandomEnemy(50, 0)
+								],
+								"?"
+							)
+						);
+						break;
+					}
 					roomInstances.push(
 						new Room(
 							"secret2",
 							[
-								new Door(100, 500, ["ambient", "combat", "parkour"]),
 								new Block(-1000, -1000, 1000, 2000), //left wall
 								new Block(-100, 500, 1010, 500), //floor
 								new Block(600, -1000, 1000, 2000), //right wall,
 								new Block(-4000, -2000, 8000, 2200), //roof
 								new Statue(300, 370, new Sword()),
+								new Door(100, 500, ["ambient", "combat", "parkour"]),
 								new Door(500, 500, ["ambient", "combat", "parkour"])
 							],
 							"?"
@@ -2052,6 +2125,32 @@ Door.prototype.exist = function(parentRoom) {
 							],
 							"?",
 							0
+						)
+					);
+					break;
+				case "parkour3":
+					roomInstances.push(
+						new Room(
+							"parkour1",
+							[
+								new Block(-1000, -1000, 1000, 2000), //left wall
+								new Block(-1000, 500, 1200, 1000), //left floor
+								new Door(100, 500, ["ambient"], false),
+								new TiltPlatform(300, 475),
+								new TiltPlatform(400, 450),
+								new TiltPlatform(500, 425),
+								new Block(600, 400, 200, 2000), //middle platform
+								new Door(700, 400, ["reward"], true),
+								new TiltPlatform(900, 425),
+								new TiltPlatform(1000, 450),
+								new TiltPlatform(1100, 475),
+								new Block(1200, 500, 1000, 2000), //right floor
+								new Block(1400, -1000, 1000, 2000), //right wall
+								new Door(1300, 500, ["ambient"], false),
+								new Block(-4000, -1200, 8000, 1300)
+							],
+							"?",
+							-200
 						)
 					);
 					break;
@@ -2147,6 +2246,44 @@ Door.prototype.exist = function(parentRoom) {
 						"?"
 					));
 					break;
+				case "reward4":
+					if(Math.random() < 0.5) {
+						roomInstances.push(
+							new Room(
+								"reward4",
+								[
+									new Block(-4000, 0, 8000, 1000), //floor
+									new Stairs(200, 0, 10, "right"),
+									new Block(600, -4000, 4000, 4100), //right wall
+									new Chest(500, 0),
+									new Block(-800, -200, 1001, 1000), //higher floor
+									new Door(100, -200, ["combat", "parkour", "secret"]),
+									new Block(-1000, -4000, 1000, 8000), //left wall
+									new Block(-4000, -1400, 8000, 1000) //roof
+								],
+								"?"
+							)
+						);
+					}
+					else {
+						roomInstances.push(
+							new Room(
+								"reward4",
+								[
+									new Block(-4000, 0, 8000, 1000), //floor
+									new Stairs(-200, 0, 10, "left"),
+									new Block(-4600, -4000, 4000, 4100), //left wall
+									new Chest(-500, 0),
+									new Block(-200, -200, 1000, 1000), //higher floor
+									new Door(-100, -200, ["combat", "parkour", "secret"]),
+									new Block(0, -4000, 1000, 8000), //right wall
+									new Block(-4000, -1400, 8000, 1000) //roof
+								],
+								"?"
+							)
+						);
+					}
+					break;
 				case "combat1":
 					roomInstances.push(
 						new Room(
@@ -2160,7 +2297,6 @@ Door.prototype.exist = function(parentRoom) {
 								new Door(0, 0, ["reward"], true),
 								new Door(450, 0, ["ambient"], false),
 								new Window(300, -50), new Window(-300, -50),
-								// new Window(250, -50), new Window(-250, -50),
 								new Window(150, -50), new Window(-150, -50),
 								new RandomEnemy(50, 0)
 							],
@@ -2173,18 +2309,23 @@ Door.prototype.exist = function(parentRoom) {
 						new Room(
 							"combat2",
 							[
-								new Block(-4000, 0, 8000, 1000), //floor
 								new Stairs(200, 0, 10, "right"),
 								new Stairs(0, 0, 10, "left"),
+								new Block(-4000, 0, 8000, 1000), //floor
 								new Block(600, -4000, 4000, 4100), //right wall
-								new Door(500, 0, ["combat", "parkour", "secret"], true),
+								new Block(-1400, -4000, 1000, 8000), //left wall
 								new Block(0, -200, 201, 1000), //higher floor
-								new Door(100, -200, ["combat", "parkour", "secret"]),
-								new Block(-4000, -1400, 8000, 1000) //roof
+								new Block(-4000, -1400, 8000, 1000), //roof
+								new Door(-300, 0, ["reward"], true),
+								new Door(500, 0, ["reward"], true),
+								new Door(100, -200, ["it doesn't matter what i write here, since you'll always enter through this door"]),
+								new RandomEnemy(500, 0),
+								new RandomEnemy(-300, 0)
 							],
 							"?"
 						)
 					);
+					break;
 			}
 			roomInstances[roomInstances.length - 1].id = "?";
 			//reset variables for transition
@@ -2708,17 +2849,17 @@ Stairs.prototype.exist = function() {
 	partOfAStair = true;
 	if(this.dir === "right") {
 		for(var i = 0; i < this.steps.length; i ++) {
-			this.steps[i].display();
-			if(p.x + 5 > this.steps[i].x + p.worldX && p.x - 5 < this.steps[i].x + p.worldX + this.steps[i].w && p.y + 46 > this.steps[i].y + p.worldY && p.y - 7 < this.steps[i].y + this.steps[i].h + p.worldY) {
-				p.velY = 0;
-				p.y = this.steps[i].y + p.worldY - 46;
-				p.canJump = true;
-			}
+			this.steps[i].exist();
+			// if(p.x + 5 > this.steps[i].x + p.worldX && p.x - 5 < this.steps[i].x + p.worldX + this.steps[i].w && p.y + 46 > this.steps[i].y + p.worldY && p.y - 7 < this.steps[i].y + this.steps[i].h + p.worldY) {
+			// 	p.velY = 0;
+			// 	p.y = this.steps[i].y + p.worldY - 46;
+			// 	p.canJump = true;
+			// }
 		}
 	}
 	else {
 		for(var i = 0; i < this.steps.length; i ++) {
-			this.steps[i].display();
+			this.steps[i].exist();
 			if(p.x + 5 > this.steps[i].x + p.worldX && p.x - 5 < this.steps[i].x + p.worldX + this.steps[i].w && p.y + 46 > this.steps[i].y + p.worldY && p.y - 7 < this.steps[i].y + this.steps[i].h + p.worldY) {
 				p.velY = 0;
 				p.y = this.steps[i].y + p.worldY - 46;
@@ -3110,6 +3251,16 @@ Statue.prototype.exist = function() {
 		p.addItem(this.itemHolding);
 	}
 };
+function TiltPlatform(x, y) {
+	this.x = x;
+	this.y = y;
+	this.tilt = 0;
+};
+TiltPlatform.prototype.exist = function() {
+	var point1 = getRotated(-50, 0, this.tilt);
+	line3d(point1.x + this.x + p.worldX, point1.y + this.y + p.worldY, -point1.x + this.x + p.worldX, -point1.y + this.y + p.worldY, 0.9, 1.1, "rgb(150, 150, 150)");
+	collisionLine(point1.x + this.x + p.worldX, point1.y + this.y + p.worldY, -point1.x + this.x + p.worldX, -point1.y + this.y + p.worldY, [true, true, true, true]);
+};
 /** ROOM DATA **/
 var inRoom = 0;
 var numRooms = 0;
@@ -3188,6 +3339,7 @@ Room.prototype.exist = function(index) {
 					}
 				}
 				this.content.splice(i, 1);
+				p.enemiesKilled ++;
 				continue;
 			}
 			//show hitboxes
@@ -3289,10 +3441,13 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = (p.screenOp < p.fallOp) ? p.fallOp : p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "parkour1", "parkour2", "reward1", "reward2", "reward3"];
-// rooms = ["secret2"];
+var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "combat2", "parkour1", "parkour2", "reward1", "reward2", "reward3", "reward4"];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
+if(hax) {
+	rooms = ["parkour3"];
+	enemies = [SkeletonArcher];
+}
 var roomInstances = [
 	new Room(
 		"ambient",
@@ -3330,7 +3485,7 @@ Item.prototype.init = function() {
 	}
 	this.initialized = true;
 	this.velY = -4;
-	// this.opacity = 1;
+	this.opacity = 1;
 };
 Item.prototype.animate = function() {
 	/**
@@ -4531,22 +4686,6 @@ RandomEnemy.prototype.generate = function() {
 	var enemyIndex = Math.floor(Math.random() * enemies.length);
 	roomInstances[inRoom].content.push(new enemies[enemyIndex](this.x, this.y - new enemies[enemyIndex]().bottomY));
 };
-function EnemyRequest(x, y, enemy, hp, time) {
-	this.x = x;
-	this.y = y;
-	this.enemy = enemy;
-	this.splicing = false;
-	this.inRoom = null;
-};
-EnemyRequest.prototype.exist = function() {
-	this.time --;
-	if(this.time < 0) {
-		this.splicing = true;
-		roomInstances[this.inRoom].content.push(new this.enemy());
-		roomInstances[this.inRoom].content[roomInstances[this.inRoom].content.length - 1].health = this.hp;
-		roomInstances[this.inRoom].content[roomInstances[this.inRoom].content.length - 1].visualHealth = this.hp / roomInstances[this.inRoom].content[roomInstances[this.inRoom].content.length - 1].maxHealth;
-	}
-};
 function Enemy(x, y) {
 	this.x = x;
 	this.y = y;
@@ -4585,7 +4724,6 @@ Enemy.prototype.displayStats = function() {
 	if(this.health <= 0) {
 		this.health = 0;
 		this.dead = true;
-		p.enemiesKilled ++;
 	}
 	if(this.visualHealth > 0) {
 		c.fillStyle = "rgb(255, 0, 0)";
@@ -5136,8 +5274,14 @@ SkeletonWarrior.prototype.update = function(dest) {
 		//movement
 		this.x += this.velX;
 		this.y += this.velY;
-		this.velX = (this.x + p.worldX < p.x) ? this.velX + 0.1 : this.velX;
-		this.velX = (this.x + p.worldX > p.x) ? this.velX - 0.1 : this.velX;
+		if(this.x + p.worldX < p.x) {
+			this.velX = (this.x + p.worldX < p.x - 60) ? this.velX + 0.1 : this.velX;
+			this.velX = (this.x + p.worldX > p.x - 60) ? this.velX - 0.1 : this.velX;
+		}
+		else {
+			this.velX = (this.x + p.worldX < p.x + 60) ? this.velX + 0.1 : this.velX;
+			this.velX = (this.x + p.worldX > p.x + 60) ? this.velX - 0.1 : this.velX;
+		}
 		this.velX *= 0.96;
 		this.velY += 0.1;
 		if(this.canJump) {
@@ -5205,6 +5349,7 @@ function SkeletonArcher(x, y) {
 	this.bottomY = 43;
 
 	//stats
+	this.velX = null;
 	this.health = 10;
 	this.maxHealth = 10;
 	this.defLow = 0;
@@ -5362,7 +5507,7 @@ SkeletonArcher.prototype.attack = function() {
 				this.timeSinceAttack = 0;
 				this.timeAiming = 0;
 				var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "a skeletal archer"));
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 			}
 			else if(y <= p.y - 7) {
 				this.aimRot ++;
@@ -5372,7 +5517,7 @@ SkeletonArcher.prototype.attack = function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "a skeletal archer"));
+						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
 			}
@@ -5384,7 +5529,7 @@ SkeletonArcher.prototype.attack = function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "a skeletal archer"));
+						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
 			}
@@ -5409,7 +5554,7 @@ SkeletonArcher.prototype.attack = function() {
 				this.timeSinceAttack = 0;
 				this.timeAiming = 0;
 				var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy"));
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 			}
 			else if(y <= p.y - 7) {
 				this.aimRot ++;
@@ -5419,7 +5564,7 @@ SkeletonArcher.prototype.attack = function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy"));
+						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
 			}
@@ -5431,7 +5576,7 @@ SkeletonArcher.prototype.attack = function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
-						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy"));
+						roomInstances[inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
 			}
@@ -5588,12 +5733,6 @@ MagicCharge.prototype.exist = function() {
 	this.x += this.velX;
 	this.y += this.velY;
 	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
-			if(roomInstances[inRoom].content[i] instanceof Block) {
-			var block = roomInstances[inRoom].content[i];
-			if(this.x > block.x && this.x < block.x + block.w && this.y > block.y && this.y < block.y + block.h) {
-				this.splicing = true;
-			}
-		}
 		if(roomInstances[inRoom].content[i] instanceof Enemy && this.type !== "shadow") {
 			var enemy = roomInstances[inRoom].content[i];
 			if(this.x + 10 > enemy.x + enemy.leftX && this.x - 10 < enemy.x + enemy.rightX && this.y + 10 > enemy.y + enemy.topY && this.y - 10 < enemy.y + enemy.bottomY) {
@@ -5756,9 +5895,11 @@ Troll.prototype.update = function() {
 
 
 //hax
-p["class"] = "archer";
-p.reset();
-p.onScreen = "play";
+if(hax) {
+	p["class"] = "archer";
+	p.reset();
+	p.onScreen = "play";
+}
 /** MENUS & UI **/
 var warriorClass = new Player();
 warriorClass.x = 175;
@@ -6148,7 +6289,6 @@ function doByTime() {
 						for(var k = 0; k < roomInstances[i].content.length; k ++) {
 							if(roomInstances[i].content[k] instanceof Door && roomInstances[i].content[k].dest === inRoom) {
 								var distance = Math.dist(roomInstances[i].content[j].x, roomInstances[i].content[j].y, roomInstances[i].content[k].x, roomInstances[i].content[k].y);
-								roomInstances[inRoom].content.push(new EnemyRequest(roomInstances[i].content[k].x, roomInstances[i].content[k].y, Object.create(roomInstances[i].content[j])));
 							}
 						}
 					}
