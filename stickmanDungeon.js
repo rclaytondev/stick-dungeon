@@ -6,8 +6,8 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = true;
-const showHitboxes = true;
+const hax = false;
+const showHitboxes = false;
 var hitboxes = [];
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
@@ -72,8 +72,8 @@ function getRotated(x, y, deg) {
 		endDeg += 360;
 	}
 	return {
-		x: rotArray[Math.round(endDeg / 360 * rotArray.length)].x,
-		y: rotArray[Math.round(endDeg / 360 * rotArray.length)].y
+		x: rotArray[Math.round(endDeg / 360 * (rotArray.length - 1))].x,
+		y: rotArray[Math.round(endDeg / 360 * (rotArray.length - 1))].y
 	};
 };
 function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
@@ -343,33 +343,33 @@ function findPointsLinear(x1, y1, x2, y2) {
 	var linearPoints = [];
 	if(x1 < x2) {
 		if(y1 < y2) {
-			var Y = y1;
-			for(var X = x1; X < x2; X ++) {
-				Y += m;
-				linearPoints.push({x: X, y: Y});
+			var y = y1;
+			for(var y = x1; x < x2; x ++) {
+				y += m;
+				linearPoints.push({x: x, y: y});
 			}
 		}
 		else if(y2 < y1) {
-			var Y = y2;
-			for(var X = x2; X > x1; X --) {
-				Y += m;
-				linearPoints.push({x: X, y: Y});
+			var y = y2;
+			for(var x = x2; x > x1; x --) {
+				y += m;
+				linearPoints.push({x: x, y: y});
 			}
 		}
 	}
 	else if(x2 < x1) {
 		if(y1 < y2) {
-			var Y = y1;
-			for(var X = x1; X > x2; X --) {
-				Y += m;
-				linearPoints.push({x: X, y: Y});
+			var y = y1;
+			for(var x = x1; x > x2; x --) {
+				y += m;
+				linearPoints.push({x: x, y: y});
 			}
 		}
 		else if(y2 < y1) {
-			var Y = y2;
-			for(var X = x2; X < x1; X ++) {
-				Y += m;
-				linearPoints.push({x: X, y: Y});
+			var y = y2;
+			for(var x = x2; x < x1; x ++) {
+				y += m;
+				linearPoints.push({x: x, y: y});
 			}
 		}
 	}
@@ -395,7 +395,7 @@ function findPointsLinear(x1, y1, x2, y2) {
 function collisionLine(x1, y1, x2, y2, walls) {
 	var points = findPointsLinear(x1, y1, x2, y2);
 	for(var i = 0; i < points.length; i ++) {
-		collisionRect(points[i].x, points[i].y, Math.abs(p.velX) + 3, Math.abs(p.velY) + 100000, walls, inRoom, false, "teleport");
+		collisionRect(points[i].x, points[i].y, Math.abs(p.velX) + 3, Math.abs(p.velY), walls, inRoom, false, "teleport");
 	}
 };
 function calcAngleDegrees(x, y) {
@@ -2137,12 +2137,12 @@ Door.prototype.exist = function(parentRoom) {
 								new Block(-1000, 500, 1200, 1000), //left floor
 								new Door(100, 500, ["ambient"], false),
 								new TiltPlatform(300, 475),
-								new TiltPlatform(400, 450),
+								// new TiltPlatform(400, 450),
 								new TiltPlatform(500, 425),
 								new Block(600, 400, 200, 2000), //middle platform
 								new Door(700, 400, ["reward"], true),
 								new TiltPlatform(900, 425),
-								new TiltPlatform(1000, 450),
+								// new TiltPlatform(1000, 450),
 								new TiltPlatform(1100, 475),
 								new Block(1200, 500, 1000, 2000), //right floor
 								new Block(1400, -1000, 1000, 2000), //right wall
@@ -3255,11 +3255,29 @@ function TiltPlatform(x, y) {
 	this.x = x;
 	this.y = y;
 	this.tilt = 0;
+	this.tiltDir = 0;
+	this.platX = 0;
+	this.platY = 0;
 };
 TiltPlatform.prototype.exist = function() {
 	var point1 = getRotated(-50, 0, this.tilt);
-	line3d(point1.x + this.x + p.worldX, point1.y + this.y + p.worldY, -point1.x + this.x + p.worldX, -point1.y + this.y + p.worldY, 0.9, 1.1, "rgb(150, 150, 150)");
-	collisionLine(point1.x + this.x + p.worldX, point1.y + this.y + p.worldY, -point1.x + this.x + p.worldX, -point1.y + this.y + p.worldY, [true, true, true, true]);
+	line3d(point1.x + this.x + this.platX + p.worldX, point1.y + this.y + this.platY + p.worldY, -point1.x + this.x + this.platX + p.worldX, -point1.y + this.y + this.platY + p.worldY, 0.9, 1.1, "rgb(150, 150, 150)");
+	collisionLine(point1.x + this.x + this.platX + p.worldX, point1.y + this.y + this.platY + p.worldY, -point1.x + this.x + this.platX + p.worldX, -point1.y + this.y + this.platY + p.worldY, [true, true, true, true]);
+	line3d(this.x + p.worldX, this.y + p.worldY, this.x + p.worldX, 1000, 0.95, 1.05, "rgb(150, 150, 150)");
+	if(p.x + 5 > this.x + p.worldX + point1.x && p.x - 5 < this.x + p.worldX - point1.x && p.canJump) {
+		if(p.x < this.x + p.worldX) {
+			this.tiltDir -= 0.1;
+		}
+		else {
+			this.tiltDir += 0.1;
+		}
+	}
+	this.tilt += this.tiltDir;
+	this.tiltDir *= 0.99;
+	if(this.tilt > 45) {
+		this.tiltDir += 0.1;
+		this.platX += 1;
+	}
 };
 /** ROOM DATA **/
 var inRoom = 0;
@@ -3500,8 +3518,6 @@ Item.prototype.animate = function() {
 Item.prototype.displayDesc = function(x, y) {
 	//split overflow into multiple lines
 	for(var i = 0; i < this.desc.length; i ++) {
-		if(this instanceof WoodBow) {
-		}
 		c.font = this.desc[i].font;
 		if(c.measureText(this.desc[i].content).width >= 190) {
 			var line1 = this.desc[i].content;
