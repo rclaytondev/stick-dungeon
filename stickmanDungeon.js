@@ -6,7 +6,7 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = false;
+const hax = true;
 const showHitboxes = false;
 var hitboxes = [];
 function getMousePos(evt) {
@@ -233,7 +233,6 @@ function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandli
 			p.velY = 2;
 		}
 		if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + p.velX + 1 && walls[2]) {
-			console.log("hit the walls");
 			if(illegalHandling === "collide") {
 				p.velX = -1;
 			}
@@ -242,7 +241,6 @@ function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandli
 			}
 		}
 		if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w + p.velX - 1 && walls[3]) {
-			console.log("hit the walls");
 			if(illegalHandling === "collide") {
 				p.velX = 1;
 			}
@@ -2031,6 +2029,7 @@ Door.prototype.exist = function(parentRoom) {
 					for(var i = 0; i < possibleItems.length; i ++) {
 						if(!(new possibleItems[i]() instanceof Weapon)) {
 							possibleItems.splice(i, 1);
+							i --;
 							continue;
 						}
 						var hasIt = false;
@@ -2041,6 +2040,7 @@ Door.prototype.exist = function(parentRoom) {
 						}
 						if(hasIt) {
 							possibleItems.splice(i, 1);
+							i --;
 							continue;
 						}
 					}
@@ -3463,8 +3463,8 @@ var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1"
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 if(hax) {
-	rooms = ["parkour3"];
-	enemies = [SkeletonArcher];
+	rooms = ["combat1"];
+	enemies = [Troll];
 }
 var roomInstances = [
 	new Room(
@@ -5771,8 +5771,10 @@ function Troll(x, y) {
 	this.curveArray = findPointsCircular(0, 0, 10);
 	this.attackArmDir = 2;
 	this.attackArmRot = 0;
-	this.legs = 0;
-	this.legDir = 1;
+	this.leg1 = -2;
+	this.leg2 = 2;
+	this.leg1Dir = -0.125;
+	this.leg2Dir = 0.125;
 	this.currentAction = "move";
 	this.timeDoingAction = 0;
 
@@ -5816,10 +5818,10 @@ Troll.prototype.display = function() {
 	for(var scale = -1; scale <= 1; scale += 2) {
 		c.save();
 		if(scale === -1) {
-			c.translate(3 * this.legs, 7 * this.legs);
+			c.translate(3 * this.leg1, 7 * this.leg1);
 		}
 		else {
-			c.translate(3 * this.legs, -7 * this.legs);
+			c.translate(3 * this.leg2, 7 * this.leg2);
 		}
 		c.scale(scale, 1);
 		circle(45, 30, 5);
@@ -5841,9 +5843,20 @@ Troll.prototype.display = function() {
 		c.fill();
 		c.restore();
 	}
-	this.legs += this.legDir;
-	this.legDir = (this.legs > 2) ? -0.125 : this.legDir;
-	this.legDir = (this.legs < -2) ? 0.125 : this.legDir;
+	this.leg1 += this.leg1Dir;
+	this.leg2 += this.leg2Dir;
+	if(this.walking) {
+		this.leg1Dir = (this.leg1 > 2) ? -0.125 : this.leg1Dir;
+		this.leg1Dir = (this.leg1 < -2) ? 0.125 : this.leg1Dir;
+		this.leg2Dir = (this.leg2 > 2) ? -0.125 : this.leg2Dir;
+		this.leg2Dir = (this.leg2 < -2) ? 0.125 : this.leg2Dir;
+	}
+	else {
+		this.leg1Dir = (this.leg1 < 0) ? 0.125 : this.leg1Dir;
+		this.leg1Dir = (this.leg1 > 0) ? -0.125 : this.leg1Dir;
+		this.leg2Dir = (this.leg2 < 0) ? 0.125 : this.leg2Dir;
+		this.leg2Dir = (this.leg2 > 0) ? -0.125 : this.leg2Dir;
+	}
 	//head
 	circle(0, -40, 20);
 	c.restore();
@@ -5863,6 +5876,16 @@ Troll.prototype.display = function() {
 	circle(50, 10, 5);
 	c.fillRect(-5, -10, 60, 20);
 	c.fillRect(0, -15, 50, 30);
+	if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
+		c.fillStyle = "rgb(139, 69, 19)";
+		c.beginPath();
+		c.moveTo(-45, 0);
+		c.lineTo(-50, -50);
+		c.lineTo(-30, -50);
+		c.lineTo(-35, 0);
+		c.fill();
+		circle(-40, -50, 10);
+	}
 	c.restore();
 	//left arm
 	c.save();
@@ -5873,7 +5896,7 @@ Troll.prototype.display = function() {
 	else {
 		c.rotate(-40 / 180 * Math.PI);
 	}
-	if(this.x + p.worldX > p.x) {
+	if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
 		c.fillStyle = "rgb(139, 69, 19)";
 		c.beginPath();
 		c.moveTo(-45, 0);
@@ -5896,17 +5919,55 @@ Troll.prototype.display = function() {
 	this.attackArmDir = (this.attackArmRot < 0) ? 2 : this.attackArmDir;
 };
 Troll.prototype.update = function() {
+	console.log("updating!");
 	//movement
 	this.x += this.velX;
 	this.y += this.velY;
-	if(this.x + p.worldX < p.x) {
-		this.x = (this.x + p.worldX < p.x - 100) ? this.velX + 0.1 : this.velX;
-		this.x = (this.x + p.worldX > p.x - 100) ? this.velX - 0.1 : this.velX;
+	if(this.currentAction === "move") {
+		this.walking = true;
+		if(this.x + p.worldX < p.x) {
+			this.x = (this.x + p.worldX < p.x - 100) ? this.x + 1 : this.x;
+			this.x = (this.x + p.worldX > p.x - 100) ? this.x - 1 : this.x;
+		}
+		else {
+			this.x = (this.x + p.worldX < p.x + 100) ? this.x + 1 : this.x;
+			this.x = (this.x + p.worldX > p.x + 100) ? this.x - 1 : this.x;
+		}
+		this.timeDoingAction ++;
+		if(this.timeDoingAction > 90) {
+			if(Math.abs(this.x + p.worldX - p.x) > 150 && false) {
+				this.currentAction = "ranged-attack";
+			}
+			else {
+				this.currentAction = "melee-attack";
+			}
+			this.timeDoingAction = 0;
+		}
 	}
-	else {
-		this.x = (this.x + p.worldX < p.x + 100) ? this.velX + 0.1 : this.velX;
-		this.x = (this.x + p.worldX > p.x + 100) ? this.velX - 0.1 : this.velX;
+	else if(this.currentAction === "ranged-attack") {
+		this.walking = false;
+		if(this.x + p.worldX < p.x) {
+			this.armAttacking = "left";
+		}
 	}
+};
+function Rock(x, y, velX, velY) {
+	this.x = x;
+	this.y = y;
+	this.velX = velX;
+	this.velY = velY;
+};
+Rock.prototype.exist = function() {
+	//update
+	this.x += this.velX;
+	this.y += this.velY;
+	this.velY += 0.1;
+	this.velX *= 0.97;
+	//graphics
+	c.fillStyle = "rgb(150, 150, 150)";
+	c.beginPath();
+	c.arc(this.x, this.y, 25, 0, 2 * Math.PI);
+	c.fill();
 };
 
 
@@ -5915,6 +5976,9 @@ if(hax) {
 	p["class"] = "archer";
 	p.reset();
 	p.onScreen = "play";
+	for(var i = 0; i < items.length; i ++) {
+		p.addItem(new items[i]());
+	}
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
