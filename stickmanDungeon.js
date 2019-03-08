@@ -1945,451 +1945,37 @@ Door.prototype.exist = function() {
 		this.entering = true;
 	}
 	if(p.screenOp > 0.95 && this.entering && !this.barricaded) {
-		this.entering = false;
 		if(typeof this.dest !== "number") {
 			p.roomsExplored ++;
 			p.numHeals ++;
+			//calculate how close the nearest unexplored door is
+			calcPaths();
+			p.terminateProb = 0;
+			for(var i = 0; i < roomInstances.length; i ++) {
+				for(var j = 0; j < roomInstances[i].content.length; j ++) {
+					if(roomInstances[i].content[j] instanceof Door && typeof(roomInstances[i].content[j].dest) === "object" && !roomInstances[i].content[j].entering) {
+						console.log("room " + i + " with index " + j);
+						p.terminateProb += (1 / (roomInstances[i].pathScore + 1));
+					}
+				}
+			}
+			console.log(p.terminateProb);
 			//create a list of valid rooms to generate
 			var possibleRooms = [];
 			for(var i = 0; i < rooms.length; i ++) {
+				console.log(rooms[i]);
 				for(var j = 0; j < this.dest.length; j ++) {
-					if(this.dest[j] === rooms[i].substr(0, 7) && rooms[i] !== roomInstances[inRoom].type) {
+					if(this.dest[j] === rooms[i].name.substr(0, 7) && rooms[i].name !== roomInstances[inRoom].type) {
 						possibleRooms.push(rooms[i]);
 					}
-					if(this.dest[j] === rooms[i].substr(0, 6) && rooms[i] !== roomInstances[inRoom].type) {
+					if(this.dest[j] === rooms[i].name.substr(0, 6) && rooms[i].name !== roomInstances[inRoom].type) {
 						possibleRooms.push(rooms[i]);
 					}
 				}
 			}
+			//add selected room
 			var roomIndex = Math.round(Math.random() * (possibleRooms.length - 1));
-			switch(possibleRooms[roomIndex]) {
-				//ambient (empty) rooms
-				case "ambient1":
-					roomInstances.push(
-						new Room(
-							"ambient1",
-							[
-								new Pillar(200, 500, 200),
-								new Pillar(400, 500, 200),
-								new Pillar(600, 500, 200),
-								new Pillar(800, 500, 200),
-								new Block(-200, 500, 2000, 600),//floor
-								new Block(-600, -200, 700, 900), //left wall
-								new Block(-400, -1000, 2000, 1300), //ceiling
-								new Block(900, -200, 500, 1000), //right wall
-								new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
-								new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
-								new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
-							],
-							"?"
-						)
-					);
-					break;
-				case "ambient2":
-					roomInstances.push(
-						new Room(
-							"ambient2",
-							[
-								new Block(-1000, -1000, 1300, 2000), //left wall
-								new Block(-100, 500, 1500, 500), //floor
-								new Block(-400, -1000, 2000, 1300), //roof
-								new Block(1000, -500, 1000, 1100), //right wall
-								new Torch(500, 440),
-								new Torch(600, 440),
-								new Torch(700, 440),
-								new Torch(800, 440),
-								new Door(400, 500, ["combat", "parkour", "secret"]),
-								new Door(900, 500, ["combat", "parkour", "secret"])
-							],
-							"?"
-						)
-					);
-					break;
-				case "ambient3":
-					if(Math.random() < 0.5) {
-						roomInstances.push(
-							new Room(
-								"ambient3",
-								[
-									new Block(-4000, 0, 8000, 1000), //floor
-									new Stairs(200, 0, 10, "right"),
-									new Block(600, -4000, 4000, 4100), //right wall
-									new Door(500, 0, ["combat", "parkour", "secret"], true),
-									new Block(-800, -200, 1001, 1000), //higher floor
-									new Door(100, -200, ["combat", "parkour", "secret"]),
-									new Block(-1000, -4000, 1000, 8000), //left wall
-									new Block(-4000, -1400, 8000, 1000) //roof
-								],
-								"?"
-							)
-						);
-					}
-					else {
-						roomInstances.push(
-							new Room(
-								"ambient3",
-								[
-									new Block(-4000, 0, 8000, 1000), //floor
-									new Stairs(-200, 0, 10, "left"),
-									new Block(-4600, -4000, 4000, 4100), //left wall
-									new Door(-500, 0, ["combat", "parkour", "secret"], true),
-									new Block(-200, -200, 1000, 1000), //higher floor
-									new Door(-100, -200, ["combat", "parkour", "secret"]),
-									new Block(0, -4000, 1000, 8000), //right wall
-									new Block(-4000, -1400, 8000, 1000) //roof
-								],
-								"?"
-							)
-						);
-					}
-					break;
-				//secret rooms
-				case "secret1":
-					roomInstances.push(
-						new Room(
-							"secret1",
-							[
-								new Chest(100, 0),
-								new Chest(800, 0),
-								new Block(-1000, -1000, 1000, 2000), //left wall
-								new Block(-100, 500, 1010, 500), //floor
-								new Block(900, -1000, 1000, 2000), //right wall,
-								new Block(-300, 0, 500, 100), //left roof,
-								new Block(700, 0, 500, 100), //right roof
-								new Block(-300, -1300, 500, 1100), //left roof,
-								new Block(700, -1300, 500, 1100), //right roof
-								new Door(100, 500, ["ambient", "combat", "parkour"]),
-								new Door(800, 500, ["ambient", "combat", "parkour"]),
-								new LightRay(200, 500),
-								new Tree(450, 500)
-							],
-							"?"
-						)
-					);
-					break;
-				case "secret2":
-					var possibleItems = Object.create(items);
-					for(var i = 0; i < possibleItems.length; i ++) {
-						if(!(new possibleItems[i]() instanceof Weapon)) {
-							possibleItems.splice(i, 1);
-							i --;
-							continue;
-						}
-						var hasIt = false;
-						for(var j = 0; j < p.invSlots.length; j ++) {
-							if(p.invSlots[j].content instanceof possibleItems[i]) {
-								hasIt = true;
-							}
-						}
-						if(hasIt) {
-							possibleItems.splice(i, 1);
-							i --;
-							continue;
-						}
-					}
-					if(possibleItems.length === 0) {
-						//default to combat1 if the player has all the weapons in the
-						roomInstances.push(
-							new Room(
-								"combat1",
-								[
-									new Block(-2000, 0, 4000, 1000), //floor
-									new Block(-1000, -4000, 500, 8000), //left wall
-									new Block(500, -4000, 1000, 8000), //right wall
-									new Block(-2000, -1900, 4000, 1600), //roof
-									new Door(-450, 0, ["ambient"], false),
-									new Door(0, 0, ["reward"], true),
-									new Door(450, 0, ["ambient"], false),
-									new Window(300, -50), new Window(-300, -50),
-									new Window(150, -50), new Window(-150, -50),
-									new RandomEnemy(50, 0)
-								],
-								"?"
-							)
-						);
-						break;
-					}
-					roomInstances.push(
-						new Room(
-							"secret2",
-							[
-								new Block(-1000, -1000, 1000, 2000), //left wall
-								new Block(-100, 500, 1010, 500), //floor
-								new Block(600, -1000, 1000, 2000), //right wall,
-								new Block(-4000, -2000, 8000, 2200), //roof
-								new Statue(300, 370, new Sword()),
-								new Door(100, 500, ["ambient", "combat", "parkour"]),
-								new Door(500, 500, ["ambient", "combat", "parkour"])
-							],
-							"?"
-						)
-					);
-					break;
-				//platforming rooms
-				case "parkour1":
-					roomInstances.push(
-						new Room(
-							"parkour1",
-							[
-								new Block(-1000, -1000, 1000, 2000), //left wall
-								new Block(-1000, 500, 1200, 1000), //left floor
-								new Door(100, 500, ["ambient"], false),
-								new FallBlock(300, 475),
-								new FallBlock(400, 450),
-								new FallBlock(500, 425),
-								new Block(600, 400, 200, 2000), //middle platform
-								new Door(700, 400, ["reward"], true),
-								new FallBlock(900, 425),
-								new FallBlock(1000, 450),
-								new FallBlock(1100, 475),
-								new Block(1200, 500, 1000, 2000), //right floor
-								new Block(1400, -1000, 1000, 2000), //right wall
-								new Door(1300, 500, ["ambient"], false),
-								new Block(-4000, -1200, 8000, 1300)
-							],
-							"?",
-							-200
-						)
-					);
-					break;
-				case "parkour2":
-					roomInstances.push(
-						new Room(
-							"parkour2",
-							[
-								new Block(0, -4000, 1000, 8000), //left wall
-								new Block(200, 0, 1000, 4000), //left floor
-								new Door(1100, 0, ["ambient"]),
-								new Block(1550, 200, 200, 8000), //middle platform
-								new Pulley(1300, 150, 1850, 150, 200),
-								new Door(1650, 200, ["reward"], true),
-								new Block(2100, 0, 1000, 4000), //right floor
-								new Block(2300, -4000, 1000, 8000), //right wall
-								new Door(2200, 0, ["ambient"])
-							],
-							"?",
-							0
-						)
-					);
-					break;
-				case "parkour3":
-					roomInstances.push(
-						new Room(
-							"parkour1",
-							[
-								new Block(-1000, -1000, 1000, 2000), //left wall
-								new Block(-1000, 500, 1200, 1000), //left floor
-								new Door(100, 500, ["ambient"], false),
-								new TiltPlatform(300, 475),
-								// new TiltPlatform(400, 450),
-								new TiltPlatform(500, 425),
-								new Block(600, 400, 200, 2000), //middle platform
-								new Door(700, 400, ["reward"], true),
-								new TiltPlatform(900, 425),
-								// new TiltPlatform(1000, 450),
-								new TiltPlatform(1100, 475),
-								new Block(1200, 500, 1000, 2000), //right floor
-								new Block(1400, -1000, 1000, 2000), //right wall
-								new Door(1300, 500, ["ambient"], false),
-								new Block(-4000, -1200, 8000, 1300)
-							],
-							"?",
-							-200
-						)
-					);
-					break;
-				//reward rooms
-				case "reward1":
-					roomInstances.push(
-						new Room(
-							"reward1",
-							[
-								new Block(-2000, 500, 4000, 500), //floor
-								new Block(-1000, -1000, 800, 2000), //left wall
-								new Block(200, -1000, 500, 3000), //right wall
-								new Block(-1000, -2000, 2000, 2300), //roof,
-								new Door(0, 500, ["things should go here... maybe? i dont think so lol"], false),
-								new Chest(-100, 500),
-								new Chest(100, 500)
-							],
-							"?"
-						)
-					);
-					break;
-				case "reward2":
-					var chooser = Math.random();
-					var hasAStaff = false;
-					magicLoop: for(var i = 0; i < p.invSlots.length; i ++) {
-						if(p.invSlots[i].content instanceof MagicWeapon) {
-							hasAStaff = true;
-							break magicLoop;
-						}
-					}
-					if(!hasAStaff) {
-						chooser = 0;
-					}
-					if(p.healthAltarsFound >= 5) {
-						chooser = 1;
-					}
-					if(p.manaAltarsFound >= 5) {
-						chooser = 0;
-					}
-					if(p.healthAltarsFound >= 5 && p.manaAltarsFound >= 5) {
-						roomInstances.push(
-							new Room(
-								"reward",
-								[
-									new Block(-2000, 500, 4000, 500), //floor
-									new Block(-1000, -1000, 800, 2000), //left wall
-									new Block(200, -1000, 500, 3000), //right wall
-									new Block(-1000, -2000, 2000, 2300), //roof,
-									new Door(0, 500, ["things should go here... maybe? i dont think so lol"], false),
-									new Chest(-100, 500),
-									new Chest(100, 500)
-								],
-								"?"
-							)
-						);
-						break;
-					}
-					p.healthAltarsFound += (chooser < 0.5) ? 1 : 0;
-					p.manaAltarsFound += (chooser > 0.5) ? 1 : 0;
-					roomInstances.push(
-						new Room(
-							"reward2",
-							[
-								new Block(0, 0, 4000, 4000), //floor
-								new Block(0, -4000, 1000, 5000), //left wall
-								new Block(1500, -4000, 1000, 5000), //right wall
-								new Block(0, -2000, 8000, 1800), //roof
-								new Door(1100, 0, ["combat", "parkour"], false, true),
-								new Door(1400, 0, ["combat", "parkour"], false, true),
-								new Block(1210, -40, 80, 100),
-								new Block(1200, -201, 100, 41),
-								new Stairs(1290, 0, 2, "right"),
-								new Stairs(1210, 0, 2, "left"),
-								new Block(1180, -200, 140, 20),
-								new Altar(1250, -100, chooser < 0.5 ? "health" : "mana")
-							],
-							"?"
-						)
-					);
-					break;
-				case "reward3":
-					roomInstances.push(new Room(
-						"reward3",
-						[
-							new Block(0, 0, 4000, 4000), //floor
-							new Block(0, -4000, 1000, 5000), //left wall
-							new Block(1500, -4000, 1000, 5000), //right wall
-							new Block(0, -2000, 8000, 1700), //roof
-							new Forge(1250, 0),
-							new Door(1050, 0, ["combat", "parkour"], false, true),
-							new Door(1450, 0, ["combat", "parkour"], false, true)
-						],
-						"?"
-					));
-					break;
-				case "reward4":
-					if(Math.random() < 0.5) {
-						roomInstances.push(
-							new Room(
-								"reward4",
-								[
-									new Block(-4000, 0, 8000, 1000), //floor
-									new Stairs(200, 0, 10, "right"),
-									new Block(600, -4000, 4000, 4100), //right wall
-									new Chest(500, 0),
-									new Block(-800, -200, 1001, 1000), //higher floor
-									new Door(100, -200, ["combat", "parkour", "secret"]),
-									new Block(-1000, -4000, 1000, 8000), //left wall
-									new Block(-4000, -1400, 8000, 1000) //roof
-								],
-								"?"
-							)
-						);
-					}
-					else {
-						roomInstances.push(
-							new Room(
-								"reward4",
-								[
-									new Block(-4000, 0, 8000, 1000), //floor
-									new Stairs(-200, 0, 10, "left"),
-									new Block(-4600, -4000, 4000, 4100), //left wall
-									new Chest(-500, 0),
-									new Block(-200, -200, 1000, 1000), //higher floor
-									new Door(-100, -200, ["combat", "parkour", "secret"]),
-									new Block(0, -4000, 1000, 8000), //right wall
-									new Block(-4000, -1400, 8000, 1000) //roof
-								],
-								"?"
-							)
-						);
-					}
-					break;
-				//combat rooms
-				case "combat1":
-					roomInstances.push(
-						new Room(
-							"combat1",
-							[
-								new Block(-2000, 0, 4000, 1000), //floor
-								new Block(-1000, -4000, 500, 8000), //left wall
-								new Block(500, -4000, 1000, 8000), //right wall
-								new Block(-2000, -1900, 4000, 1600), //roof
-								new Door(-450, 0, ["ambient"], false),
-								new Door(0, 0, ["reward"], true),
-								new Door(450, 0, ["ambient"], false),
-								new Window(300, -50), new Window(-300, -50),
-								new Window(150, -50), new Window(-150, -50),
-								new RandomEnemy(50, 0)
-							],
-							"?"
-						)
-					);
-					break;
-				case "combat2":
-					roomInstances.push(
-						new Room(
-							"combat2",
-							[
-								new Stairs(200, 0, 10, "right"),
-								new Stairs(0, 0, 10, "left"),
-								new Block(-4000, 0, 8000, 1000), //floor
-								new Block(600, -4000, 4000, 4100), //right wall
-								new Block(-1400, -4000, 1000, 8000), //left wall
-								new Block(0, -200, 201, 1000), //higher floor
-								new Block(-4000, -1400, 8000, 1000), //roof
-								new Door(-300, 0, ["reward"], true),
-								new Door(500, 0, ["reward"], true),
-								new Door(100, -200, ["it doesn't matter what i write here, since you'll always enter through this door"]),
-								new RandomEnemy(500, 0),
-								new RandomEnemy(-300, 0)
-							],
-							"?"
-						)
-					);
-					break;
-				case "combat3":
-					roomInstances.push(
-						new Room(
-							"combat3",
-							[
-								new Door(0, 0),
-								new Block(-100, 0, 200, 8000), //left floor
-								new Block(-4000, -4000, 3900, 8000, ["reward"]), //left wall
-								new Block(900, 0, 300, 8000), //right floor
-								new Block(1100, -4000, 1000, 8000, ["reward"]), //right wall
-								new Door(1000, 0),
-								new Bridge(500, -200),
-								new RandomEnemy(400, -200)
-							],
-							"?"
-						)
-					)
-					break;
-			}
+			rooms[roomIndex].add();
 			roomInstances[roomInstances.length - 1].id = "?";
 			//reset variables for transition
 			var previousRoom = inRoom;
@@ -2476,6 +2062,7 @@ Door.prototype.exist = function() {
 			}
 		}
 		p.screenOp = 0.95;
+		this.entering = false;
 		calcPaths();
 	}
 };
@@ -3668,9 +3255,460 @@ Room.prototype.exist = function(index) {
 	c.fillRect(0, 0, 800, 800);
 };
 var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "combat2", "combat3", "parkour1", "parkour2", "reward1", "reward2", "reward3", "reward4"];
+rooms = [
+	{
+		name: "ambient1",
+		extraDoors: 2,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"ambient1",
+					[
+						new Pillar(200, 500, 200),
+						new Pillar(400, 500, 200),
+						new Pillar(600, 500, 200),
+						new Pillar(800, 500, 200),
+						new Block(-200, 500, 2000, 600),//floor
+						new Block(-600, -200, 700, 900), //left wall
+						new Block(-400, -1000, 2000, 1300), //ceiling
+						new Block(900, -200, 500, 1000), //right wall
+						new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
+						new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
+						new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
+					],
+					"?"
+				)
+			);
+		}
+	}, //3 pillars room
+	{
+		name: "ambient2",
+		extraDoors: 1,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"ambient2",
+					[
+						new Block(-1000, -1000, 1300, 2000), //left wall
+						new Block(-100, 500, 1500, 500), //floor
+						new Block(-400, -1000, 2000, 1300), //roof
+						new Block(1000, -500, 1000, 1100), //right wall
+						new Torch(500, 440),
+						new Torch(600, 440),
+						new Torch(700, 440),
+						new Torch(800, 440),
+						new Door(400, 500, ["combat", "parkour", "secret"]),
+						new Door(900, 500, ["combat", "parkour", "secret"])
+					],
+					"?"
+				)
+			);
+		}
+	}, //torches hallway room
+	{
+		name: "ambient3",
+		extraDoors: 1,
+		add: function() {
+			if(Math.random() < 0.5) {
+				roomInstances.push(
+					new Room(
+						"ambient3",
+						[
+							new Block(-4000, 0, 8000, 1000), //floor
+							new Stairs(200, 0, 10, "right"),
+							new Block(600, -4000, 4000, 4100), //right wall
+							new Door(500, 0, ["combat", "parkour", "secret"], true),
+							new Block(-800, -200, 1001, 1000), //higher floor
+							new Door(100, -200, ["combat", "parkour", "secret"]),
+							new Block(-1000, -4000, 1000, 8000), //left wall
+							new Block(-4000, -1400, 8000, 1000) //roof
+						],
+						"?"
+					)
+				);
+			}
+			else {
+				roomInstances.push(
+					new Room(
+						"ambient3",
+						[
+							new Block(-4000, 0, 8000, 1000), //floor
+							new Stairs(-200, 0, 10, "left"),
+							new Block(-4600, -4000, 4000, 4100), //left wall
+							new Door(-500, 0, ["combat", "parkour", "secret"], true),
+							new Block(-200, -200, 1000, 1000), //higher floor
+							new Door(-100, -200, ["combat", "parkour", "secret"]),
+							new Block(0, -4000, 1000, 8000), //right wall
+							new Block(-4000, -1400, 8000, 1000) //roof
+						],
+						"?"
+					)
+				);
+			}
+		}
+	}, //stairs room
+	{
+		name: "secret1",
+		extraDoors: 1,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"secret1",
+					[
+						new Chest(100, 0),
+						new Chest(800, 0),
+						new Block(-1000, -1000, 1000, 2000), //left wall
+						new Block(-100, 500, 1010, 500), //floor
+						new Block(900, -1000, 1000, 2000), //right wall,
+						new Block(-300, 0, 500, 100), //left roof,
+						new Block(700, 0, 500, 100), //right roof
+						new Block(-300, -1300, 500, 1100), //left roof,
+						new Block(700, -1300, 500, 1100), //right roof
+						new Door(100, 500, ["ambient", "combat", "parkour"]),
+						new Door(800, 500, ["ambient", "combat", "parkour"]),
+						new LightRay(200, 500),
+						new Tree(450, 500)
+					],
+					"?"
+				)
+			);
+		}
+	}, //garden
+	{
+		name: "secret2",
+		extraDoors: 1,
+		add: function() {
+			var possibleItems = Object.create(items);
+			for(var i = 0; i < possibleItems.length; i ++) {
+				if(!(new possibleItems[i]() instanceof Weapon)) {
+					possibleItems.splice(i, 1);
+					i --;
+					continue;
+				}
+				var hasIt = false;
+				for(var j = 0; j < p.invSlots.length; j ++) {
+					if(p.invSlots[j].content instanceof possibleItems[i]) {
+						hasIt = true;
+					}
+				}
+				if(hasIt) {
+					possibleItems.splice(i, 1);
+					i --;
+					continue;
+				}
+			}
+			if(possibleItems.length === 0) {
+				//default to combat1 if the player has all the weapons in the
+				roomInstances.push(
+					new Room(
+						"combat1",
+						[
+							new Block(-2000, 0, 4000, 1000), //floor
+							new Block(-1000, -4000, 500, 8000), //left wall
+							new Block(500, -4000, 1000, 8000), //right wall
+							new Block(-2000, -1900, 4000, 1600), //roof
+							new Door(-450, 0, ["ambient"], false),
+							new Door(0, 0, ["reward"], true),
+							new Door(450, 0, ["ambient"], false),
+							new Window(300, -50), new Window(-300, -50),
+							new Window(150, -50), new Window(-150, -50),
+							new RandomEnemy(50, 0)
+						],
+						"?"
+					)
+				);
+			}
+			roomInstances.push(
+				new Room(
+					"secret2",
+					[
+						new Block(-1000, -1000, 1000, 2000), //left wall
+						new Block(-100, 500, 1010, 500), //floor
+						new Block(600, -1000, 1000, 2000), //right wall,
+						new Block(-4000, -2000, 8000, 2200), //roof
+						new Statue(300, 370, new Sword()),
+						new Door(100, 500, ["ambient", "combat", "parkour"]),
+						new Door(500, 500, ["ambient", "combat", "parkour"])
+					],
+					"?"
+				)
+			);
+		}
+	}, //statue room
+	{
+		name: "combat1",
+		extraDoors: 2,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"combat1",
+					[
+						new Block(-2000, 0, 4000, 1000), //floor
+						new Block(-1000, -4000, 500, 8000), //left wall
+						new Block(500, -4000, 1000, 8000), //right wall
+						new Block(-2000, -1900, 4000, 1600), //roof
+						new Door(-450, 0, ["ambient"], false),
+						new Door(0, 0, ["reward"], true),
+						new Door(450, 0, ["ambient"], false),
+						new Window(300, -50), new Window(-300, -50),
+						new Window(150, -50), new Window(-150, -50),
+						new RandomEnemy(50, 0)
+					],
+					"?"
+				)
+			);
+		}
+	}, //basic combat room
+	{
+		name: "combat2",
+		extraDoors: 2,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"combat2",
+					[
+						new Stairs(200, 0, 10, "right"),
+						new Stairs(0, 0, 10, "left"),
+						new Block(-4000, 0, 8000, 1000), //floor
+						new Block(600, -4000, 4000, 4100), //right wall
+						new Block(-1400, -4000, 1000, 8000), //left wall
+						new Block(0, -200, 201, 1000), //higher floor
+						new Block(-4000, -1400, 8000, 1000), //roof
+						new Door(-300, 0, ["reward"], true),
+						new Door(500, 0, ["reward"], true),
+						new Door(100, -200, ["it doesn't matter what i write here, since you'll always enter through this door"]),
+						new RandomEnemy(500, 0),
+						new RandomEnemy(-300, 0)
+					],
+					"?"
+				)
+			);
+		}
+	}, //stairs double combat room
+	{
+		name: "combat3",
+		extraDoors: 1,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"combat3",
+					[
+						new Door(0, 0),
+						new Block(-100, 0, 200, 8000), //left floor
+						new Block(-4000, -4000, 3900, 8000, ["reward"]), //left wall
+						new Block(900, 0, 300, 8000), //right floor
+						new Block(1100, -4000, 1000, 8000, ["reward"]), //right wall
+						new Door(1000, 0),
+						new Bridge(500, -200),
+						new RandomEnemy(400, -200)
+					],
+					"?"
+				)
+			)
+		}
+	}, //bridge combat room
+	{
+		name: "parkour1",
+		extraDoors: 2,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"parkour1",
+					[
+						new Block(-1000, -1000, 1000, 2000), //left wall
+						new Block(-1000, 500, 1200, 1000), //left floor
+						new Door(100, 500, ["ambient"], false),
+						new FallBlock(300, 475),
+						new FallBlock(400, 450),
+						new FallBlock(500, 425),
+						new Block(600, 400, 200, 2000), //middle platform
+						new Door(700, 400, ["reward"], true),
+						new FallBlock(900, 425),
+						new FallBlock(1000, 450),
+						new FallBlock(1100, 475),
+						new Block(1200, 500, 1000, 2000), //right floor
+						new Block(1400, -1000, 1000, 2000), //right wall
+						new Door(1300, 500, ["ambient"], false),
+						new Block(-4000, -1200, 8000, 1300)
+					],
+					"?",
+					-200
+				)
+			);
+		}
+	}, //falling platforms room
+	{
+		name: "parkour2",
+		extraDoors: 2,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"parkour2",
+					[
+						new Block(0, -4000, 1000, 8000), //left wall
+						new Block(200, 0, 1000, 4000), //left floor
+						new Door(1100, 0, ["ambient"]),
+						new Block(1550, 200, 200, 8000), //middle platform
+						new Pulley(1300, 150, 1850, 150, 200),
+						new Door(1650, 200, ["reward"], true),
+						new Block(2100, 0, 1000, 4000), //right floor
+						new Block(2300, -4000, 1000, 8000), //right wall
+						new Door(2200, 0, ["ambient"])
+					],
+					"?",
+					0
+				)
+			);
+		}
+	}, //pulley room
+	{
+		name: "reward1",
+		extraDoors: 0,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"reward1",
+					[
+						new Door(0, 0, "blah"),
+						new Block(-4000, 0, 8000, 1000), // floor
+						new Block(-1500, -4000, 1300, 8000), //left wall
+						new Block(200, -4000, 1000, 8000), //right wall
+						new Block(-4000, -2000, 8000, 1800), //roof
+						new Chest(-100, 0),
+						new Chest(100, 0)
+					],
+					"?"
+				)
+			)
+		}
+	}, //2 chests room
+	{
+		name: "reward2",
+		extraDoors: 1,
+		add: function() {
+			var chooser = Math.random();
+			var hasAStaff = false;
+			magicLoop: for(var i = 0; i < p.invSlots.length; i ++) {
+				if(p.invSlots[i].content instanceof MagicWeapon) {
+					hasAStaff = true;
+					break magicLoop;
+				}
+			}
+			if(!hasAStaff) {
+				chooser = 0;
+			}
+			if(p.healthAltarsFound >= 5) {
+				chooser = 1;
+			}
+			if(p.manaAltarsFound >= 5) {
+				chooser = 0;
+			}
+			if(p.healthAltarsFound >= 5 && p.manaAltarsFound >= 5) {
+				roomInstances.push(
+					new Room(
+						"reward",
+						[
+							new Block(-2000, 500, 4000, 500), //floor
+							new Block(-1000, -1000, 800, 2000), //left wall
+							new Block(200, -1000, 500, 3000), //right wall
+							new Block(-1000, -2000, 2000, 2300), //roof,
+							new Door(0, 500, ["things should go here... maybe? i dont think so lol"], false),
+							new Chest(-100, 500),
+							new Chest(100, 500)
+						],
+						"?"
+					)
+				);
+			}
+			p.healthAltarsFound += (chooser < 0.5) ? 1 : 0;
+			p.manaAltarsFound += (chooser > 0.5) ? 1 : 0;
+			roomInstances.push(
+				new Room(
+					"reward2",
+					[
+						new Block(0, 0, 4000, 4000), //floor
+						new Block(0, -4000, 1000, 5000), //left wall
+						new Block(1500, -4000, 1000, 5000), //right wall
+						new Block(0, -2000, 8000, 1800), //roof
+						new Door(1100, 0, ["combat", "parkour"], false, true),
+						new Door(1400, 0, ["combat", "parkour"], false, true),
+						new Block(1210, -40, 80, 100),
+						new Block(1200, -201, 100, 41),
+						new Stairs(1290, 0, 2, "right"),
+						new Stairs(1210, 0, 2, "left"),
+						new Block(1180, -200, 140, 20),
+						new Altar(1250, -100, chooser < 0.5 ? "health" : "mana")
+					],
+					"?"
+				)
+			);
+		}
+	}, //altar room
+	{
+		name: "reward3",
+		extraDoors: 1,
+		add: function() {
+			roomInstances.push(new Room(
+				"reward3",
+				[
+					new Block(0, 0, 4000, 4000), //floor
+					new Block(0, -4000, 1000, 5000), //left wall
+					new Block(1500, -4000, 1000, 5000), //right wall
+					new Block(0, -2000, 8000, 1700), //roof
+					new Forge(1250, 0),
+					new Door(1050, 0, ["combat", "parkour"], false, true),
+					new Door(1450, 0, ["combat", "parkour"], false, true)
+				],
+				"?"
+			));
+		}
+	}, //forge room
+	{
+		name: "reward4",
+		extraDoors: 0,
+		add: function() {
+			if(Math.random() < 0.5) {
+				roomInstances.push(
+					new Room(
+						"reward4",
+						[
+							new Block(-4000, 0, 8000, 1000), //floor
+							new Stairs(200, 0, 10, "right"),
+							new Block(600, -4000, 4000, 4100), //right wall
+							new Chest(500, 0),
+							new Block(-800, -200, 1001, 1000), //higher floor
+							new Door(100, -200, ["combat", "parkour", "secret"]),
+							new Block(-1000, -4000, 1000, 8000), //left wall
+							new Block(-4000, -1400, 8000, 1000) //roof
+						],
+						"?"
+					)
+				);
+			}
+			else {
+				roomInstances.push(
+					new Room(
+						"reward4",
+						[
+							new Block(-4000, 0, 8000, 1000), //floor
+							new Stairs(-200, 0, 10, "left"),
+							new Block(-4600, -4000, 4000, 4100), //left wall
+							new Chest(-500, 0),
+							new Block(-200, -200, 1000, 1000), //higher floor
+							new Door(-100, -200, ["combat", "parkour", "secret"]),
+							new Block(0, -4000, 1000, 8000), //right wall
+							new Block(-4000, -1400, 8000, 1000) //roof
+						],
+						"?"
+					)
+				);
+			}
+		}
+	} //chest + stairs room
+];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
-if(hax) {
+if(hax && false) {
 	rooms = ["parkour3"];
 	enemies = [SkeletonArcher];
 }
