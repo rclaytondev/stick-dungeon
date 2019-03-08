@@ -6,7 +6,7 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = false;
+const hax = true;
 const showHitboxes = false;
 var hitboxes = [];
 function getMousePos(evt) {
@@ -484,6 +484,7 @@ function Player() {
 	this.healthAltarsFound = 0;
 	this.manaAltarsFound = 0;
 	this.openingBefore = false;
+	this.terminateProb = 0;
 	//scoring / permanent values
 	this.roomsExplored = 0;
 	this.enemiesKilled = 0;
@@ -2377,9 +2378,9 @@ Door.prototype.exist = function() {
 							[
 								new Door(0, 0),
 								new Block(-100, 0, 200, 8000), //left floor
-								new Block(-4000, -4000, 3900, 8000), //left wall
+								new Block(-4000, -4000, 3900, 8000, ["reward"]), //left wall
 								new Block(900, 0, 300, 8000), //right floor
-								new Block(1100, -4000, 1000, 8000), //right wall
+								new Block(1100, -4000, 1000, 8000, ["reward"]), //right wall
 								new Door(1000, 0),
 								new Bridge(500, -200),
 								new RandomEnemy(400, -200)
@@ -2891,7 +2892,6 @@ FallBlock.prototype.exist = function() {
 	}
 	if(this.steppedOn) {
 		this.timeShaking += 0.05;
-		console.log(this.timeShaking);
 	}
 	if(this.timeShaking > 3) {
 		this.timeShaking = 0;
@@ -3332,10 +3332,16 @@ function TiltPlatform(x, y) {
 	this.platY = 0;
 };
 TiltPlatform.prototype.exist = function() {
-	var point1 = getRotated(-50, 0, this.tilt);
-	line3d(point1.x + this.x + this.platX + p.worldX, point1.y + this.y + this.platY + p.worldY, -point1.x + this.x + this.platX + p.worldX, -point1.y + this.y + this.platY + p.worldY, 0.9, 1.1, "rgb(150, 150, 150)");
-	collisionLine(point1.x + this.x + this.platX + p.worldX, point1.y + this.y + this.platY + p.worldY, -point1.x + this.x + this.platX + p.worldX, -point1.y + this.y + this.platY + p.worldY, [true, true, true, true]);
-	line3d(this.x + p.worldX, this.y + p.worldY, this.x + p.worldX, 1000, 0.95, 1.05, "rgb(150, 150, 150)");
+	var point1 = getRotated(-50, -10, this.tilt);
+	var point2 = getRotated(-50, 10, this.tilt);
+	//graphics - front face
+	c.fillStyle = "rgb(110, 110, 110)";
+	c.beginPath();
+	c.moveTo(p.worldX + this.x + point1.x, p.worldY + this.y + point1.y);
+	c.lineTo(p.worldX + this.x + point2.x, p.worldY + this.y + point2.y);
+	c.lineTo(p.worldX + this.x - point1.x, p.worldY + this.y - point1.y);
+	c.lineTo(p.worldX + this.x - point2.x, p.worldY + this.y - point2.y);
+	c.fill();
 	if(p.x + 5 > this.x + p.worldX + point1.x && p.x - 5 < this.x + p.worldX - point1.x && p.canJump) {
 		if(p.x < this.x + p.worldX) {
 			this.tiltDir -= 0.1;
@@ -3665,7 +3671,7 @@ var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1"
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 if(hax) {
-	rooms = ["parkour1", "reward3"];
+	rooms = ["parkour3"];
 	enemies = [SkeletonArcher];
 }
 var roomInstances = [
