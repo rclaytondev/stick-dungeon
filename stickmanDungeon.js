@@ -6,7 +6,7 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = true;
+const hax = false;
 const showHitboxes = false;
 var hitboxes = [];
 function getMousePos(evt) {
@@ -41,7 +41,16 @@ function resizeCanvas() {
 
 /** UTILITIES **/
 Math.dist = function(x1, y1, x2, y2) {
+	/*
+	Returns the distance between ('x1', 'y1') and ('x2', 'y2')
+	*/
 	return Math.hypot(x1 - x2, y1 - y2);
+};
+Math.distSq = function(x1, y1, x2, y2) {
+	/*
+	Returns the distance between ('x1', 'y1') and ('x2', 'y2') squared for better performance
+	*/
+	return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
 };
 Array.prototype.removeAll = function(item) {
 	/**
@@ -54,6 +63,7 @@ Array.prototype.removeAll = function(item) {
 	}
 };
 var boxFronts = [];//for 3d-ish rendering
+var extraGraphics = [];
 function getRotated(x, y, deg) {
 	var rotArray = findPointsCircular(0, 0, Math.floor(Math.dist(0, 0, x, y)));
 	var startIndex;
@@ -81,7 +91,7 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
 		sideCol = "rgb(150, 150, 150)";
 	}
 	if(typeof frontCol !== "string") {
-		frontCol = "rgb(100, 100, 100)";
+		frontCol = "rgb(110, 110, 110)";
 	}
 	//background square
 	var leftBX = 400 - (400 - x) * startDepth;
@@ -213,8 +223,7 @@ function hitboxRect(x, y, w, h) {
 	}
 	return (p.x + 5 > x && p.x - 5 < x + w && p.y + 46 > y && p.y < y + h);
 };
-function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandling) {
-	parentRoom = parentRoom || inRoom;
+function collisionRect(x, y, w, h, walls, onlyEnemies, illegalHandling) {
 	onlyEnemies = onlyEnemies || false;
 	walls = walls || [true, true, true, true];
 	illegalHandling = illegalHandling || "collide";
@@ -249,9 +258,9 @@ function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandli
 			}
 		}
 	}
-	for(var i = 0; i < roomInstances[parentRoom].content.length; i ++) {
-		if(roomInstances[parentRoom].content[i] instanceof Enemy) {
-			var enemy = roomInstances[parentRoom].content[i];
+	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+		if(roomInstances[theRoom].content[i] instanceof Enemy) {
+			var enemy = roomInstances[theRoom].content[i];
 			if(enemy.x + p.worldX + enemy.rightX > x && enemy.x + p.worldX + enemy.leftX < x + w) {
 				if(enemy.y + p.worldY + enemy.bottomY >= y && enemy.y + p.worldY + enemy.bottomY <= y + enemy.velY + 1) {
 					enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
@@ -294,8 +303,8 @@ function collisionRect(x, y, w, h, walls, parentRoom, onlyEnemies, illegalHandli
 				}
 			}
 		}
-		else if(roomInstances[parentRoom].content[i] instanceof MagicCharge && roomInstances[parentRoom].content[i].x + p.worldX > x && roomInstances[parentRoom].content[i].x + p.worldX < x + w && roomInstances[parentRoom].content[i].y + p.worldY > y && roomInstances[parentRoom].content[i].y + p.worldY < y + h) {
-			roomInstances[parentRoom].content[i].splicing = true;
+		else if(roomInstances[theRoom].content[i] instanceof MagicCharge && roomInstances[theRoom].content[i].x + p.worldX > x && roomInstances[theRoom].content[i].x + p.worldX < x + w && roomInstances[theRoom].content[i].y + p.worldY > y && roomInstances[theRoom].content[i].y + p.worldY < y + h) {
+			roomInstances[theRoom].content[i].splicing = true;
 			continue;
 		}
 	}
@@ -336,13 +345,27 @@ function findPointsCircular(x, y, r) {
 	}
 	return circularPoints;
 };
+function circularPointsTopHalf(x, y, r) {
+	/*
+	Similar to findPointsCircular(), but it only returns the top half (negative y values) and it is in the correct order.
+	*/
+	var circularPoints = [];
+	for(var X = x - r; X < x + r; X ++) {
+		for(var Y = y - r; Y < y; Y ++) {
+			if(Math.floor(Math.dist(X, Y, x, y)) === r - 1) {
+				circularPoints.push({x: X, y: Y});
+			}
+		}
+	}
+	return circularPoints;
+};
 function findPointsLinear(x1, y1, x2, y2) {
 	var m = Math.abs(y1 - y2) / Math.abs(x1 - x2);
 	var linearPoints = [];
 	if(x1 < x2) {
 		if(y1 < y2) {
 			var y = y1;
-			for(var y = x1; x < x2; x ++) {
+			for(var x = x1; x < x2; x ++) {
 				y += m;
 				linearPoints.push({x: x, y: y});
 			}
@@ -390,10 +413,11 @@ function findPointsLinear(x1, y1, x2, y2) {
 	}
 	return linearPoints;
 };
-function collisionLine(x1, y1, x2, y2, walls) {
+function collisionLine(x1, y1, x2, y2, walls, illegalHandling) {
+	illegalHandling = illegalHandling || "teleport";
 	var points = findPointsLinear(x1, y1, x2, y2);
 	for(var i = 0; i < points.length; i ++) {
-		collisionRect(points[i].x, points[i].y, Math.abs(p.velX) + 3, Math.abs(p.velY), walls, inRoom, false, "teleport");
+		collisionRect(points[i].x, points[i].y, Math.abs(p.velX) + 3, Math.abs(p.velY), walls, false, illegalHandling);
 	}
 };
 function calcAngleDegrees(x, y) {
@@ -1775,15 +1799,15 @@ function Block(x, y, w, h) {
 	this.w = w;
 	this.h = h;
 };
-Block.prototype.update = function(parentRoom, onlyEnemies) {
-	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, [true, true, true, true], parentRoom, onlyEnemies, partOfAStair ? "teleport" : "collide");
+Block.prototype.update = function(onlyEnemies) {
+	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, [true, true, true, true], onlyEnemies, partOfAStair ? "teleport" : "collide");
 };
 Block.prototype.display = function() {
 	cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
 };
-Block.prototype.exist = function(parentRoom) {
+Block.prototype.exist = function() {
 	this.display();
-	this.update(parentRoom);
+	this.update();
 };
 function loadBoxFronts() {
 	for(var i = 0; i < boxFronts.length; i ++) {
@@ -1821,6 +1845,22 @@ function loadBoxFronts() {
 			c.stroke();
 		}
 	}
+	//extra graphics
+	c.save();
+	for(var i = 0; i < extraGraphics.length; i ++) {
+		if(extraGraphics[i].type === "polygon") {
+			c.globalAlpha = 0.5;
+			c.fillStyle = extraGraphics[i].col;
+			c.beginPath();
+			c.moveTo(extraGraphics[i].loc[0].x, extraGraphics[i].loc[0].y);
+			for(var j = 0; j < extraGraphics[i].loc.length; j ++) {
+				c.lineTo(extraGraphics[i].loc[j].x, extraGraphics[i].loc[j].y);
+			}
+			c.lineTo(extraGraphics[i].loc[0].x, extraGraphics[i].loc[0].y);
+			c.fill();
+		}
+	}
+	c.restore();
 };
 function Platform(x, y, w) {
 	this.x = x;
@@ -1839,7 +1879,7 @@ function Door(x, y, dest, noEntry, invertEntries) {
 	this.invertEntries = invertEntries || false;
 	this.onPath = false;
 };
-Door.prototype.exist = function(parentRoom) {
+Door.prototype.exist = function() {
 	//graphics
 	var leftBX = 400 - (400 - (this.x + p.worldX - 30)) * (1 - floorWidth);
 	var rightBX = 400 - (400 - (this.x + p.worldX + 30)) * (1 - floorWidth);
@@ -1922,6 +1962,7 @@ Door.prototype.exist = function(parentRoom) {
 			}
 			var roomIndex = Math.round(Math.random() * (possibleRooms.length - 1));
 			switch(possibleRooms[roomIndex]) {
+				//ambient (empty) rooms
 				case "ambient1":
 					roomInstances.push(
 						new Room(
@@ -2001,6 +2042,7 @@ Door.prototype.exist = function(parentRoom) {
 						);
 					}
 					break;
+				//secret rooms
 				case "secret1":
 					roomInstances.push(
 						new Room(
@@ -2082,6 +2124,7 @@ Door.prototype.exist = function(parentRoom) {
 						)
 					);
 					break;
+				//platforming rooms
 				case "parkour1":
 					roomInstances.push(
 						new Room(
@@ -2154,6 +2197,7 @@ Door.prototype.exist = function(parentRoom) {
 						)
 					);
 					break;
+				//reward rooms
 				case "reward1":
 					roomInstances.push(
 						new Room(
@@ -2231,7 +2275,6 @@ Door.prototype.exist = function(parentRoom) {
 					);
 					break;
 				case "reward3":
-					var chooser = Math.random();
 					roomInstances.push(new Room(
 						"reward3",
 						[
@@ -2284,6 +2327,7 @@ Door.prototype.exist = function(parentRoom) {
 						);
 					}
 					break;
+				//combat rooms
 				case "combat1":
 					roomInstances.push(
 						new Room(
@@ -2325,6 +2369,24 @@ Door.prototype.exist = function(parentRoom) {
 							"?"
 						)
 					);
+					break;
+				case "combat3":
+					roomInstances.push(
+						new Room(
+							"combat3",
+							[
+								new Door(0, 0),
+								new Block(-100, 0, 200, 8000), //left floor
+								new Block(-4000, -4000, 3900, 8000), //left wall
+								new Block(900, 0, 300, 8000), //right floor
+								new Block(1100, -4000, 1000, 8000), //right wall
+								new Door(1000, 0),
+								new Bridge(500, -200),
+								new RandomEnemy(400, -200)
+							],
+							"?"
+						)
+					)
 					break;
 			}
 			roomInstances[roomInstances.length - 1].id = "?";
@@ -2381,9 +2443,9 @@ Door.prototype.exist = function(parentRoom) {
 				}
 			}
 			//schedule enemies to move through the door
-			for(var i = 0; i < roomInstances[parentRoom].content.length; i ++) {
-				if(roomInstances[parentRoom].content[i] instanceof Enemy && roomInstances[parentRoom].content[i].seesPlayer) {
-					roomInstances[parentRoom].hasEnemy = true;
+			for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+				if(roomInstances[theRoom].content[i] instanceof Enemy && roomInstances[theRoom].content[i].seesPlayer) {
+					roomInstances[theRoom].hasEnemy = true;
 				}
 			}
 		}
@@ -2406,9 +2468,9 @@ Door.prototype.exist = function(parentRoom) {
 			p.exitingDoor = true;
 			p.op = 0.95;
 			//schedule enemies to move through the door
-			for(var i = 0; i < roomInstances[parentRoom].content.length; i ++) {
-				if(roomInstances[parentRoom].content[i] instanceof Enemy && roomInstances[parentRoom].content[i].seesPlayer) {
-					roomInstances[parentRoom].hasEnemy = true;
+			for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+				if(roomInstances[theRoom].content[i] instanceof Enemy && roomInstances[theRoom].content[i].seesPlayer) {
+					roomInstances[theRoom].hasEnemy = true;
 				}
 			}
 		}
@@ -2504,7 +2566,7 @@ function Tree(x, y) {
 	this.x = x;
 	this.y = y;
 };
-Tree.prototype.exist = function(parentRoom) {
+Tree.prototype.exist = function(theRoom) {
 	cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
 	c.fillStyle = "rgb(139, 69, 19)";
 	//trunk
@@ -2778,6 +2840,9 @@ function FallBlock(x, y) {
 	this.y = y;
 	this.velY = 0;
 	this.falling = false;
+	this.timeShaking = 0;
+	this.steppedOn = false;
+	this.allDone = false;
 };
 FallBlock.prototype.exist = function() {
 	var topLeftF = point3d(this.x + p.worldX - 20, this.y + p.worldY, 1.1);
@@ -2787,6 +2852,8 @@ FallBlock.prototype.exist = function() {
 	var topRightB = point3d(this.x + p.worldX + 20, this.y + p.worldY, 0.9);
 	var bottomB = point3d(this.x + p.worldX, this.y + p.worldY + 60, 0.9);
 	c.fillStyle = "rgb(150, 150, 150)";
+	c.save();
+	c.translate(Math.random() * (this.timeShaking * 2) - this.timeShaking, Math.random() * (this.timeShaking * 2) - this.timeShaking);
 	//top face
 	c.beginPath();
 	c.moveTo(topLeftF.x, topLeftF.y);
@@ -2794,7 +2861,7 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(topRightB.x, topRightB.y);
 	c.lineTo(topRightF.x, topRightF.y);
 	c.fill();
-	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY);
+	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, [true, false, false, false], "collide");
 	//left face
 	c.beginPath();
 	c.moveTo(topLeftF.x, topLeftF.y);
@@ -2802,7 +2869,7 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(bottomB.x, bottomB.y);
 	c.lineTo(bottomF.x, bottomF.y);
 	c.fill();
-	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60);
+	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, [true, true, true, true], "collide");
 	//right face
 	c.beginPath();
 	c.moveTo(topRightF.x, topRightF.y);
@@ -2810,16 +2877,27 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(bottomB.x, bottomB.y);
 	c.lineTo(bottomF.x, bottomF.y);
 	c.fill();
-	collisionLine(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60);
+	collisionLine(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, [true, true, true, true], "collide");
 	//front face
-	c.fillStyle = "rgb(100, 100, 100)";
+	c.fillStyle = "rgb(110, 110, 110)";
 	c.beginPath();
 	c.moveTo(topLeftF.x, topLeftF.y);
 	c.lineTo(topRightF.x, topRightF.y);
 	c.lineTo(bottomF.x, bottomF.y);
 	c.fill();
-	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 100 >= this.y + p.worldY) {
+	c.restore();
+	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 100 >= this.y + p.worldY && p.canJump && !this.allDone) {
+		this.steppedOn = true;
+	}
+	if(this.steppedOn) {
+		this.timeShaking += 0.05;
+		console.log(this.timeShaking);
+	}
+	if(this.timeShaking > 3) {
+		this.timeShaking = 0;
+		this.steppedOn = false;
 		this.falling = true;
+		this.allDone = true;
 	}
 	if(this.falling) {
 		this.velY += 0.1;
@@ -2930,12 +3008,6 @@ function Forge(x, y) {
 	this.particles = [];
 };
 Forge.prototype.exist = function() {
-	/*
-	melee - light (+ speed, - damage) & heavy (- speed, + damage)
-	ranged - distant (+ range, - damage) & forceful (- range, + damage)
-	magic - efficient (+ mana cost, - damage) & arcane (- mana cost, + damage)
-	equipable - sturdy (+ defense, - ids) & empowering (- defense, + ids)
-	*/
 	//initialize curved segments
 	if(!this.init) {
 		for(var i = 0; i < this.curveArray.length; i ++) {
@@ -2948,7 +3020,7 @@ Forge.prototype.exist = function() {
 	//main stone forge body
 	cube(this.x + p.worldX - 100, this.y + p.worldY - 76, 50, 76, 0.9, 1.05);
 	cube(this.x + p.worldX + 50, this.y + p.worldY - 76, 50, 76, 0.9, 1.05);
-	cube(this.x + p.worldX - 51, this.y + p.worldY - 1125, 102, 1025, 0.9, 1.05);
+	cube(this.x + p.worldX - 51, this.y + p.worldY - 300, 102, 200, 0.9, 1.05);
 	cube(this.x + p.worldX - 50, this.y + p.worldY - 60, 100, 20, 0.9, 1.05);
 	cube(this.x + p.worldX - 50, this.y + p.worldY - 10, 100, 10, 0.9, 1.05);
 	//curved segments
@@ -2964,8 +3036,8 @@ Forge.prototype.exist = function() {
 	}
 	line3d(this.x + p.worldX + 50, this.y + p.worldY - 75, this.x + p.worldX + 50, this.y + p.worldY - 125, 0.9, 1.05, "rgb(150, 150, 150)");
 	line3d(this.x + p.worldX - 50, this.y + p.worldY - 75, this.x + p.worldX - 50, this.y + p.worldY - 125, 0.9, 1.05, "rgb(150, 150, 150)");
-	boxFronts.push({type: "arc", loc: [point3d(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).x, point3d(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).y, 50, 1.5 * Math.PI, 2 * Math.PI], col: "rgb(100, 100, 100)"});
-	boxFronts.push({type: "arc", loc: [point3d(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).x, point3d(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).y, 50, Math.PI, 1.5 * Math.PI], col: "rgb(100, 100, 100)"});
+	boxFronts.push({type: "arc", loc: [point3d(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).x, point3d(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).y, 50, 1.5 * Math.PI, 2 * Math.PI], col: "rgb(110, 110, 110)"});
+	boxFronts.push({type: "arc", loc: [point3d(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).x, point3d(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).y, 50, Math.PI, 1.5 * Math.PI], col: "rgb(110, 110, 110)"});
 	//bars underneath
 	for(var x = -30; x <= 30; x += 30) {
 		cube(this.x + p.worldX + x - 10, this.y + p.worldY - 40, 20, 40, 0.9, 1.05);
@@ -3105,8 +3177,8 @@ Pillar.prototype.exist = function() {
 	cube(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12, 0.9, 1.1);
 	cube(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10, 0.9, 1.1);
 	//base collisions
-	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, [true, true, true, true], inRoom, false, "teleport");
-	collisionRect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, [true, true, true, true], inRoom, false, "teleport");
+	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, [true, true, true, true], false, "teleport");
+	collisionRect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, [true, true, true, true], false, "teleport");
 	//top collisions
 	collisionRect(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12);
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10);
@@ -3170,7 +3242,7 @@ Statue.prototype.exist = function() {
 		}
 	}
 	//pedestal
-	cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 38, 0.95, 1.05, "rgb(100, 100, 100)", "rgb(150, 150, 150)");
+	cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 38, 0.95, 1.05, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
 	c.save();
 	c.fillStyle = "rgb(125, 125, 125)";
 	c.lineCap = "round";
@@ -3279,9 +3351,138 @@ TiltPlatform.prototype.exist = function() {
 		this.platX += 1;
 	}
 };
+function Bridge(x, y) {
+	this.x = x;
+	this.y = y;
+	this.init = false;
+	this.topArch = circularPointsTopHalf(0, 0, 500);
+	this.lowArch = circularPointsTopHalf(0, 0, 75);
+};
+Bridge.prototype.exist = function() {
+	if(!this.init) {
+		//cut lower sections off arches
+		// for(var i = 0; i < this.topArch.length; i ++) {
+		// 	if(this.topArch[i].y > this.y + 200) {
+		// 		this.topArch.splice(i, 1);
+		// 		i --;
+		// 		continue;
+		// 	}
+		// }
+		// for(var i = 0; i < this.lowArch.length; i ++) {
+		// 	if(this.lowArch[i].y > this.y + 200) {
+		// 		this.lowArch.splice(i, 1);
+		// 		i --;
+		// 		continue;
+		// 	}
+		// }
+		//generate 3d arches - top
+		var topB = [];
+		var topF = [];
+		for(var i = 0; i < this.topArch.length; i ++) {
+			topB.push({
+				x: this.topArch[i].x * 0.9,
+				y: this.topArch[i].y * 0.9
+			});
+			topF.push({
+				x: this.topArch[i].x * 1.1,
+				y: this.topArch[i].y * 1.1
+			});
+		}
+		this.topB = topB;
+		this.topF = topF;
+		//generate 3d arches - bottom
+		var lowB = [];
+		var lowF = [];
+		for(var i = 0; i < this.lowArch.length; i ++) {
+			lowB.push({
+				x: this.lowArch[i].x * 0.9,
+				y: this.lowArch[i].y * 0.9
+			});
+			lowF.push({
+				x: this.lowArch[i].x * 1.1,
+				y: this.lowArch[i].y * 1.1
+			});
+		}
+		this.lowB = lowB;
+		this.lowF = lowF;
+		this.init = true;
+	}
+	//graphics - top arches
+	var topB = point3d(this.x + p.worldX, this.y + p.worldY + 500, 0.9);
+	var topF = point3d(this.x + p.worldX, this.y + p.worldY + 500, 1.1);
+	for(var i = 1; i < this.topArch.length; i ++) {
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.beginPath();
+		c.moveTo(topB.x + this.topB[i].x, topB.y + this.topB[i].y);
+		c.lineTo(topF.x + this.topF[i].x, topF.y + this.topF[i].y);
+		c.lineTo(topF.x + this.topF[i - 1].x, topF.y + this.topF[i - 1].y);
+		c.lineTo(topB.x + this.topB[i - 1].x, topB.y + this.topB[i - 1].y);
+		c.fill();
+	}
+	c.fillStyle = "rgb(110, 110, 110)";
+	c.beginPath();
+	c.arc(topF.x, topF.y, 550, 0, 2 * Math.PI);
+	c.fill();
+	//graphics - lower arches
+	var lowB = point3d(this.x + p.worldX, this.y + p.worldY + 200, 0.9);
+	var lowF = point3d(this.x + p.worldX, this.y + p.worldY + 200, 1.1);
+	c.fillStyle = "rgb(150, 150, 150)";
+	for(var i = 1; i < this.lowArch.length; i ++) {
+		c.beginPath();
+		c.moveTo(lowB.x + this.lowB[i].x, lowB.y + this.lowB[i].y);
+		c.lineTo(lowF.x + this.lowF[i].x, lowF.y + this.lowF[i].y);
+		c.lineTo(lowF.x + this.lowF[i - 1].x, lowF.y + this.lowF[i - 1].y);
+		c.lineTo(lowB.x + this.lowB[i - 1].x, lowB.y + this.lowB[i - 1].y);
+		c.fill();
+	}
+	c.beginPath();
+	c.moveTo(lowF.x + this.lowF[0].x, lowF.y + this.lowF[0].y);
+	c.lineTo(lowB.x + this.lowB[0].x, lowB.y + this.lowB[0].y);
+	c.lineTo(lowB.x + this.lowB[0].x, 800);
+	c.lineTo(lowF.x + this.lowF[0].x, 800);
+	c.fill();
+	c.beginPath();
+	c.moveTo(lowF.x + this.lowF[this.lowF.length - 1].x, lowF.y + this.lowF[this.lowF.length - 1].y);
+	c.lineTo(lowB.x + this.lowB[this.lowB.length - 1].x, lowB.y + this.lowB[this.lowB.length - 1].y);
+	c.lineTo(lowB.x + this.lowB[this.lowB.length - 1].x, 800);
+	c.lineTo(lowF.x + this.lowF[this.lowF.length - 1].x, 800);
+	c.fill();
+	c.fillStyle = "rgb(110, 110, 110)";
+	c.beginPath();
+	c.moveTo(lowF.x - 100, lowF.y - 200);
+	c.lineTo(lowF.x - 200, lowF.y);
+	c.lineTo(lowF.x - 200, 800);
+	c.lineTo(lowF.x - 83, 800);
+	c.lineTo(lowF.x - 83, lowF.y);
+	for(var i = 0; i < this.lowF.length; i ++) {
+		c.lineTo(lowF.x + this.lowF[i].x, lowF.y + this.lowF[i].y);
+	}
+	c.lineTo(lowF.x + 83, lowF.y);
+	c.lineTo(lowF.x + 83, 800);
+	c.lineTo(lowF.x + 200, 800);
+	c.lineTo(lowF.x + 200, lowF.y);
+	c.lineTo(lowF.x + 100, lowF.y - 200);
+	c.fill();
+	//hitbox
+	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 500 || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000) {
+		p.y --;
+		p.canJump = true;
+		p.velY = (p.velY > 3) ? 3 : p.velY;
+	}
+	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+		if(roomInstances[theRoom].content[i] instanceof Enemy) {
+			while(Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].leftX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000 || Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].rightX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000) {
+				roomInstances[theRoom].content[i].y --;
+				roomInstances[theRoom].content[i].velY = (roomInstances[theRoom].content[i].velY > 3) ? 3 : roomInstances[theRoom].content[i].velY;
+			}
+		}
+	}
+};
+
 /** ROOM DATA **/
 var inRoom = 0;
 var numRooms = 0;
+var theRoom = null;
 function Room(type, content, id, minWorldY) {
 	this.type = type;
 	this.content = content;
@@ -3292,6 +3493,7 @@ function Room(type, content, id, minWorldY) {
 };
 Room.prototype.exist = function(index) {
 	boxFronts = [];
+	extraGraphics = [];
 	hitboxes = [];
 	var chestIndexes = [];
 	var boulderIndexes = [];
@@ -3459,12 +3661,12 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = (p.screenOp < p.fallOp) ? p.fallOp : p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "combat2", "parkour1", "parkour2", "reward1", "reward2", "reward3", "reward4"];
+var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "combat2", "combat3", "parkour1", "parkour2", "reward1", "reward2", "reward3", "reward4"];
 var items = [Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal, Sword, WoodBow, MetalBow, EnergyStaff];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 if(hax) {
-	rooms = ["combat1"];
-	enemies = [Troll];
+	rooms = ["parkour1", "reward3"];
+	enemies = [SkeletonArcher];
 }
 var roomInstances = [
 	new Room(
@@ -3950,7 +4152,7 @@ inheritsFrom(MagicWeapon, Weapon);
 function EnergyStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.chargeType = "energy";
-	this.manaCost = (this.modifier === "none") ? 3 : (this.modifier === "arcane" ? 4 : 2);
+	this.manaCost = (this.modifier === "none") ? 4 : (this.modifier === "arcane" ? 5 : 3);
 	this.damLow = (p["class"] === "mage") ? 8 : 7;
 	this.damHigh = (p["class"] === "mage") ? 11 : 10;
 };
@@ -4192,7 +4394,7 @@ Boulder.prototype.exist = function() {
 	c.lineTo(p3f.x, p3f.y);
 	c.lineTo(p1f.x, p1f.y);
 	c.fill();
-	c.fillStyle = "rgb(100, 100, 100)";
+	c.fillStyle = "rgb(110, 110, 110)";
 	c.beginPath();
 	c.moveTo(p1f.x, p1f.y);
 	c.lineTo(p2f.x, p2f.y);
@@ -4237,7 +4439,7 @@ BoulderVoid.prototype.exist = function() {
 	var p3f = point3d(this.x + p.worldX, this.y + p.worldY - 100, 1.1);
 	c.save();
 	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
-	c.fillStyle = "rgb(100, 100, 100)";
+	c.fillStyle = "rgb(110, 110, 110)";
 	c.beginPath();
 	c.lineTo(p1f.x, p1f.y);
 	c.lineTo(p2f.x, p2f.y);
@@ -4679,6 +4881,12 @@ ShotArrow.prototype.exist = function() {
 			else if(roomInstances[inRoom].content[i] instanceof Block) {
 				var block = roomInstances[inRoom].content[i];
 				if(this.x > block.x && this.x < block.x + block.w && this.y > block.y && this.y < block.y + block.h) {
+					this.hitSomething = true;
+				}
+			}
+			else if(roomInstances[inRoom].content[i] instanceof Bridge) {
+				var bridge = roomInstances[inRoom].content[i];
+				if(Math.distSq(this.x, this.y, bridge.x, bridge.y + 500) <= 250000) {
 					this.hitSomething = true;
 				}
 			}
@@ -5771,10 +5979,8 @@ function Troll(x, y) {
 	this.curveArray = findPointsCircular(0, 0, 10);
 	this.attackArmDir = 2;
 	this.attackArmRot = 0;
-	this.leg1 = -2;
-	this.leg2 = 2;
-	this.leg1Dir = -0.125;
-	this.leg2Dir = 0.125;
+	this.legs = 0;
+	this.legDir = 1;
 	this.currentAction = "move";
 	this.timeDoingAction = 0;
 
@@ -5818,10 +6024,10 @@ Troll.prototype.display = function() {
 	for(var scale = -1; scale <= 1; scale += 2) {
 		c.save();
 		if(scale === -1) {
-			c.translate(3 * this.leg1, 7 * this.leg1);
+			c.translate(3 * this.legs, 7 * this.legs);
 		}
 		else {
-			c.translate(3 * this.leg2, 7 * this.leg2);
+			c.translate(3 * this.legs, -7 * this.legs);
 		}
 		c.scale(scale, 1);
 		circle(45, 30, 5);
@@ -5843,20 +6049,9 @@ Troll.prototype.display = function() {
 		c.fill();
 		c.restore();
 	}
-	this.leg1 += this.leg1Dir;
-	this.leg2 += this.leg2Dir;
-	if(this.walking) {
-		this.leg1Dir = (this.leg1 > 2) ? -0.125 : this.leg1Dir;
-		this.leg1Dir = (this.leg1 < -2) ? 0.125 : this.leg1Dir;
-		this.leg2Dir = (this.leg2 > 2) ? -0.125 : this.leg2Dir;
-		this.leg2Dir = (this.leg2 < -2) ? 0.125 : this.leg2Dir;
-	}
-	else {
-		this.leg1Dir = (this.leg1 < 0) ? 0.125 : this.leg1Dir;
-		this.leg1Dir = (this.leg1 > 0) ? -0.125 : this.leg1Dir;
-		this.leg2Dir = (this.leg2 < 0) ? 0.125 : this.leg2Dir;
-		this.leg2Dir = (this.leg2 > 0) ? -0.125 : this.leg2Dir;
-	}
+	this.legs += this.legDir;
+	this.legDir = (this.legs > 2) ? -0.125 : this.legDir;
+	this.legDir = (this.legs < -2) ? 0.125 : this.legDir;
 	//head
 	circle(0, -40, 20);
 	c.restore();
@@ -5876,16 +6071,6 @@ Troll.prototype.display = function() {
 	circle(50, 10, 5);
 	c.fillRect(-5, -10, 60, 20);
 	c.fillRect(0, -15, 50, 30);
-	if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
-		c.fillStyle = "rgb(139, 69, 19)";
-		c.beginPath();
-		c.moveTo(-45, 0);
-		c.lineTo(-50, -50);
-		c.lineTo(-30, -50);
-		c.lineTo(-35, 0);
-		c.fill();
-		circle(-40, -50, 10);
-	}
 	c.restore();
 	//left arm
 	c.save();
@@ -5896,7 +6081,7 @@ Troll.prototype.display = function() {
 	else {
 		c.rotate(-40 / 180 * Math.PI);
 	}
-	if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
+	if(this.x + p.worldX > p.x) {
 		c.fillStyle = "rgb(139, 69, 19)";
 		c.beginPath();
 		c.moveTo(-45, 0);
@@ -5919,66 +6104,25 @@ Troll.prototype.display = function() {
 	this.attackArmDir = (this.attackArmRot < 0) ? 2 : this.attackArmDir;
 };
 Troll.prototype.update = function() {
-	console.log("updating!");
 	//movement
 	this.x += this.velX;
 	this.y += this.velY;
-	if(this.currentAction === "move") {
-		this.walking = true;
-		if(this.x + p.worldX < p.x) {
-			this.x = (this.x + p.worldX < p.x - 100) ? this.x + 1 : this.x;
-			this.x = (this.x + p.worldX > p.x - 100) ? this.x - 1 : this.x;
-		}
-		else {
-			this.x = (this.x + p.worldX < p.x + 100) ? this.x + 1 : this.x;
-			this.x = (this.x + p.worldX > p.x + 100) ? this.x - 1 : this.x;
-		}
-		this.timeDoingAction ++;
-		if(this.timeDoingAction > 90) {
-			if(Math.abs(this.x + p.worldX - p.x) > 150 && false) {
-				this.currentAction = "ranged-attack";
-			}
-			else {
-				this.currentAction = "melee-attack";
-			}
-			this.timeDoingAction = 0;
-		}
+	if(this.x + p.worldX < p.x) {
+		this.x = (this.x + p.worldX < p.x - 100) ? this.velX + 0.1 : this.velX;
+		this.x = (this.x + p.worldX > p.x - 100) ? this.velX - 0.1 : this.velX;
 	}
-	else if(this.currentAction === "ranged-attack") {
-		this.walking = false;
-		if(this.x + p.worldX < p.x) {
-			this.armAttacking = "left";
-		}
+	else {
+		this.x = (this.x + p.worldX < p.x + 100) ? this.velX + 0.1 : this.velX;
+		this.x = (this.x + p.worldX > p.x + 100) ? this.velX - 0.1 : this.velX;
 	}
-};
-function Rock(x, y, velX, velY) {
-	this.x = x;
-	this.y = y;
-	this.velX = velX;
-	this.velY = velY;
-};
-Rock.prototype.exist = function() {
-	//update
-	this.x += this.velX;
-	this.y += this.velY;
-	this.velY += 0.1;
-	this.velX *= 0.97;
-	//graphics
-	c.fillStyle = "rgb(150, 150, 150)";
-	c.beginPath();
-	c.arc(this.x, this.y, 25, 0, 2 * Math.PI);
-	c.fill();
 };
 
 
 //hax
 if(hax) {
-	p["class"] = "archer";
+	p["class"] = "mage";
 	p.reset();
 	p.onScreen = "play";
-	for(var i = 0; i < items.length; i ++) {
-		p.addItem(new items[i]());
-	}
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
@@ -6361,6 +6505,7 @@ function doByTime() {
 				numRooms ++;
 			}
 			if(inRoom === roomInstances[i].id) {
+				theRoom = i;
 				roomInstances[i].exist(i);
 			}
 			if(roomInstances[i].hasEnemy) {
