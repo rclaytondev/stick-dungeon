@@ -10,9 +10,9 @@ There are three classes (warrior, archer, mage) each with their own weapon type 
 There are at the moment (as of 2/9/19) 9 types of items currently in the game, as well as an aditional 6 that are planned for but are not yet implemented. More possibly coming in the indeterminate future!
 # Installation
 It's really simple, but here are the steps anyway
-* Clone or Download (big green button above) > Download ZIP
-* Copy & Paste the folder somewhere outside of 'downloads'
-* Open the folder and run the file 'stickmanDungeon.html'. The game should launch in your default web browser.
+* Download the project
+* Move it somewhere besides 'downloads'
+* Launch 'stickmanDungeon.html'
 # Controls
 It says it on the ingame 'how to play page' but here they are:
 * Arrow keys to move, up to jump
