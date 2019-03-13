@@ -6,8 +6,8 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = true;
-const showHitboxes = true;
+const hax = false;
+const showHitboxes = false;
 var hitboxes = [];
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
@@ -61,6 +61,9 @@ Array.prototype.removeAll = function(item) {
 			this.splice(i, 1);
 		}
 	}
+};
+Math.rad = function(deg) {
+	return deg / 180 * Math.PI;
 };
 var boxFronts = [];//for 3d-ish rendering
 var extraGraphics = [];
@@ -4298,6 +4301,71 @@ MetalBow.prototype.getDesc = function() {
 		}
 	];
 };
+function MechBow(modifier) {
+	RangedWeapon.call(this, modifier);
+	this.attackSpeed = "fast";
+};
+MechBow.prototype.display = function(type) {
+	if(type === "holding" || type === "item") {
+		c.strokeStyle = "rgb(200, 200, 200)";
+		c.lineWidth = 4;
+		c.beginPath();
+		c.arc(-5, 5, 23, 1.25 * Math.PI - 0.2, 2.25 * Math.PI + 0.2);
+		c.stroke();
+		c.lineWidth = 1;
+		// c.strokeStyle = "rgb(255, 0, 0)";
+		c.beginPath();
+		c.moveTo(-22, -13);
+		c.lineTo(13, 22);
+		c.stroke();
+		// c.strokeStyle = "rgb(255, 0, 0)";
+		c.beginPath();
+		c.moveTo(-5, 5);
+		c.lineTo(5, -17);
+		c.moveTo(-5, 5);
+		c.lineTo(17, -5);
+		c.stroke();
+		c.strokeStyle = "rgb(255, 0, 0)";
+		c.fillStyle = "rgb(210, 210, 210)";
+		//gears
+		c.save();
+		c.translate(12, 2);
+		c.beginPath();
+		c.arc(0, 0, 4, 0, 2 * Math.PI);
+		c.fill();
+		for(var r = 0; r <= 360; r += 45) {
+			c.save();
+			c.rotate(Math.rad(r));
+			c.fillRect(-1, -6, 2, 6);
+			c.restore();
+		}
+		c.restore();
+		c.save();
+		c.translate(-2, -12);
+		c.beginPath();
+		c.arc(0, 0, 4, 0, 2 * Math.PI);
+		c.fill();
+		for(var r = 0; r <= 360; r += 45) {
+			c.save();
+			c.rotate(Math.rad(r));
+			c.fillRect(-1, -6, 2, 6);
+			c.restore();
+		}
+		c.restore();
+	}
+	else if(type === "aiming") {
+		c.strokeStyle = "rgb(200, 200, 200)";
+		c.lineWidth = 4;
+		c.beginPath();
+		c.arc(-25, 0, 30, -0.25 * Math.PI - 0.2, 0.25 * Math.PI + 0.2);
+		c.stroke();
+		c.lineWidth = 1;
+		c.beginPath();
+		c.moveTo(-7, -22);
+		c.lineTo(-7, 22);
+		c.stroke();
+	}
+};
 
 function MagicWeapon(modifier) {
 	Weapon.call(this, modifier);
@@ -6732,8 +6800,9 @@ if(hax) {
 	// p.reset();
 	p.onScreen = "play";
 	for(var i = 0; i < items.length; i ++) {
-		p.addItem(new items[i]());
+		//p.addItem(new items[i]());
 	}
+	p.addItem(new MechBow());
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
