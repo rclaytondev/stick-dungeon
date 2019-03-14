@@ -7,7 +7,7 @@ var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
 const hax = true;
-const showHitboxes = false;
+const showHitboxes = true;
 var hitboxes = [];
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
@@ -593,7 +593,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.lineTo(this.x - 10, this.y + 36);
 		c.stroke();
 	}
-	if(this.attacking && this.facing === "left") {
+	if(this.attacking && this.facing === "left" && !(this.attackingWith instanceof Spear)) {
 		c.save();
 		c.translate(this.x, this.y + 26);
 		c.rotate(-this.attackArmRot / 180 * Math.PI);
@@ -617,7 +617,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 			}
 		}
 	}
-	if(this.attacking && this.facing === "right") {
+	if(this.attacking && this.facing === "right" && !(this.attackingWith instanceof Spear)) {
 		c.save();
 		c.translate(this.x, this.y + 26);
 		c.rotate(this.attackArmRot / 180 * Math.PI);
@@ -626,6 +626,32 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.lineTo(10, 0);
 		c.stroke();
 		c.translate(10, 2);
+		this.attackingWith.display("attacking");
+		c.restore();
+		if(this.attackArmRot > 75) {
+			this.attackArmDir = -this.attackSpeed;
+			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
+				this.canHit = true;
+			}
+		}
+		else if(this.attackArmRot < 0) {
+			this.attackArmDir = this.attackSpeed;
+			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
+				this.canHit = true;
+			}
+		}
+	}
+	if(this.attacking && this.facing === "left" && this.attackingWith instanceof Spear) {
+		c.save();
+		c.strokeStyle = "rgb(50, 50, 50)";
+		c.translate(this.x, this.y + 26);
+		c.rotate((-this.attackArmRot + 45) / 180 * Math.PI);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(0, -10);
+		c.stroke();
+		c.translate(-2, -10);
+		c.rotate(-90 / 180 * Math.PI);
 		this.attackingWith.display("attacking");
 		c.restore();
 		if(this.attackArmRot > 75) {
@@ -903,14 +929,19 @@ Player.prototype.update = function() {
 	if(this.attacking) {
 		if(this.attackingWith instanceof MeleeWeapon) {
 			//calculate weapon tip position
-			var weaponPos = getRotated(10, -this.attackingWith.range, this.attackArmRot);
+			if(this.attackingWith instanceof Spear) {
+				var weaponPos = getRotated(10, -60, this.attackArmRot);
+			}
+			else {
+				var weaponPos = getRotated(10, -this.attackingWith.range, this.attackArmRot);
+			}
 			if(this.facing === "left") {
 				weaponPos.x = -weaponPos.x;
 			}
 			weaponPos.x += this.x;
 			weaponPos.y += this.y + 26;
 			if(showHitboxes) {
-				c.fillStyle = "rgb(0, 255, 255)";
+				c.fillStyle = "rgb(255, 0, 0)";
 				c.fillRect(weaponPos.x - 2, weaponPos.y - 2, 4, 4);
 			}
 			//check enemies to see if weapon hits any
@@ -4049,6 +4080,64 @@ inheritsFrom(MeleeWeapon, Weapon);
 MeleeWeapon.prototype.attack = function() {
 	p.attackingWith = this;
 };
+function Dagger(modifier) {
+	MeleeWeapon.call(this, modifier);
+	this.damLow = p.class === "warrior" ? 6 : 5;
+	this.damHigh = p.class === "warrior" ? 8 : 7;
+	this.range = 30;
+};
+inheritsFrom(Dagger, MeleeWeapon);
+Dagger.prototype.getDesc = function() {
+	var desc = [
+		{
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
+			+ "Dagger" +
+			((this.element === "none") ? "" : (" of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length))),
+			font: "bold 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Range: Very Short",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Attack Speed: " + this.attackSpeed.substr(0, 1).toUpperCase() + this.attackSpeed.substr(1, Infinity),
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "A small dagger, the kind used for stabbing in the dark.",
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		}
+	];
+	return desc;
+};
+Dagger.prototype.display = function(type) {
+	c.fillStyle = "rgb(139, 69, 19)";
+	if(type !== "attacking") {
+		c.translate(-13, 13);
+		c.rotate(0.7853);
+	}
+	c.beginPath();
+	c.moveTo(-1, -3);
+	c.lineTo(1, -3);
+	c.lineTo(3, -10);
+	c.lineTo(-3, -10);
+	c.fill();
+	c.fillStyle = "rgb(255, 255, 255)";
+	c.beginPath();
+	c.moveTo(-3, -10);
+	c.lineTo(3, -10);
+	c.lineTo(0, -30);
+	c.fill();
+};
 function Sword(modifier) {
 	MeleeWeapon.call(this, modifier);
 	this.damLow = p.class === "warrior" ? 8 : 7;
@@ -4126,18 +4215,38 @@ Sword.prototype.getDesc = function() {
 	];
 	return desc;
 };
-function Dagger(modifier) {
+function Spear(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = p.class === "warrior" ? 6 : 5;
-	this.damHigh = p.class === "warrior" ? 8 : 7;
-	this.range = 30;
+	this.damLow = p.class === "warrior" ? 8 : 7;
+	this.damHigh = p.class === "warrior" ? 11 : 10;
+	this.range = 60;
 };
-inheritsFrom(Dagger, MeleeWeapon);
-Dagger.prototype.getDesc = function() {
-	var desc = [
+inheritsFrom(Spear, MeleeWeapon);
+Spear.prototype.display = function(type) {
+	c.save();
+	if(type !== "attacking") {
+		c.translate(-5, 5);
+		c.rotate(45 / 180 * Math.PI);
+	}
+	else {
+		c.translate(0, 5);
+	}
+	c.fillStyle = "rgb(139, 69, 19)";
+	c.fillRect(-2, -20, 4, 40);
+	c.fillStyle = "rgb(255, 255, 255)";
+	c.beginPath();
+	c.moveTo(-6, -18);
+	c.lineTo(0, -20);
+	c.lineTo(6, -18);
+	c.lineTo(0, -35);
+	c.fill();
+	c.restore();
+};
+Spear.prototype.getDesc = function() {
+	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
-			+ "Dagger" +
+			+ "Spear" +
 			((this.element === "none") ? "" : (" of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length))),
 			font: "bold 10pt Cursive",
 			color: "rgb(255, 255, 255)"
@@ -4148,7 +4257,7 @@ Dagger.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "Range: Very Short",
+			content: "Range: Short",
 			font: "10pt monospace",
 			color: "rgb(255, 255, 255)"
 		},
@@ -4158,31 +4267,11 @@ Dagger.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "A small dagger, the kind used for stabbing in the dark.",
+			content: "It's a spear. You can stab people with it",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
 	];
-	return desc;
-};
-Dagger.prototype.display = function(type) {
-	c.fillStyle = "rgb(139, 69, 19)";
-	if(type !== "attacking") {
-		c.translate(-13, 13);
-		c.rotate(0.7853);
-	}
-	c.beginPath();
-	c.moveTo(-1, -3);
-	c.lineTo(1, -3);
-	c.lineTo(3, -10);
-	c.lineTo(-3, -10);
-	c.fill();
-	c.fillStyle = "rgb(255, 255, 255)";
-	c.beginPath();
-	c.moveTo(-3, -10);
-	c.lineTo(3, -10);
-	c.lineTo(0, -30);
-	c.fill();
 };
 
 function RangedWeapon(modifier) {
@@ -4454,8 +4543,8 @@ MechBow.prototype.getDesc = function() {
 function LongBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.range = "very long";
-	this.damLow = (p.class === "archer") ? 8 : 7;
-	this.damHigh = (p.class === "archer") ? 11 : 10;
+	this.damLow = (p.class === "archer") ? 9 : 8;
+	this.damHigh = (p.class === "archer") ? 10 : 9;
 };
 inheritsFrom(LongBow, RangedWeapon);
 LongBow.prototype.display = function(type) {
@@ -4506,7 +4595,7 @@ LongBow.prototype.getDesc = function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "This large bow can shoot over an immense distance, and, counterintuitively, hurts enemies more if shot from farther away.",
+			content: "This large bow can shoot over an immense distance, and, surprisingly, hurts enemies more if shot from farther away.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -6953,7 +7042,7 @@ if(hax) {
 	for(var i = 0; i < items.length; i ++) {
 		//p.addItem(new items[i]());
 	}
-	p.addItem(new LongBow());
+	p.addItem(new Spear());
 	p.addItem(new Arrow(Infinity));
 }
 /** MENUS & UI **/
