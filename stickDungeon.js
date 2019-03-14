@@ -6,7 +6,7 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = false;
+const hax = true;
 const showHitboxes = false;
 var hitboxes = [];
 function getMousePos(evt) {
@@ -962,20 +962,20 @@ Player.prototype.update = function() {
 	}
 	this.timeSinceAttack ++;
 	if(this.aiming && keys[38] && this.aimRot > -45) {
-		this.aimRot --;
+		this.aimRot -= 2;
 		if(this.attackingWith instanceof MagicWeapon) {
-			this.aimRot --;
+			this.aimRot -= 2;
 			this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 		}
 	}
 	if(this.aiming && keys[40] && this.aimRot < 45) {
-		this.aimRot ++;
+		this.aimRot += 2;
 		if(this.attackingWith instanceof MagicWeapon) {
-			this.aimRot ++;
+			this.aimRot += 2;
 			this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 		}
 	}
-	if(!this.aiming && this.aimingBefore && this.shootReload < 0) {
+	if(!this.aiming && this.aimingBefore && this.shootReload < 0 && !(this.attackingWith instanceof MechBow)) {
 		if(this.attackingWith instanceof RangedWeapon) {
 			var hasArrows = false;
 			for(var i = 0; i < this.invSlots.length; i ++) {
@@ -1043,6 +1043,47 @@ Player.prototype.update = function() {
 	}
 	if(!this.aiming) {
 		this.aimRot = null;
+	}
+	if(this.aiming && this.attackingWith instanceof MechBow && frameCount % 20 === 0) {
+		var hasArrows = false;
+		for(var i = 0; i < this.invSlots.length; i ++) {
+			if(this.invSlots[i].content instanceof Arrow) {
+				hasArrows = true;
+			}
+		}
+		if(hasArrows) {
+			this.shootReload = 60;
+			if(this.facing === "right") {
+				var velocity = getRotated(10, 0, this.aimRot);
+				var velX = velocity.x;
+				var velY = velocity.y;
+				velocity.x += (this.x - this.worldX + 10);
+				velocity.y += (this.y - this.worldY + 26);
+				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
+			}
+			else {
+				var velocity = getRotated(-10, 0, -this.aimRot);
+				var velX = velocity.x;
+				var velY = velocity.y;
+				velocity.x += (this.x - this.worldX + 10);
+				velocity.y += (this.y - this.worldY + 26);
+				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
+			}
+			for(var i = 0; i < this.invSlots.length; i ++) {
+				if(this.invSlots[i].content instanceof Arrow) {
+					if(this.invSlots[i].content.quantity > 1) {
+						this.invSlots[i].content.quantity --;
+					}
+					else {
+						this.invSlots[i].content = "empty";
+					}
+				}
+			}
+		}
 	}
 	this.aimingBefore = this.aiming;
 	this.facingBefore = this.facing;
@@ -3812,7 +3853,7 @@ rooms = [
 		}
 	} //chest + stairs room
 ];
-var items = [Sword, WoodBow, MetalBow, EnergyStaff, ElementalStaff, PurityStaff, Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal];
+var items = [Sword, WoodBow, MetalBow, MechBow, EnergyStaff, ElementalStaff, PurityStaff, Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 if(hax) {
 	for(var i = 0; i < rooms.length; i ++) {
@@ -4187,7 +4228,6 @@ function WoodBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.damLow = 7;
 	this.damHigh = 10;
-	this.reload = 60;
 	this.range = "long";
 	/*
 	ranges: very short (daggers), short (swords), medium (forceful bows), long (bows & forceful longbows), very long (longbows & distant bows), super long (distant longbows)
@@ -4248,7 +4288,7 @@ function MetalBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.damLow = 10;
 	this.damHigh = 12;
-	this.reload = 60;
+	this.range = "long";
 };
 inheritsFrom(MetalBow, RangedWeapon);
 MetalBow.prototype.display = function(type) {
@@ -4304,67 +4344,161 @@ MetalBow.prototype.getDesc = function() {
 function MechBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.attackSpeed = "fast";
+	this.range = "long";
+	this.damLow = 6;
+	this.damHigh = 9;
 };
+inheritsFrom(MechBow, RangedWeapon);
 MechBow.prototype.display = function(type) {
-	if(type === "holding" || type === "item") {
-		c.strokeStyle = "rgb(200, 200, 200)";
-		c.lineWidth = 4;
-		c.beginPath();
-		c.arc(-5, 5, 23, 1.25 * Math.PI - 0.2, 2.25 * Math.PI + 0.2);
-		c.stroke();
-		c.lineWidth = 1;
-		// c.strokeStyle = "rgb(255, 0, 0)";
-		c.beginPath();
-		c.moveTo(-22, -13);
-		c.lineTo(13, 22);
-		c.stroke();
-		// c.strokeStyle = "rgb(255, 0, 0)";
-		c.beginPath();
-		c.moveTo(-5, 5);
-		c.lineTo(5, -17);
-		c.moveTo(-5, 5);
-		c.lineTo(17, -5);
-		c.stroke();
-		c.strokeStyle = "rgb(255, 0, 0)";
-		c.fillStyle = "rgb(210, 210, 210)";
-		//gears
+	c.save();
+	if(type === "aiming") {
+		c.translate(-10, 0);
+		c.scale(0.9, 0.9);
+		c.rotate(Math.rad(45));
+	}
+	c.strokeStyle = "rgb(200, 200, 200)";
+	c.lineWidth = 4;
+	c.beginPath();
+	c.arc(-5, 5, 23, 1.25 * Math.PI - 0.2, 2.25 * Math.PI + 0.2);
+	c.stroke();
+	c.lineWidth = 1;
+	//bowstring
+	c.beginPath();
+	c.moveTo(-22, -13);
+	c.lineTo(13, 22);
+	c.stroke();
+	// bowstring holders
+	c.beginPath();
+	c.moveTo(-5, 5);
+	c.lineTo(5, -17);
+	c.moveTo(-5, 5);
+	c.lineTo(17, -5);
+	c.stroke();
+	c.fillStyle = "rgb(210, 210, 210)";
+	//2nd bowstring
+	c.beginPath();
+	c.moveTo(-13, -15);
+	c.lineTo(15, 13);
+	c.stroke();
+	//gears
+	c.save();
+	c.translate(12, 2);
+	c.beginPath();
+	c.arc(0, 0, 4, 0, 2 * Math.PI);
+	c.fill();
+	for(var r = 0; r <= 360; r += 45) {
 		c.save();
-		c.translate(12, 2);
-		c.beginPath();
-		c.arc(0, 0, 4, 0, 2 * Math.PI);
-		c.fill();
-		for(var r = 0; r <= 360; r += 45) {
-			c.save();
-			c.rotate(Math.rad(r));
-			c.fillRect(-1, -6, 2, 6);
-			c.restore();
-		}
-		c.restore();
-		c.save();
-		c.translate(-2, -12);
-		c.beginPath();
-		c.arc(0, 0, 4, 0, 2 * Math.PI);
-		c.fill();
-		for(var r = 0; r <= 360; r += 45) {
-			c.save();
-			c.rotate(Math.rad(r));
-			c.fillRect(-1, -6, 2, 6);
-			c.restore();
-		}
+		c.rotate(Math.rad(r));
+		c.fillRect(-1, -6, 2, 6);
 		c.restore();
 	}
-	else if(type === "aiming") {
-		c.strokeStyle = "rgb(200, 200, 200)";
-		c.lineWidth = 4;
-		c.beginPath();
-		c.arc(-25, 0, 30, -0.25 * Math.PI - 0.2, 0.25 * Math.PI + 0.2);
-		c.stroke();
-		c.lineWidth = 1;
-		c.beginPath();
-		c.moveTo(-7, -22);
-		c.lineTo(-7, 22);
-		c.stroke();
+	c.restore();
+	c.save();
+	c.translate(-2, -12);
+	c.beginPath();
+	c.arc(0, 0, 4, 0, 2 * Math.PI);
+	c.fill();
+	for(var r = 0; r <= 360; r += 45) {
+		c.save();
+		c.rotate(Math.rad(r));
+		c.fillRect(-1, -6, 2, 6);
+		c.restore();
 	}
+	c.restore();
+	c.restore();
+};
+MechBow.prototype.getDesc = function() {
+	return [
+		{
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Mechanical Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Range: " + this.range.substr(0, 1).toUpperCase() + this.range.substr(1, Infinity).toLowerCase(),
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Firing Speed: Fast",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "This automated crossbow-like device can shoot arrows much faster than regular ones.",
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		}
+	]
+};
+function LongBow(modifier) {
+	RangedWeapon.call(this, modifier);
+	this.range = "very long";
+	this.damLow = 10;
+	this.damHigh = 12;
+};
+inheritsFrom(LongBow, RangedWeapon);
+LongBow.prototype.display = function(type) {c.save();
+	if(type === "aiming") {
+		c.translate(-10, 0);
+		c.scale(0.9, 0.9);
+		c.rotate(Math.rad(45));
+	}
+	c.strokeStyle = "rgb(200, 200, 200)";
+	c.lineWidth = 4;
+	c.beginPath();
+	c.arc(-5, 5, 23, 1.25 * Math.PI - 0.2, 2.25 * Math.PI + 0.2);
+	c.stroke();
+	c.lineWidth = 1;
+	//bowstring
+	c.beginPath();
+	c.moveTo(-22, -13);
+	c.lineTo(13, 22);
+	c.stroke();
+	// bowstring holders
+	c.beginPath();
+	c.moveTo(-5, 5);
+	c.lineTo(5, -17);
+	c.moveTo(-5, 5);
+	c.lineTo(17, -5);
+	c.stroke();
+	c.fillStyle = "rgb(210, 210, 210)";
+	//2nd bowstring
+	c.beginPath();
+	c.moveTo(-13, -15);
+	c.lineTo(15, 13);
+	c.stroke();
+	//gears
+	c.save();
+	c.translate(12, 2);
+	c.beginPath();
+	c.arc(0, 0, 4, 0, 2 * Math.PI);
+	c.fill();
+	for(var r = 0; r <= 360; r += 45) {
+		c.save();
+		c.rotate(Math.rad(r));
+		c.fillRect(-1, -6, 2, 6);
+		c.restore();
+	}
+	c.restore();
+	c.save();
+	c.translate(-2, -12);
+	c.beginPath();
+	c.arc(0, 0, 4, 0, 2 * Math.PI);
+	c.fill();
+	for(var r = 0; r <= 360; r += 45) {
+		c.save();
+		c.rotate(Math.rad(r));
+		c.fillRect(-1, -6, 2, 6);
+		c.restore();
+	}
+	c.restore();
+	c.restore();
 };
 
 function MagicWeapon(modifier) {
@@ -4509,7 +4643,7 @@ ElementalStaff.prototype.getDesc = function() {
 	else if(this.element === "fire") {
 		return [
 			{
-				content: "Staff of Fire",
+				content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Fire",
 				font: "bolder 10pt Cursive",
 				color: "rgb(255, 255, 255)"
 			},
@@ -4533,7 +4667,7 @@ ElementalStaff.prototype.getDesc = function() {
 	else if(this.element === "water") {
 		return [
 			{
-				content: "Staff of Water",
+				content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Water",
 				font: "bolder 10pt Cursive",
 				color: "rgb(255, 255, 255)"
 			},
@@ -4557,7 +4691,7 @@ ElementalStaff.prototype.getDesc = function() {
 	else if(this.element === "earth") {
 		return [
 			{
-				content: "Staff of Earth",
+				content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Earth",
 				font: "bolder 10pt Cursive",
 				color: "rgb(255, 255, 255)"
 			},
@@ -4581,7 +4715,7 @@ ElementalStaff.prototype.getDesc = function() {
 	else if(this.element === "air") {
 		return [
 			{
-				content: "Staff of Air",
+				content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Air",
 				font: "bolder 10pt Cursive",
 				color: "rgb(255, 255, 255)"
 			},
@@ -4635,7 +4769,7 @@ PurityStaff.prototype.display = function(type) {
 PurityStaff.prototype.getDesc = function() {
 	return [
 		{
-			content: "Staff of Purity",
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Purity",
 			font: "bolder 10pt Cursive",
 			color: "rgb(255, 255, 255)"
 		},
@@ -6802,7 +6936,8 @@ if(hax) {
 	for(var i = 0; i < items.length; i ++) {
 		//p.addItem(new items[i]());
 	}
-	p.addItem(new MechBow());
+	p.addItem(new LongBow());
+	p.addItem(new Arrow(Infinity));
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
