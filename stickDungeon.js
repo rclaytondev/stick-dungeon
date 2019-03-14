@@ -228,7 +228,6 @@ function hitboxRect(x, y, w, h) {
 };
 function collisionRect(x, y, w, h, walls, onlyEnemies, illegalHandling) {
 	if(onlyEnemies) {
-		console.log("only enemies!");
 	}
 	onlyEnemies = onlyEnemies || false;
 	walls = walls || [true, true, true, true];
@@ -984,7 +983,12 @@ Player.prototype.update = function() {
 				}
 			}
 			if(hasArrows) {
-				this.shootReload = 60;
+				if(this.attackingWith instanceof LongBow) {
+					this.shootReload = 120;
+				}
+				else {
+					this.shootReload = 60;
+				}
 				if(this.facing === "right") {
 					var velocity = getRotated(10, 0, this.aimRot);
 					var velX = velocity.x;
@@ -994,6 +998,9 @@ Player.prototype.update = function() {
 					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
 					var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
+					if(this.attackingWith instanceof LongBow) {
+						roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].origX = roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].x;
+					}
 				}
 				else {
 					var velocity = getRotated(-10, 0, -this.aimRot);
@@ -1004,6 +1011,9 @@ Player.prototype.update = function() {
 					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
 					var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
+					if(this.attackingWith instanceof LongBow) {
+						roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].origX = roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].x;
+					}
 				}
 				for(var i = 0; i < this.invSlots.length; i ++) {
 					if(this.invSlots[i].content instanceof Arrow) {
@@ -2671,11 +2681,11 @@ Words.prototype.exist = function() {
 	c.save();
 	c.globalAlpha = this.opacity;
 	c.fillStyle = this.color;
-	c.font = "bold 10pt monospace";
+	c.font = "bolder 20pt monospace";
 	c.textAlign = "center";
 	c.fillText(this.words, this.x + p.worldX, this.y + p.worldY);
 	c.restore();
-	this.y -= 3;
+	this.y --;
 	this.opacity -= 0.05;
 	if(this.opacity <= 0) {
 		this.splicing = true;
@@ -3853,17 +3863,22 @@ rooms = [
 		}
 	} //chest + stairs room
 ];
-var items = [Sword, WoodBow, MetalBow, MechBow, EnergyStaff, ElementalStaff, PurityStaff, Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal];
+var items = [
+	Dagger, Sword, //melee weapons
+	WoodBow, MetalBow, MechBow, LongBow, //ranged weapons
+	EnergyStaff, ElementalStaff, PurityStaff, //magic weapons
+	Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal //extras / bonuses
+];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 if(hax) {
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat2" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "combat1" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	enemies = [SkeletonArcher];
+	enemies = [Wraith];
 }
 var roomInstances = [
 	new Room(
@@ -4036,8 +4051,8 @@ MeleeWeapon.prototype.attack = function() {
 };
 function Sword(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = p["class"] === "warrior" ? 8 : 7;
-	this.damHigh = p["class"] === "warrior" ? 11 : 10;
+	this.damLow = p.class === "warrior" ? 8 : 7;
+	this.damHigh = p.class === "warrior" ? 11 : 10;
 	this.range = 60;
 };
 inheritsFrom(Sword, MeleeWeapon);
@@ -4113,8 +4128,8 @@ Sword.prototype.getDesc = function() {
 };
 function Dagger(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = p["class"] === "warrior" ? 6 : 5;
-	this.damHigh = p["class"] === "warrior" ? 8 : 7;
+	this.damLow = p.class === "warrior" ? 6 : 5;
+	this.damHigh = p.class === "warrior" ? 8 : 7;
 	this.range = 30;
 };
 inheritsFrom(Dagger, MeleeWeapon);
@@ -4226,8 +4241,8 @@ Arrow.prototype.getDesc = function() {
 };
 function WoodBow(modifier) {
 	RangedWeapon.call(this, modifier);
-	this.damLow = 7;
-	this.damHigh = 10;
+	this.damLow = p.class === "archer" ? 8 : 7;
+	this.damHigh = p.class === "archer" ? 11 : 10;
 	this.range = "long";
 	/*
 	ranges: very short (daggers), short (swords), medium (forceful bows), long (bows & forceful longbows), very long (longbows & distant bows), super long (distant longbows)
@@ -4286,8 +4301,8 @@ WoodBow.prototype.getDesc = function() {
 };
 function MetalBow(modifier) {
 	RangedWeapon.call(this, modifier);
-	this.damLow = 10;
-	this.damHigh = 12;
+	this.damLow = p.class === "archer" ? 11 : 10;
+	this.damHigh = p.class === "archer" ? 13 : 12;
 	this.range = "long";
 };
 inheritsFrom(MetalBow, RangedWeapon);
@@ -4345,8 +4360,8 @@ function MechBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.attackSpeed = "fast";
 	this.range = "long";
-	this.damLow = 6;
-	this.damHigh = 9;
+	this.damLow = (p.class === "archer") ? 7 : 6;
+	this.damHigh = (p.class === "archer") ? 10 : 9;
 };
 inheritsFrom(MechBow, RangedWeapon);
 MechBow.prototype.display = function(type) {
@@ -4439,17 +4454,18 @@ MechBow.prototype.getDesc = function() {
 function LongBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.range = "very long";
-	this.damLow = 10;
-	this.damHigh = 12;
+	this.damLow = (p.class === "archer") ? 8 : 7;
+	this.damHigh = (p.class === "archer") ? 11 : 10;
 };
 inheritsFrom(LongBow, RangedWeapon);
-LongBow.prototype.display = function(type) {c.save();
+LongBow.prototype.display = function(type) {
+	c.save();
 	if(type === "aiming") {
 		c.translate(-10, 0);
 		c.scale(0.9, 0.9);
 		c.rotate(Math.rad(45));
 	}
-	c.strokeStyle = "rgb(200, 200, 200)";
+	c.strokeStyle = "rgb(139, 69, 19)";
 	c.lineWidth = 4;
 	c.beginPath();
 	c.arc(-5, 5, 23, 1.25 * Math.PI - 0.2, 2.25 * Math.PI + 0.2);
@@ -4460,45 +4476,41 @@ LongBow.prototype.display = function(type) {c.save();
 	c.moveTo(-22, -13);
 	c.lineTo(13, 22);
 	c.stroke();
-	// bowstring holders
-	c.beginPath();
-	c.moveTo(-5, 5);
-	c.lineTo(5, -17);
-	c.moveTo(-5, 5);
-	c.lineTo(17, -5);
-	c.stroke();
-	c.fillStyle = "rgb(210, 210, 210)";
 	//2nd bowstring
 	c.beginPath();
 	c.moveTo(-13, -15);
 	c.lineTo(15, 13);
 	c.stroke();
-	//gears
-	c.save();
-	c.translate(12, 2);
-	c.beginPath();
-	c.arc(0, 0, 4, 0, 2 * Math.PI);
-	c.fill();
-	for(var r = 0; r <= 360; r += 45) {
-		c.save();
-		c.rotate(Math.rad(r));
-		c.fillRect(-1, -6, 2, 6);
-		c.restore();
-	}
 	c.restore();
-	c.save();
-	c.translate(-2, -12);
-	c.beginPath();
-	c.arc(0, 0, 4, 0, 2 * Math.PI);
-	c.fill();
-	for(var r = 0; r <= 360; r += 45) {
-		c.save();
-		c.rotate(Math.rad(r));
-		c.fillRect(-1, -6, 2, 6);
-		c.restore();
-	}
-	c.restore();
-	c.restore();
+};
+LongBow.prototype.getDesc = function() {
+	return [
+		{
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Longbow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh + " [more if farther away]",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Firing Speed: Slow",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Range: " + this.range.substr(0, 1).toUpperCase() + this.range.substr(1, Infinity),
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "This large bow can shoot over an immense distance, and, counterintuitively, hurts enemies more if shot from farther away.",
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		}
+	];
 };
 
 function MagicWeapon(modifier) {
@@ -4509,8 +4521,8 @@ function EnergyStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.chargeType = "energy";
 	this.manaCost = (this.modifier === "none") ? 4 : (this.modifier === "arcane" ? 5 : 3);
-	this.damLow = (p["class"] === "mage") ? 8 : 7;
-	this.damHigh = (p["class"] === "mage") ? 11 : 10;
+	this.damLow = (p.class === "mage") ? 8 : 7;
+	this.damHigh = (p.class === "mage") ? 11 : 10;
 };
 inheritsFrom(EnergyStaff, MagicWeapon);
 EnergyStaff.prototype.display = function(type) {
@@ -4557,8 +4569,8 @@ function ElementalStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.element = "none";
 	this.manaCost = 3;
-	this.damLow = 5;
-	this.damHigh = 8;
+	this.damLow = (p.class === "mage") ? 6 : 5;
+	this.damHigh = (p.class === "mage") ? 9 : 8;
 };
 inheritsFrom(ElementalStaff, MagicWeapon);
 ElementalStaff.prototype.display = function(type) {
@@ -5421,7 +5433,12 @@ ShotArrow.prototype.exist = function() {
 			if(roomInstances[inRoom].content[i] instanceof Enemy && this.shotBy === "player") {
 				var enemy = roomInstances[inRoom].content[i];
 				if(this.x > enemy.x + enemy.leftX && this.x < enemy.x + enemy.rightX && this.y > enemy.y + enemy.topY && this.y < enemy.y + enemy.bottomY) {
-					enemy.hurt(this.damage);
+					if(this.origX === undefined) {
+						enemy.hurt(this.damage);
+					}
+					else {
+						enemy.hurt(this.damage + Math.round(Math.abs(this.x - this.origX) / 50));
+					}
 					if(this.element === "fire") {
 						enemy.timeBurning = (enemy.timeBurning <= 0) ? 120 : enemy.timeBurning;
 						enemy.burnDmg = 1;
@@ -5505,7 +5522,7 @@ Enemy.prototype.hurt = function(amount, ignoreDef) {
 		amount -= def;
 	}
 	amount = (amount < 0) ? 0 : amount;
-	roomInstances[inRoom].content.push(new Words(this.x, this.y, "-" + amount, "rgb(255, 0, 0)"));
+	roomInstances[inRoom].content.push(new Words(this.x, this.y, "-" + amount, "rgb(128, 0, 0)"));
 	this.health -= amount;
 };
 Enemy.prototype.displayStats = function() {
@@ -6930,7 +6947,7 @@ Dragonling.prototype.update = function() {
 
 //hax
 if(hax) {
-	// p["class"] = "mage";
+	// p.class = "mage";
 	// p.reset();
 	p.onScreen = "play";
 	for(var i = 0; i < items.length; i ++) {
@@ -7522,7 +7539,7 @@ function doByTime() {
 		if(mouseX < 300) {
 			platHeight1 -= Math.dist(platHeight1, 0, 500, 0) / 30;
 			if(mouseIsPressed && !pMouseIsPressed) {
-				p["class"] = "warrior";
+				p.class = "warrior";
 				fading = "out";
 				fadeDest = "play";
 				p.reset();
@@ -7534,7 +7551,7 @@ function doByTime() {
 		if(mouseX > 300 && mouseX < 500) {
 			platHeight2 -= Math.dist(platHeight2, 0, 500, 0) /30;
 			if(mouseIsPressed && !pMouseIsPressed) {
-				p["class"] = "archer";
+				p.class = "archer";
 				fading = "out";
 				fadeDest = "play";
 				p.reset();
@@ -7546,7 +7563,7 @@ function doByTime() {
 		if(mouseX > 500) {
 			platHeight3 -= Math.dist(platHeight3, 0, 500, 0) / 30;
 			if(mouseIsPressed && !pMouseIsPressed) {
-				p["class"] = "mage";
+				p.class = "mage";
 				fading = "out";
 				fadeDest = "play";
 				p.reset();
