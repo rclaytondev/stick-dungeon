@@ -7,7 +7,7 @@ var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
 const hax = true;
-const showHitboxes = true;
+const showHitboxes = false;
 var hitboxes = [];
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
@@ -439,7 +439,7 @@ function collisionLine(x1, y1, x2, y2, walls, illegalHandling) {
 };
 function calcAngleDegrees(x, y) {
 	return Math.atan2(y, x) * 180 / Math.PI;
-}
+};
 function inheritsFrom(child, parent) {
 	child.prototype = Object.create(parent.prototype);
 	child.prototype.constructor = child;
@@ -489,7 +489,7 @@ function Player() {
 	//attacking
 	this.facing = "right";
 	this.attacking = false;
-	this.attackArmRot = 0;
+	this.attackArm = 0;
 	this.attackArmDir = null;
 	this.canHit = true;
 	this.shootReload = 0;
@@ -581,13 +581,13 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		}
 	}
 	//arms
-	if((!this.attacking && !this.aiming) || this.facing === "left") {
+	if(((!this.attacking && !this.aiming) || this.facing === "left") && !(this.attackingWith instanceof Spear && this.attacking)) {
 		c.beginPath();
 		c.moveTo(this.x, this.y + 26);
 		c.lineTo(this.x + (straightArm ? 15 : 10), this.y + (straightArm ? 16 : 36));
 		c.stroke();
 	}
-	if((!this.attacking && !this.aiming) || this.facing === "right") {
+	if(((!this.attacking && !this.aiming) || this.facing === "right") && !(this.attackingWith instanceof Spear && this.attacking)) {
 		c.beginPath();
 		c.moveTo(this.x, this.y + 26);
 		c.lineTo(this.x - 10, this.y + 36);
@@ -596,7 +596,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	if(this.attacking && this.facing === "left" && !(this.attackingWith instanceof Spear)) {
 		c.save();
 		c.translate(this.x, this.y + 26);
-		c.rotate(-this.attackArmRot / 180 * Math.PI);
+		c.rotate(-this.attackArm / 180 * Math.PI);
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(-10, 0);
@@ -604,13 +604,13 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.translate(-10, 2);
 		this.attackingWith.display("attacking");
 		c.restore();
-		if(this.attackArmRot > 75) {
+		if(this.attackArm > 75) {
 			this.attackArmDir = -this.attackSpeed;
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
-		else if(this.attackArmRot < 0) {
+		else if(this.attackArm < 0) {
 			this.attackArmDir = this.attackSpeed;
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
@@ -620,7 +620,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	if(this.attacking && this.facing === "right" && !(this.attackingWith instanceof Spear)) {
 		c.save();
 		c.translate(this.x, this.y + 26);
-		c.rotate(this.attackArmRot / 180 * Math.PI);
+		c.rotate(this.attackArm / 180 * Math.PI);
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(10, 0);
@@ -628,13 +628,13 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.translate(10, 2);
 		this.attackingWith.display("attacking");
 		c.restore();
-		if(this.attackArmRot > 75) {
+		if(this.attackArm > 75) {
 			this.attackArmDir = -this.attackSpeed;
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
-		else if(this.attackArmRot < 0) {
+		else if(this.attackArm < 0) {
 			this.attackArmDir = this.attackSpeed;
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
@@ -643,31 +643,79 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	}
 	if(this.attacking && this.facing === "left" && this.attackingWith instanceof Spear) {
 		c.save();
-		c.strokeStyle = "rgb(50, 50, 50)";
 		c.translate(this.x, this.y + 26);
-		c.rotate((-this.attackArmRot + 45) / 180 * Math.PI);
 		c.beginPath();
 		c.moveTo(0, 0);
-		c.lineTo(0, -10);
+		c.lineTo(-10, 10);
 		c.stroke();
-		c.translate(-2, -10);
-		c.rotate(-90 / 180 * Math.PI);
-		this.attackingWith.display("attacking");
 		c.restore();
-		if(this.attackArmRot > 75) {
-			this.attackArmDir = -this.attackSpeed;
+			c.save();
+			c.translate(this.x + this.attackArm, this.y + 31);
+			c.rotate(-90 / 180 * Math.PI);
+			this.attackingWith.display("attacking");
+			c.restore();
+		c.lineJoin = "round";
+		c.save();
+		c.translate(this.x, this.y + 26);
+		c.beginPath();
+		c.moveTo(-10, 10);
+		c.lineTo(this.attackArm, 5);
+		c.moveTo(0, 0);
+		c.lineTo(10, -5);
+		c.lineTo(this.attackArm + 15, 5);
+		c.stroke();
+		c.restore();
+		if(this.attackArm < -20) {
+			this.attackArmDir = 1;
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
-		else if(this.attackArmRot < 0) {
-			this.attackArmDir = this.attackSpeed;
+		else if(this.attackArm > 0) {
+			this.attackArmDir = -4;
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
 	}
-	this.attackArmRot += this.attackArmDir;
+	if(this.attacking && this.facing === "right" && this.attackingWith instanceof Spear) {
+		c.save();
+		c.translate(this.x, this.y + 26);
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(10, 10);
+		c.stroke();
+		c.restore();
+			c.save();
+			c.translate(this.x + this.attackArm, this.y + 31);
+			c.rotate(90 / 180 * Math.PI);
+			this.attackingWith.display("attacking");
+			c.restore();
+		c.lineJoin = "round";
+		c.save();
+		c.translate(this.x, this.y + 26);
+		c.beginPath();
+		c.moveTo(10, 10);
+		c.lineTo(this.attackArm, 5);
+		c.moveTo(0, 0);
+		c.lineTo(-10, -5);
+		c.lineTo(this.attackArm - 15, 5);
+		c.stroke();
+		c.restore();
+		if(this.attackArm < 0) {
+			this.attackArmDir = 4;
+			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
+				this.canHit = true;
+			}
+		}
+		else if(this.attackArm > 20) {
+			this.attackArmDir = -1;
+			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
+				this.canHit = true;
+			}
+		}
+	}
+	this.attackArm += this.attackArmDir;
 	if(this.aiming && this.facing === "right") {
 		if(this.attackingWith instanceof RangedWeapon) {
 			c.save();
@@ -732,7 +780,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		}
 	}
 	if(!this.attacking) {
-		this.attackArmRot = null;
+		this.attackArm = null;
 	}
 	c.lineCap = "butt";
 	c.globalAlpha = 1;
@@ -797,7 +845,7 @@ Player.prototype.update = function() {
 		this.legs += this.legDir;
 	}
 	//changing selected slots
-	if(this.guiOpen !== "crystal-infusion") {
+	if(this.guiOpen !== "crystal-infusion" && !this.attacking) {
 		if(keys[49]) {
 			this.activeSlot = 0;
 		}
@@ -897,9 +945,12 @@ Player.prototype.update = function() {
 		if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon) {
 			this.invSlots[this.activeSlot].content.attack();
 			this.attacking = true;
-			if(this.attackArmRot === null) {
-				this.attackArmRot = 0;
+			if(this.attackArm === null) {
+				this.attackArm = 0;
 				this.attackArmDir = this.attackSpeed;
+				if(this.attackingWith instanceof Spear) {
+					this.attackArmDir = 4;
+				}
 			}
 		}
 		else if(this.invSlots[this.activeSlot].content instanceof RangedWeapon || this.invSlots[this.activeSlot].content instanceof MagicWeapon) {
@@ -930,19 +981,22 @@ Player.prototype.update = function() {
 		if(this.attackingWith instanceof MeleeWeapon) {
 			//calculate weapon tip position
 			if(this.attackingWith instanceof Spear) {
-				var weaponPos = getRotated(10, -60, this.attackArmRot);
+				var weaponPos = {
+					x: (this.facing === "right") ? this.attackArm + 45 : this.attackArm - 45,
+					y: 5
+				}
 			}
 			else {
-				var weaponPos = getRotated(10, -this.attackingWith.range, this.attackArmRot);
+				var weaponPos = getRotated(10, -this.attackingWith.range, this.attackArm);
 			}
-			if(this.facing === "left") {
+			if(this.facing === "left" && !(this.attackingWith instanceof Spear)) {
 				weaponPos.x = -weaponPos.x;
 			}
 			weaponPos.x += this.x;
-			weaponPos.y += this.y + 26;
+			weaponPos.y += this.y + 26 - this.velY;
 			if(showHitboxes) {
 				c.fillStyle = "rgb(255, 0, 0)";
-				c.fillRect(weaponPos.x - 2, weaponPos.y - 2, 4, 4);
+				c.fillRect(weaponPos.x - 5, weaponPos.y - 5, 10, 10);
 			}
 			//check enemies to see if weapon hits any
 			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
@@ -987,7 +1041,7 @@ Player.prototype.update = function() {
 			}
 		}
 	}
-	if(!this.attacking) {
+	if(!this.attacking && this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 		this.canHit = true;
 	}
 	this.timeSinceAttack ++;
@@ -3579,6 +3633,7 @@ rooms = [
 		add: function() {
 			var possibleItems = Object.create(items);
 			for(var i = 0; i < possibleItems.length; i ++) {
+				console.log(possibleItems[i]);
 				if(!(new possibleItems[i]() instanceof Weapon)) {
 					possibleItems.splice(i, 1);
 					i --;
@@ -3597,6 +3652,7 @@ rooms = [
 				}
 			}
 			if(possibleItems.length === 0) {
+				console.log("weapons don't exist");
 				//default to combat1 if the player has all the weapons in the
 				for(var i = 0; i < rooms.length; i ++) {
 					if(rooms[i].name === "combat3") {
@@ -3606,6 +3662,7 @@ rooms = [
 				}
 				return;
 			}
+			console.log("weapons exist");
 			roomInstances.push(
 				new Room(
 					"secret2",
@@ -3895,15 +3952,16 @@ rooms = [
 	} //chest + stairs room
 ];
 var items = [
-	Dagger, Sword, //melee weapons
+	Dagger, Sword, Spear, //melee weapons
 	WoodBow, MetalBow, MechBow, LongBow, //ranged weapons
 	EnergyStaff, ElementalStaff, PurityStaff, //magic weapons
 	Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal //extras / bonuses
 ];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
 if(hax) {
+	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat1" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "secret2" && rooms[i].name !== "combat3") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
@@ -4230,6 +4288,7 @@ Spear.prototype.display = function(type) {
 	}
 	else {
 		c.translate(0, 5);
+		c.scale(1, 1.5);
 	}
 	c.fillStyle = "rgb(139, 69, 19)";
 	c.fillRect(-2, -20, 4, 40);
@@ -6119,7 +6178,7 @@ function SkeletonWarrior(x, y) {
 	Enemy.call(this, x, y);
 	this.legs = 7;
 	this.legDir = -0.5;
-	this.attackArmRot = 315;
+	this.attackArm = 315;
 	this.attackArmDir = 3;
 	this.canHit = true;
 	this.timeSinceAttack = 0;
@@ -6187,7 +6246,7 @@ SkeletonWarrior.prototype.display = function() {
 		//left arm (attacking)
 		c.save();
 		c.translate(this.x + p.worldX - 8, this.y + p.worldY + 15);
-		c.rotate(this.attackArmRot / 180 * Math.PI);
+		c.rotate(this.attackArm / 180 * Math.PI);
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(-10, 0);
@@ -6216,7 +6275,7 @@ SkeletonWarrior.prototype.display = function() {
 		//right arm (attacking)
 		c.save();
 		c.translate(this.x + p.worldX + 8, this.y + p.worldY + 15);
-		c.rotate(-this.attackArmRot / 180 * Math.PI);
+		c.rotate(-this.attackArm / 180 * Math.PI);
 		c.beginPath();
 		c.moveTo(0, 0);
 		c.lineTo(10, 0);
@@ -6267,13 +6326,13 @@ SkeletonWarrior.prototype.update = function(dest) {
 };
 SkeletonWarrior.prototype.attack = function() {
 	//attack
-	this.attackArmRot += this.attackArmDir;
-	this.canHit = ((this.attackArmRot > 360 || this.attackArmRot < 270) && this.timeSinceAttack > 15) ? true : this.canHit;
+	this.attackArm += this.attackArmDir;
+	this.canHit = ((this.attackArm > 360 || this.attackArm < 270) && this.timeSinceAttack > 15) ? true : this.canHit;
 	this.timeSinceAttack ++;
-	this.attackArmDir = (this.attackArmRot > 360) ? -3 : this.attackArmDir;
-	this.attackArmDir = (this.attackArmRot < 270) ? 3 : this.attackArmDir;
+	this.attackArmDir = (this.attackArm > 360) ? -3 : this.attackArmDir;
+	this.attackArmDir = (this.attackArm < 270) ? 3 : this.attackArmDir;
 	if(this.x + p.worldX < p.x) {
-		var swordEnd = getRotated(10, -60, -this.attackArmRot);
+		var swordEnd = getRotated(10, -60, -this.attackArm);
 		swordEnd.x += this.x + p.worldX + 8;
 		swordEnd.y += this.y + p.worldY + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
@@ -6285,7 +6344,7 @@ SkeletonWarrior.prototype.attack = function() {
 		}
 	}
 	else {
-		var swordEnd = getRotated(-10, -60, this.attackArmRot);
+		var swordEnd = getRotated(-10, -60, this.attackArm);
 		swordEnd.x += this.x + p.worldX - 8;
 		swordEnd.y += this.y + p.worldY + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
@@ -6782,7 +6841,7 @@ function Troll(x, y) {
 	Enemy.call(this, x, y);
 	this.curveArray = findPointsCircular(0, 0, 10);
 	this.attackArmDir = 2;
-	this.attackArmRot = 0;
+	this.attackArm = 0;
 	this.leg1 = -2;
 	this.leg2 = 2;
 	this.leg1Dir = -0.125;
@@ -6883,7 +6942,7 @@ Troll.prototype.display = function() {
 	c.save();
 	c.translate(this.x + p.worldX + 40, this.y + p.worldY - 10);
 	if(this.x + p.worldX < p.x && this.currentAction === "melee-attack") {
-		c.rotate(this.attackArmRot / 180 * Math.PI);
+		c.rotate(this.attackArm / 180 * Math.PI);
 	}
 	else {
 		c.rotate(40 / 180 * Math.PI);
@@ -6912,7 +6971,7 @@ Troll.prototype.display = function() {
 	c.save();
 	c.translate(this.x + p.worldX - 40, this.y + p.worldY - 10);
 	if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
-		c.rotate(-this.attackArmRot / 180 * Math.PI);
+		c.rotate(-this.attackArm / 180 * Math.PI);
 	}
 	else {
 		c.rotate(-40 / 180 * Math.PI);
@@ -6938,9 +6997,9 @@ Troll.prototype.display = function() {
 	}
 	//attacking
 	{
-	this.attackArmRot += this.attackArmDir;
-	this.attackArmDir = (this.attackArmRot > 80) ? -2 : this.attackArmDir;
-	this.attackArmDir = (this.attackArmRot < 0) ? 2 : this.attackArmDir;
+	this.attackArm += this.attackArmDir;
+	this.attackArmDir = (this.attackArm > 80) ? -2 : this.attackArmDir;
+	this.attackArmDir = (this.attackArm < 0) ? 2 : this.attackArmDir;
 	}
 };
 Troll.prototype.update = function() {
@@ -7043,7 +7102,7 @@ if(hax) {
 		//p.addItem(new items[i]());
 	}
 	p.addItem(new Spear());
-	p.addItem(new Arrow(Infinity));
+	p.addItem(new Sword());
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
