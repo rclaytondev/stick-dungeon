@@ -7,13 +7,13 @@ In this game, you control a **stick** figure to survive within a **dungeon**. As
 
 The main objective is to acquire coins, which are found in treasure chests. These chests can be obtained in their own treasure rooms, which are almost always found after completing a challenge (combat / platforming).
 There are three classes (warrior, archer, mage) each with their own weapon type (melee, ranged, magic). Each class gets a bonus in that type of weapon, as well as starting off with different item sets.
-There are at the moment (as of 2/9/19) 9 types of items currently in the game, as well as an aditional 6 that are planned for but are not yet implemented. More possibly coming in the indeterminate future!
+There are (as of 3/17/19) 15 types of items currently in the game, as well as an aditional 4 that are planned for but are not yet implemented. More possibly coming in the indeterminate future!
 # Installation
 It's really simple, but here are the steps anyway
 * Download the project
 * Move it somewhere besides 'downloads'
-* Launch 'stickmanDungeon.html'
-# Controls
+* Launch 'stickDungeon.html'
+# In-game Controls
 It says it on the ingame 'how to play page' but here they are:
 * Arrow keys to move, up to jump
 * A to use the item you're holding (ex: attacking if you're holding a weapon)
@@ -21,3 +21,4 @@ It says it on the ingame 'how to play page' but here they are:
 * D to view your items
   * Click an equipped item to unequip it
   * Click an unequipped item to equip it
+ * Number keys (1, 2, 3) to switch between equipped items
