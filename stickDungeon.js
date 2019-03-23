@@ -6,8 +6,9 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = true;
+const hax = false;
 const showHitboxes = false;
+var frozen = false;
 var hitboxes = [];
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
@@ -65,36 +66,51 @@ Array.prototype.removeAll = function(item) {
 Math.rad = function(deg) {
 	return deg / 180 * Math.PI;
 };
+Math.map = function(value, min1, max1, min2, max2) {
+	/*
+	Maps 'value' from range ['min1' - 'max1'] to ['min2' - 'max2']
+	*/
+	return (value - min1) / (max1 - min1) * (max2 - min2) + min2;
+};
 var boxFronts = [];//for 3d-ish rendering
 var extraGraphics = [];
 function getRotated(x, y, deg) {
-	var rotArray = findPointsCircular(0, 0, Math.floor(Math.dist(0, 0, x, y)));
-	var startIndex;
-	for(var i = 0; i < rotArray.length; i ++) {
-		if(rotArray[i].x >= x - 1 && rotArray[i].x <= x + 1 && rotArray[i].y >= y - 1 && rotArray[i].y <= y + 1) {
-			startIndex = i;
-			break;
-		}
-	}
-	var startDeg = startIndex / rotArray.length * 360;
-	var endDeg = Math.round(startDeg + deg);
-	while(endDeg > 360) {
-		endDeg -= 360;
-	}
-	while(endDeg < 0) {
-		endDeg += 360;
-	}
+	deg = Math.rad(deg);
 	return {
-		x: rotArray[Math.round(endDeg / 360 * (rotArray.length - 1))].x,
-		y: rotArray[Math.round(endDeg / 360 * (rotArray.length - 1))].y
+		x: x * Math.cos(deg) - y * Math.sin(deg),
+		y: x * Math.sin(deg) + y * Math.cos(deg)
 	};
 };
-function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
+function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 	if(typeof sideCol !== "string") {
 		sideCol = "rgb(150, 150, 150)";
 	}
 	if(typeof frontCol !== "string") {
 		frontCol = "rgb(110, 110, 110)";
+	}
+	if(typeof settings !== "object") {
+		settings = {
+			noFrontExtended: false,
+			sideColors: {
+				left: sideCol,
+				right: sideCol,
+				top: sideCol,
+				bottom: sideCol
+			}
+		};
+	}
+	else if(typeof settings.sideColors !== "object") {
+		settings.sideColors = {};
+		settings.sideColors.left = sideCol;
+		settings.sideColors.top = sideCol;
+		settings.sideColors.bottom = sideCol;
+		settings.sideColors.right = sideCol;
+	}
+	else {
+		settings.sideColors.left = (settings.sideColors.left === undefined) ? sideCol : settings.sideColors.left;
+		settings.sideColors.right = (settings.sideColors.right === undefined) ? sideCol : settings.sideColors.right;
+		settings.sideColors.top = (settings.sideColors.top === undefined) ? sideCol : settings.sideColors.top;
+		settings.sideColors.bottom = (settings.sideColors.bottom === undefined) ? sideCol : settings.sideColors.bottom;
 	}
 	//background square
 	var leftBX = 400 - (400 - x) * startDepth;
@@ -106,8 +122,8 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
 	var topFY = 400 - (400 - y) * endDepth;
 	var rightFX = 400 - (400 - (x + w)) * endDepth;
 	var bottomFY = 400 - (400 - (y + h)) * endDepth;
-	c.fillStyle = sideCol;
 	//top face
+	c.fillStyle = settings.sideColors.top;
 	c.beginPath();
 	c.moveTo(leftBX, topBY);
 	c.lineTo(rightBX, topBY);
@@ -115,6 +131,7 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
 	c.lineTo(leftFX, topFY);
 	c.fill();
 	//right face
+	c.fillStyle = settings.sideColors.right;
 	c.beginPath();
 	c.moveTo(rightFX, topFY);
 	c.lineTo(rightBX, topBY);
@@ -122,6 +139,7 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
 	c.lineTo(rightFX, bottomFY);
 	c.fill();
 	//bottom face
+	c.fillStyle = settings.sideColors.bottom;
 	c.beginPath();
 	c.moveTo(rightBX, bottomBY);
 	c.lineTo(rightFX, bottomFY);
@@ -129,6 +147,7 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
 	c.lineTo(leftBX, bottomBY);
 	c.fill();
 	//left face
+	c.fillStyle = settings.sideColors.left;
 	c.beginPath();
 	c.moveTo(leftBX, topBY);
 	c.lineTo(leftFX, topFY);
@@ -136,11 +155,17 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol) {
 	c.lineTo(leftBX, bottomBY);
 	c.fill();
 	//front face
-	boxFronts.push({
-		type: "rect",
-		loc: [leftFX, topFY, rightFX - leftFX, bottomFY - topFY],
-		col: frontCol
-	});
+	if(!settings.noFrontExtended) {
+		boxFronts.push({
+			type: "rect",
+			loc: [leftFX, topFY, rightFX - leftFX, bottomFY - topFY],
+			col: frontCol
+		});
+	}
+	else {
+		c.fillStyle = frontCol;
+		c.fillRect(leftFX, topFY, rightFX - leftFX, bottomFY - topFY);
+	}
 };
 function cylinder(x, y, r, startDepth, endDepth, frontCol, sideCol, arr) {
 	var width = c.lineWidth;
@@ -177,7 +202,7 @@ function cylinder(x, y, r, startDepth, endDepth, frontCol, sideCol, arr) {
 	c.lineWidth = width;
 };
 function point3d(x, y, z) {
-	//returns the visual position of a point at x, y, d
+	//returns the visual position of a point at x, y, z
 	return {
 		x: 400 - (400 - x) * z,
 		y: 400 - (400 - y) * z,
@@ -197,69 +222,117 @@ function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
 	c.fill();
 };
 function polygon3d(frontCol, sideCol, startDepth, endDepth, points) {
-	//front face
-	var fronts = [];
-	for(var i = 4; i < arguments.length; i += 2) {
-		fronts.push(point3d(arguments[i], arguments[i + 1], startDepth));
+	//swap 'startDepth' and 'endDepth' if in wrong order
+	if(startDepth > endDepth) {
+		var start = startDepth;
+		startDepth = endDepth;
+		endDepth = start;
 	}
-	c.fillStyle = frontCol;
-	c.strokeStyle = frontCol;
-	c.beginPath();
-	c.moveTo(arguments[2], arguments[3]);
-	for(var i = 0; i < fronts.length; i ++) {
-		c.lineTo(fronts[i].x, fronts[i].y);
+	//generate a list of points in 3d
+	var frontVertices = [];
+	var backVertices = [];
+	for(var i = 0; i < points.length; i ++) {
+		frontVertices.push(point3d(points[i].x, points[i].y, endDepth));
+		backVertices.push(point3d(points[i].x, points[i].y, startDepth));
 	}
-	c.fill();
-	c.stroke();
 	//side faces
 	c.fillStyle = sideCol;
-	var backs = [];
-	for(var i = 4; i < arguments.length; i += 2) {
-		if(i !== arguments.length - 1) {
-			line3d(arguments[i].x, arguments[i].y, arguments[i + 1].x, arguments[i + 1].y, startDepth, endDepth, )
+	for(var i = 0; i < frontVertices.length; i ++) {
+		var next = (i === frontVertices.length - 1) ? 0 : i + 1;
+		c.beginPath();
+		c.moveTo(frontVertices[i].x, frontVertices[i].y);
+		c.lineTo(frontVertices[next].x, frontVertices[next].y);
+		c.lineTo(backVertices[next].x, backVertices[next].y);
+		c.lineTo(backVertices[i].x, backVertices[i].y);
+		c.fill();
+	}
+	//front face
+	c.fillStyle = frontCol;
+	c.beginPath();
+	for(var i = 0; i < frontVertices.length; i ++) {
+		if(i === 0) {
+			c.moveTo(frontVertices[i].x, frontVertices[i].y);
+		}
+		else {
+			c.lineTo(frontVertices[i].x, frontVertices[i].y);
 		}
 	}
+	c.fill();
 };
 function hitboxRect(x, y, w, h) {
 	if(showHitboxes) {
-		hitboxes.push({x: x, y: y, w: w, h: h});
+		hitboxes.push({x: x, y: y, w: w, h: h, color: "green"});
 	}
 	return (p.x + 5 > x && p.x - 5 < x + w && p.y + 46 > y && p.y < y + h);
 };
-function collisionRect(x, y, w, h, walls, onlyEnemies, illegalHandling) {
-	if(onlyEnemies) {
-	}
-	onlyEnemies = onlyEnemies || false;
-	walls = walls || [true, true, true, true];
-	illegalHandling = illegalHandling || "collide";
+function collisionRect(x, y, w, h, settings) {
+	settings = settings || {};
+	settings.onlyEnemies = settings.onlyEnemies || false;
+	settings.walls = settings.walls || [true, true, true, true];
+	settings.illegalHandling = settings.illegalHandling || "collide";
+	settings.moving = settings.moving || false;
 	if(showHitboxes) {
-		hitboxes.push({x: x, y: y, w: w, h: h});
+		hitboxes.push({x: x, y: y, w: w, h: h, color: settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
 	}
-	if(!onlyEnemies && inRoom === theRoom) {
-		if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + p.velY + 1 && walls[0]) {
-			p.velY = 0;
-			p.y = y - 46;
-			p.canJump = true;
-			p.hurt(p.fallDmg, "falling");
-			p.fallDmg = 0;
-		}
-		if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h + p.velY - 1 && walls[1]) {
-			p.velY = 2;
-		}
-		if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + p.velX + 1 && walls[2]) {
-			if(illegalHandling === "collide") {
-				p.velX = -1;
-			}
-			else {
+	if(inRoom === theRoom) {
+		if(!settings.moving) {
+			if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + p.velY + 1 && settings.walls[0]) {
+				p.velY = 0;
 				p.y = y - 46;
+				p.canJump = true;
+				if(p.fallDmg !== 0) {
+					p.hurt(p.fallDmg, "falling");
+					p.fallDmg = 0;
+				}
+			}
+			if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h + p.velY - 1 && settings.walls[1]) {
+				p.velY = 2;
+			}
+			if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + p.velX + 1 && settings.walls[2]) {
+				if(settings.illegalHandling === "collide") {
+					p.velX = (settings.extraBouncy) ? -3 : -1;
+				}
+				else {
+					p.y = y - 46;
+				}
+			}
+			if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w + p.velX - 1 && settings.walls[3]) {
+				if(settings.illegalHandling === "collide") {
+					p.velX = (settings.extraBouncy) ? 3 : 1;
+				}
+				else {
+					p.y = y - 46;
+				}
 			}
 		}
-		if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w + p.velX - 1 && walls[3]) {
-			if(illegalHandling === "collide") {
-				p.velX = 1;
-			}
-			else {
+		else {
+			if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + 6 && settings.walls[0]) {
+				p.velY = 0;
 				p.y = y - 46;
+				p.canJump = true;
+				if(p.fallDmg !== 0) {
+					p.hurt(p.fallDmg, "falling");
+					p.fallDmg = 0;
+				}
+			}
+			if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h - 6 && settings.walls[1]) {
+				p.velY = 2;
+			}
+			if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + 6 && settings.walls[2]) {
+				if(settings.illegalHandling === "collide") {
+					p.velX = (settings.extraBouncy) ? -3 : -1;
+				}
+				else {
+					p.y = y - 46;
+				}
+			}
+			if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w - 6 && settings.walls[3]) {
+				if(settings.illegalHandling === "collide") {
+					p.velX = (settings.extraBouncy) ? 3 : 1;
+				}
+				else {
+					p.y = y - 46;
+				}
 			}
 		}
 	}
@@ -285,7 +358,7 @@ function collisionRect(x, y, w, h, walls, onlyEnemies, illegalHandling) {
 			}
 			if(enemy.y + enemy.bottomY + p.worldY > y && enemy.y + enemy.topY + p.worldY < y + h) {
 				if(enemy.x + p.worldX + enemy.rightX >= x && enemy.x + p.worldX + enemy.rightX <= x + enemy.velX + 1) {
-					if(illegalHandling === "teleport") {
+					if(settings.illegalHandling === "teleport") {
 						enemy.y = y - p.worldY - Math.abs(enemy.bottomY);
 						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
 						enemy.canJump = true;
@@ -299,7 +372,7 @@ function collisionRect(x, y, w, h, walls, onlyEnemies, illegalHandling) {
 					}
 				}
 				if(enemy.x + p.worldX + enemy.leftX <= x + w && enemy.x + p.worldX + enemy.leftX >= x + w + enemy.velX - 1) {
-					if(illegalHandling === "teleport") {
+					if(settings.illegalHandling === "teleport") {
 						enemy.y = y - p.worldY - Math.abs(enemy.bottomY);
 						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
 						enemy.canJump = true;
@@ -323,6 +396,45 @@ function collisionRect(x, y, w, h, walls, onlyEnemies, illegalHandling) {
 		else if(roomInstances[theRoom].content[i] instanceof MagicCharge && roomInstances[theRoom].content[i].x + p.worldX > x && roomInstances[theRoom].content[i].x + p.worldX < x + w && roomInstances[theRoom].content[i].y + p.worldY > y && roomInstances[theRoom].content[i].y + p.worldY < y + h) {
 			roomInstances[theRoom].content[i].splicing = true;
 			continue;
+		}
+		else if(roomInstances[theRoom].content[i] instanceof SpikeBall) {
+			x -= p.worldX, y -= p.worldY;
+			var spikeball = roomInstances[theRoom].content[i];
+			if(spikeball.x + 20 > x && spikeball.x + -20 < x + w) {
+				if(spikeball.y + 20 >= y && spikeball.y + 20 <= y + spikeball.velY + 1) {
+					spikeball.velY = (spikeball.velY > 0) ? -1 : spikeball.velY;
+					spikeball.y = y - Math.abs(20);
+				}
+				if(spikeball.y + -20 <= y + h && spikeball.y + -20 >= y + h + spikeball.velY - 1) {
+					spikeball.velY = 3;
+					spikeball.y = y + h + Math.abs(-20);
+				}
+			}
+			if(spikeball.y + 20 > y && spikeball.y + -20 < y + h) {
+				if(spikeball.x + 20 >= x && spikeball.x + 20 <= x + spikeball.velX + 1) {
+					if(illegalHandling === "teleport") {
+						spikeball.y = y - Math.abs(20);
+						spikeball.velY = (spikeball.velY > 0) ? 0 : spikeball.velY;
+						spikeball.canJump = true;
+					}
+					else {
+						spikeball.velX = (spikeball.velX > 0) ? -3 : spikeball.velX;
+						spikeball.x = x - Math.abs(20);
+					}
+				}
+				if(spikeball.x + -20 <= x + w && spikeball.x + -20 >= x + w + spikeball.velX - 1) {
+					if(illegalHandling === "teleport") {
+						spikeball.y = y - Math.abs(-20);
+						spikeball.velY = (spikeball.velY > 0) ? 0 : spikeball.velY;
+						spikeball.canJump = true;
+					}
+					else {
+						spikeball.velX = (spikeball.velX < 0) ? 3 : spikeball.velX;
+						spikeball.x = x + w + Math.abs(-20);
+					}
+				}
+			}
+			x += p.worldX, y += p.worldY;
 		}
 	}
 };
@@ -377,6 +489,17 @@ function circularPointsTopHalf(x, y, r) {
 	return circularPoints;
 };
 function findPointsLinear(x1, y1, x2, y2) {
+	var inverted = false;
+	if(Math.abs(x1 - x2) < Math.abs(y1 - y2)) {
+		inverted = true;
+		//swap x's and y's
+		var oldX1 = x1;
+		x1 = y1;
+		y1 = oldX1;
+		var oldX2 = x2;
+		x2 = y2;
+		y2 = oldX2;
+	}
 	var m = Math.abs(y1 - y2) / Math.abs(x1 - x2);
 	var linearPoints = [];
 	if(x1 < x2) {
@@ -428,13 +551,33 @@ function findPointsLinear(x1, y1, x2, y2) {
 			}
 		}
 	}
+	if(inverted) {
+		for(var i = 0; i < linearPoints.length; i ++) {
+			var oldX = linearPoints[i].x;
+			linearPoints[i].x = linearPoints[i].y;
+			linearPoints[i].y = oldX;
+		}
+	}
 	return linearPoints;
 };
-function collisionLine(x1, y1, x2, y2, walls, illegalHandling) {
-	illegalHandling = illegalHandling || "teleport";
+function collisionLine(x1, y1, x2, y2, settings) {
+	settings = settings || {};
+	if(settings.illegalHandling === undefined) {
+		if(Math.abs(x1 - x2) < Math.abs(y1 - y2) || (p.y + 10 > y1 && p.y + 10 > y2)) {
+			settings.illegalHandling = "collide";
+			if(settings.walls === undefined) {
+				settings.walls = [false, true, true, true];
+			}
+		}
+		else {
+			settings.illegalHandling = "teleport";
+		}
+	}
+	settings.moving = settings.moving || false;
+	settings.extraBouncy = settings.extraBouncy || false;
 	var points = findPointsLinear(x1, y1, x2, y2);
 	for(var i = 0; i < points.length; i ++) {
-		collisionRect(points[i].x, points[i].y, Math.abs(p.velX) + 3, Math.abs(p.velY), walls, false, illegalHandling);
+		collisionRect(points[i].x, points[i].y, Math.abs(p.velX) + 3, Math.abs(p.velY), { illegalHandling: settings.illegalHandling, walls: settings.walls, extraBouncy: settings.extraBouncy, moving: settings.moving });
 	}
 };
 function calcAngleDegrees(x, y) {
@@ -497,17 +640,20 @@ function Player() {
 	this.aiming = false;
 	this.numHeals = 0;
 	this.attackSpeed = 5;
+	this.canStopAttacking = true;
 	//other object properties
 	this.healthAltarsFound = 0;
 	this.manaAltarsFound = 0;
 	this.openingBefore = false;
 	this.terminateProb = 0;
+	this.doorType = "arch";
 	//scoring / permanent values
 	this.roomsExplored = 0;
 	this.enemiesKilled = 0;
 	this.deathCause = null;
 	this.secretsFound = 0;
 	this.dead = false;
+	this.power = 0;
 };
 Player.prototype.init = function() {
 	for(var x = 0; x < 3; x ++) {
@@ -593,7 +739,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.lineTo(this.x - 10, this.y + 36);
 		c.stroke();
 	}
-	if(this.attacking && this.facing === "left" && !(this.attackingWith instanceof Spear)) {
+	if(this.attacking && this.facing === "left" && !(this.attackingWith instanceof Spear) && !(this.attackingWith instanceof Mace)) {
 		c.save();
 		c.translate(this.x, this.y + 26);
 		c.rotate(-this.attackArm / 180 * Math.PI);
@@ -617,7 +763,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 			}
 		}
 	}
-	if(this.attacking && this.facing === "right" && !(this.attackingWith instanceof Spear)) {
+	if(this.attacking && this.facing === "right" && !(this.attackingWith instanceof Spear) && !(this.attackingWith instanceof Mace)) {
 		c.save();
 		c.translate(this.x, this.y + 26);
 		c.rotate(this.attackArm / 180 * Math.PI);
@@ -714,6 +860,22 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 				this.canHit = true;
 			}
 		}
+	}
+	if(this.attacking && this.facing === "right" && this.attackingWith instanceof Mace) {
+		c.save();
+		c.translate(this.x, this.y + 26);
+		c.rotate(Math.rad(this.attackArm));
+		c.beginPath();
+		c.moveTo(0, 0);
+		c.lineTo(10, 10);
+		c.stroke();
+		c.fillStyle = "rgb(60, 60, 60)";
+		c.save();
+		c.translate(10, 10);
+		c.rotate(Math.rad(45));
+		c.fillRect(-2, -15, 4, 15);
+		c.restore();
+		c.restore();
 	}
 	this.attackArm += this.attackArmDir;
 	if(this.aiming && this.facing === "right") {
@@ -928,7 +1090,20 @@ Player.prototype.update = function() {
 	//attacking + item use
 	this.facing = keys[39] ? "right" : this.facing;
 	this.facing = keys[37] ? "left" : this.facing;
-	this.attacking = false;
+	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+		if(roomInstances[inRoom].content[i] instanceof SpikeBall) {
+			if(roomInstances[inRoom].content[i].x + this.worldX > this.x) {
+				this.facing = "right";
+			}
+			else {
+				this.facing = "left";
+			}
+			break;
+		}
+	}
+	if(this.canStopAttacking) {
+		this.attacking = false;
+	}
 	this.aiming = false;
 	if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon) {
 		if(this.invSlots[this.activeSlot].content.attackSpeed === "fast") {
@@ -940,9 +1115,12 @@ Player.prototype.update = function() {
 		else if(this.invSlots[this.activeSlot].content.attackSpeed === "slow") {
 			this.attackSpeed = 3;
 		}
+		else if(this.invSlots[this.activeSlot].content.attackSpeed === "very slow") {
+			this.attackSpeed = 1;
+		}
 	}
 	if(keys[65] && this.invSlots[this.activeSlot].content !== "empty") {
-		if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon) {
+		if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon && !(this.invSlots[this.activeSlot].content instanceof Mace)) {
 			this.invSlots[this.activeSlot].content.attack();
 			this.attacking = true;
 			if(this.attackArm === null) {
@@ -973,12 +1151,32 @@ Player.prototype.update = function() {
 			}
 			this.aiming = true;
 		}
+		else if(this.invSlots[this.activeSlot].content instanceof Mace) {
+			this.attacking = true;
+			this.canStopAttacking = false;
+			this.attackingWith = this.invSlots[this.activeSlot].content;
+			var alreadyExists = false;
+			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+				if(roomInstances[inRoom].content[i] instanceof SpikeBall) {
+					alreadyExists = true;
+					break;
+				}
+			}
+			if(!alreadyExists) {
+				if(this.facing === "right") {
+					roomInstances[inRoom].content.push(new SpikeBall(this.x - this.worldX + 50, this.y - this.worldY, "right"));
+				}
+				else {
+
+				}
+			}
+		}
 		else if(this.invSlots[this.activeSlot].content.hasOwnProperty("use")) {
 			this.invSlots[this.activeSlot].content.use();
 		}
 	}
 	if(this.attacking) {
-		if(this.attackingWith instanceof MeleeWeapon) {
+		if(this.attackingWith instanceof MeleeWeapon && !(this.attackingWith instanceof Mace)) {
 			//calculate weapon tip position
 			if(this.attackingWith instanceof Spear) {
 				var weaponPos = {
@@ -1036,6 +1234,28 @@ Player.prototype.update = function() {
 						this.canHit = false;
 						this.attackArmDir = -this.attackArmDir;
 						this.timeSinceAttack = 0;
+					}
+				}
+			}
+		}
+		else if(this.attackingWith instanceof Mace) {
+			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+				if(roomInstances[inRoom].content[i] instanceof SpikeBall && Math.abs(roomInstances[inRoom].content[i].velX) <= 1 && Math.abs(roomInstances[inRoom].content[i].x + this.worldX - this.x) < 5) {
+					if(this.facing === "right") {
+						this.attackArmDir = -1;
+					}
+				}
+			}
+			if(this.attackArm > 0) {
+				this.attackArmDir = (this.attackArmDir > 0) ? 0 : this.attackArmDir;
+			}
+			else if(this.attackArm < -75) {
+				this.attackArmDir = 5;
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof SpikeBall) {
+						if(this.facing === "right") {
+							roomInstances[inRoom].content[i].velX = 3;
+						}
 					}
 				}
 			}
@@ -1951,6 +2171,16 @@ Player.prototype.reset = function() {
 			break;
 	}
 };
+Player.prototype.updatePower = function() {
+	this.power = 0;
+	this.power += (this.maxHealth - 10);
+	this.power += (this.maxMana - 10);
+	for(var i = 0; i < this.invSlots.length; i ++) {
+		if(this.invSlots[i].content !== "empty") {
+			this.power += this.invSlots[i].content.power;
+		}
+	}
+};
 var p = new Player();
 p.init();
 
@@ -1962,7 +2192,7 @@ function Block(x, y, w, h) {
 	this.h = h;
 };
 Block.prototype.update = function() {
-	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, [true, true, true, true], !(theRoom === inRoom), partOfAStair ? "teleport" : "collide");
+	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, {walls: [true, true, true, true], illegalHandling: partOfAStair ? "teleport" : "collide"} );
 };
 Block.prototype.display = function() {
 	cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
@@ -1987,6 +2217,19 @@ function loadBoxFronts() {
 		if(boxFronts[i].type === "rect") {
 			c.fillStyle = boxFronts[i].col;
 			c.fillRect(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3]);
+		}
+		else if(boxFronts[i].type === "polygon") {
+			c.fillStyle = boxFronts[i].col;
+			c.beginPath();
+			for(var j = 0; j < boxFronts[i].loc.length; j ++) {
+				if(j === 0) {
+					c.moveTo(boxFronts[i].loc[j].x, boxFronts[i].loc[j].y);
+				}
+				else {
+					c.lineTo(boxFronts[i].loc[j].x, boxFronts[i].loc[j].y);
+				}
+			}
+			c.fill();
 		}
 		else if(boxFronts[i].type === "circle") {
 			c.fillStyle = boxFronts[i].col;
@@ -2031,27 +2274,42 @@ function Platform(x, y, w) {
 };
 Platform.prototype.exist = function() {
 	cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
-	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, 3, [true, false, false, false], !(theRoom === inRoom));
+	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, 3, {walls: [true, false, false, false]});
 };
-function Door(x, y, dest, noEntry, invertEntries) {
+function Door(x, y, dest, noEntry, invertEntries, type) {
 	this.x = x;
 	this.y = y;
 	this.dest = dest;
 	this.noEntry = noEntry || false;
 	this.invertEntries = invertEntries || false;
+	this.type = type || "same";
 	this.onPath = false;
 };
 Door.prototype.exist = function() {
+	if(this.type === "same" || this.type === "toggle") {
+		if(this.type === "same") {
+			this.type = p.doorType;
+		}
+		else {
+			this.type = p.doorType === "arch" ? "lintel" : "arch";
+		}
+	}
 	//graphics
 	var leftBX = 400 - (400 - (this.x + p.worldX - 30)) * (1 - floorWidth);
 	var rightBX = 400 - (400 - (this.x + p.worldX + 30)) * (1 - floorWidth);
 	var bottomBY = 400 - (400 - (this.y + p.worldY)) * (1 - floorWidth);
 	var topBY = 400 - (400 - (this.y + p.worldY - 60)) * (1 - floorWidth);
-	c.fillStyle = "rgb(20, 20, 20)";
-	c.fillRect(leftBX, topBY, rightBX - leftBX, bottomBY - topBY);
-	c.beginPath();
-	c.arc(leftBX + ((rightBX - leftBX) / 2), topBY, 27, 0, 2 * Math.PI);
-	c.fill();
+	if(this.type === "arch") {
+		c.fillStyle = "rgb(20, 20, 20)";
+		c.fillRect(leftBX, topBY, rightBX - leftBX, bottomBY - topBY);
+		c.beginPath();
+		c.arc(leftBX + ((rightBX - leftBX) / 2), topBY, 27, 0, 2 * Math.PI);
+		c.fill();
+	}
+	else {
+		cube(this.x + p.worldX - 30, this.y + p.worldY - 90, 60, 90, 0.9, 0.9, "rgb(20, 20, 20)", "rgb(20, 20, 20)", { noFrontExtended: true });
+		cube(this.x + p.worldX - 45, this.y + p.worldY - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)", {noFrontExtended: true} );
+	}
 	if(this.barricaded) {
 		c.save();
 		c.fillStyle = "rgb(139, 69, 19)";
@@ -2100,12 +2358,13 @@ Door.prototype.exist = function() {
 		c.restore();
 
 	}
-	//begin transition
+	//transition between rooms
 	if(p.x - 5 > leftBX && p.x + 5 < rightBX && p.y + 46 > topBY && p.y + 46 < bottomBY + 10 && p.canJump && keys[83] && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
 		p.enteringDoor = true;
 		this.entering = true;
 	}
 	if(p.screenOp > 0.95 && this.entering && !this.barricaded) {
+		p.doorType = this.type;
 		if(typeof this.dest !== "number") {
 			p.roomsExplored ++;
 			p.numHeals ++;
@@ -2122,6 +2381,24 @@ Door.prototype.exist = function() {
 			//create a list of valid rooms to generate
 			var possibleRooms = [];
 			for(var i = 0; i < rooms.length; i ++) {
+				if(roomInstances[inRoom].colorScheme === "red") {
+					//remove fountain, tree, mana altar
+					if(rooms[i].name === "ambient5" || rooms[i].name === "secret1" || (rooms[i].name === "reward2" && p.healthAltarsFound >= 5)) {
+						continue;
+					}
+				}
+				else if(roomInstances[inRoom].colorScheme === "green") {
+					//remove fountain, forge, altars, library
+					if(rooms[i].name === "ambient5" || rooms[i].name === "reward3" || rooms[i].name === "reward2" || rooms[i].name === "secret3") {
+						continue;
+					}
+				}
+				else if(roomInstances[inRoom].colorScheme === "blue") {
+					//remove forge, tree, health altar, library
+					if(rooms[i].name === "reward3" || rooms[i].name === "secret1" || (rooms[i].name === "reward2" && p.manaAltarsFound >= 5) || rooms[i].name === "secret3") {
+						continue;
+					}
+				}
 				for(var j = 0; j < this.dest.length; j ++) {
 					if(this.dest[j] === rooms[i].name.substr(0, 7) && rooms[i].name !== roomInstances[inRoom].type) {
 						possibleRooms.push(rooms[i]);
@@ -2137,28 +2414,14 @@ Door.prototype.exist = function() {
 			lower # - less doors - more splits
 			medium # - medium doors - no effects (or continuations, splits, and dead ends)
 			*/
-			var newPossibleRooms = [];
+			p.updatePower();
+			var newWeights = [];
 			for(var i = 0; i < possibleRooms.length; i ++) {
-				var chance = Math.abs(possibleRooms[i].extraDoors - p.terminateProb);
-				chance *= 5;
-				chance ++;
-				for(var j = 0; j < chance; j ++) {
-					newPossibleRooms.push(possibleRooms[i]);
-				}
+				var diffScore = Math.abs(possibleRooms[i].difficulty - p.power); //bigger # = less likely
+				var termScore = Math.abs(possibleRooms[i].extraDoors - p.terminateProb); //smaller # = less likely
+				var totalScore = termScore - diffScore;
 			}
-			possibleRooms = newPossibleRooms;
-			var numSplits = 0, numConts = 0, numEnds = 0;
-			for(var i = 0; i < possibleRooms.length; i ++) {
-				if(possibleRooms[i].extraDoors === 0) {
-					numEnds ++;
-				}
-				else if(possibleRooms[i].extraDoors === 1) {
-					numConts ++;
-				}
-				else {
-					numSplits ++;
-				}
-			}
+			// for(var i = 0; i < newWeights.length
 			//add selected room
 			var roomIndex = Math.round(Math.random() * (possibleRooms.length - 1));
 			possibleRooms[roomIndex].add();
@@ -2170,7 +2433,7 @@ Door.prototype.exist = function() {
 			p.exitingDoor = true;
 			p.op = 1;
 			p.op = 95;
-			this.dest = numRooms + 1 - 1;
+			this.dest = numRooms;
 			//give the newly generated room an id
 			for(var i = 0; i < roomInstances.length; i ++) {
 				if(roomInstances[i].id === "?") {
@@ -2183,7 +2446,7 @@ Door.prototype.exist = function() {
 					//select a door for the player to come out of
 					var doorIndexes = [];
 					for(var j = 0; j < roomInstances[i].content.length; j ++) {
-						if(roomInstances[i].content[j] instanceof Door && (!!roomInstances[i].content[j].noEntry) === (!!this.invertEntries)) {
+						if(roomInstances[i].content[j] instanceof Door && (!!roomInstances[i].content[j].noEntry) === (!!this.invertEntries) && roomInstances[i].content[j].noEntry !== "no entries") {
 							doorIndexes.push(j);
 						}
 					}
@@ -2201,6 +2464,14 @@ Door.prototype.exist = function() {
 					p.worldY = 0;
 					p.x = roomInstances[i].content[theIndex].x;
 					p.y = roomInstances[i].content[theIndex].y - 47;
+					if(roomInstances[i].content[theIndex].type === "toggle") {
+						for(var j = 0; j < roomInstances[i].content.length; j ++) {
+							if(roomInstances[i].content[j] instanceof Door && j !== theIndex) {
+								roomInstances[i].content[j].type = (roomInstances[i].content[j].type === "same") ? "toggle" : "same";
+							}
+						}
+					}
+					roomInstances[i].content[theIndex].type = p.doorType;
 					if(p.y > 400) {
 						p.worldY -= Math.dist(0, p.y, 0, 400);
 						p.y = 400;
@@ -2221,6 +2492,35 @@ Door.prototype.exist = function() {
 					roomInstances[i].content[theIndex].dest = previousRoom;
 					//assign this door to lead into that room
 					this.dest = inRoom;
+				}
+			}
+			for(var i = 0; i < roomInstances.length; i ++) {
+				if(roomInstances[i].id === numRooms - 1 && roomInstances[i].type !== "ambient5" && roomInstances[i].type !== "reward2" && roomInstances[i].type !== "reward3" && roomInstances[i].type !== "secret1" && roomInstances[i].type !== "secret3") {
+					var hasDecorations = false;
+					decorationLoop: for(var j = 0; j < roomInstances[i].content.length; j ++) {
+						if(roomInstances[i].content[j] instanceof Decoration || roomInstances[i].content[j] instanceof Torch) {
+							hasDecorations = true;
+							break decorationLoop;
+						}
+					}
+					if(!hasDecorations) {
+						roomInstances[i].colorScheme = null;
+					}
+					if(roomInstances[previousRoom].colorScheme === null && hasDecorations) {
+						var chooser = Math.random();
+						if(chooser < 0.33) {
+							roomInstances[i].colorScheme = "red";
+						}
+						else if(chooser < 0.66) {
+							roomInstances[i].colorScheme = "green";
+						}
+						else {
+							roomInstances[i].colorScheme = "blue";
+						}
+					}
+					if(roomInstances[previousRoom].colorScheme !== null && hasDecorations) {
+						roomInstances[i].colorScheme = roomInstances[previousRoom].colorScheme;
+					}
 				}
 			}
 			//schedule enemies to move through the door
@@ -2297,16 +2597,29 @@ function Torch(x, y) {
 	this.fireParticles = [];
 };
 Torch.prototype.exist = function() {
+	if(this.color === "?" || this.color === undefined) {
+		if(roomInstances[theRoom].colorScheme === "red") {
+			this.color = "rgb(255, 128, 0)";
+		}
+		else if(roomInstances[theRoom].colorScheme === "green") {
+			this.color = "rgb(0, 255, 0)";
+		}
+		else {
+			this.color = "rgb(0, 255, 255)";
+		}
+	}
 	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95);
 	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97);
 	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
 		this.lit = true;
 	}
 	if(this.lit) {
-		this.fireParticles.push(new FireParticle(this.x, this.y - 25));
+		// this.fireParticles.push(new FireParticle(this.x, this.y - 25));
+		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.random() * -3, Math.random() * 5 + 5));
+		this.fireParticles[this.fireParticles.length - 1].z = 0.97;
 		for(var i = 0; i < this.fireParticles.length; i ++) {
 			this.fireParticles[i].exist();
-			if(this.fireParticles[i].op <= 0) {
+			if(this.fireParticles[i].splicing) {
 				this.fireParticles.splice(i, 1);
 				continue;
 			}
@@ -2338,10 +2651,21 @@ function LightRay(x, w) {
 	this.w = w;
 };
 LightRay.prototype.exist = function() {
+	// c.fillStyle = "rgb(255, 255, 255)";
+	// c.globalAlpha = 0.5;
+	// c.fillRect(p.worldX + this.x, 0, this.w, 800);
+	// c.globalAlpha = 1;
+	var leftF = 400 - (400 - (p.worldX + this.x)) * 1.1;
+	var leftB = 400 - (400 - (p.worldX + this.x)) * 0.9;
+	var rightF = 400 - (400 - (p.worldX + this.x + this.w)) * 1.1;
+	var rightB = 400 - (400 - (p.worldX + this.x + this.w)) * 0.9;
+	var left = Math.min(leftF, leftB);
+	var right = Math.max(rightF, rightB);
 	c.fillStyle = "rgb(255, 255, 255)";
 	c.globalAlpha = 0.5;
-	c.fillRect(p.worldX + this.x, 0, this.w, 800);
+	c.fillRect(left, 0, right - left, 800);
 	c.globalAlpha = 1;
+	// cube(p.worldX + this.x, -100, this.w, 900, 0.9, 0.9, "rgba(255, 255, 255, 0.5)", "rgb(255, 255, 255, 0.5)", true);
 };
 function Tree(x, y) {
 	//tree, comes with the planter and everything
@@ -2363,36 +2687,36 @@ Tree.prototype.exist = function(theRoom) {
 	c.lineTo(400 - (400 - (this.x + p.worldX - 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX - 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX - 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95, 400 - (400 - (this.x + p.worldX - 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95, [true, false, false, false]);
+	collisionLine(400 - (400 - (this.x + p.worldX - 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95, 400 - (400 - (this.x + p.worldX - 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95, {walls: [true, false, false, false]});
 	//1st branch on right
 	c.beginPath();
 	c.moveTo(400 - (400 - (this.x + p.worldX + 7)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX + 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX + 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX + 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95, 400 - (400 - (this.x + p.worldX + 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95, [true, false, false, false]);
+	collisionLine(400 - (400 - (this.x + p.worldX + 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95, 400 - (400 - (this.x + p.worldX + 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95, {walls: [true, false, false, false]});
 	//2nd branch on left
 	c.beginPath();
 	c.moveTo(400 - (400 - (this.x + p.worldX - 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 150)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX - 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 170)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX - 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 180)) * 0.95);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX - 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 170)) * 0.95, 400 - (400 - (this.x + p.worldX - 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 180)) * 0.95, [true, false, false, false]);
+	collisionLine(400 - (400 - (this.x + p.worldX - 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 170)) * 0.95, 400 - (400 - (this.x + p.worldX - 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 180)) * 0.95, {walls: [true, false, false, false]});
 	//2nd branch on right
 	c.beginPath();
 	c.moveTo(400 - (400 - (this.x + p.worldX + 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 170)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX + 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 190)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX + 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 200)) * 0.95);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX + 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 190)) * 0.95, 400 - (400 - (this.x + p.worldX + 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 200)) * 0.95, [true, false, false, false]);
+	collisionLine(400 - (400 - (this.x + p.worldX + 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 190)) * 0.95, 400 - (400 - (this.x + p.worldX + 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 200)) * 0.95, {walls: [true, false, false, false]});
 	//3rd branch on left
 	c.beginPath();
 	c.moveTo(400 - (400 - (this.x + p.worldX)) * 0.95, 400 - (400 - (this.y + p.worldY - 200)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX)) * 0.95, 400 - (400 - (this.y + p.worldY - 220)) * 0.95);
 	c.lineTo(400 - (400 - (this.x + p.worldX - 60)) * 0.95, 400 - (400 - (this.y + p.worldY - 230)) * 0.95);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX)) * 0.95, 400 - (400 - (this.y + p.worldY - 220)) * 0.95, 400 - (400 - (this.x + p.worldX - 60)) * 0.95, 400 - (400 - (this.y + p.worldY - 230)) * 0.95, [true, false, false, false]);
-	collisionRect(400 - (400 - (this.x + p.worldX - 4)) * 0.95, 400 - (400 - (this.y + p.worldY - 350)) * 0.95, 8, 2, [true, false, false, false]);
+	collisionLine(400 - (400 - (this.x + p.worldX)) * 0.95, 400 - (400 - (this.y + p.worldY - 220)) * 0.95, 400 - (400 - (this.x + p.worldX - 60)) * 0.95, 400 - (400 - (this.y + p.worldY - 230)) * 0.95, {walls: [true, false, false, false]});
+	collisionRect(400 - (400 - (this.x + p.worldX - 4)) * 0.95, 400 - (400 - (this.y + p.worldY - 350)) * 0.95, 8, 2, {walls: [true, false, false, false]});
 };
 const chestAnimationArray = [
 [{x: 37, y: -19}, {x: 38, y: -19}, {x: 39, y: -17}, {x: 40, y: -18}, {x: 41, y: -17}, {x: 41, y: -19}, {x: 42, y: -19}, {x: 44, y: -19}, {x: 45, y: -19}, {x: 46, y: -18}, {x: 46, y: -20}, {x: 47, y: -20}, {x: 49, y: -19}, {x: 50, y: -20}, {x: 51, y: -19}, {x: 52, y: -19}, {x: 53, y: -19}, {x: 55, y: -17}, {x: 55, y: -19}, {x: 56, y: -19}, {x: 57, y: -17}, {x: 58, y: -18}, {x: 59, y: -18}, {x: 60, y: -18}, {x: 61, y: -17}, {x: 62, y: -17}, {x: 63, y: -16}, {x: 64, y: -17}, {x: 65, y: -16}, {x: 66, y: -16}, {x: 66, y: -17}, {x: 67, y: -16}, {x: 68, y: -16}, {x: 69, y: -14}, {x: 70, y: -15}, {x: 71, y: -13}, {x: 72, y: -13}, {x: 73, y: -13}, {x: 75, y: -12}, {x: 76, y: -12}, {x: 76, y: -11}, {x: 77, y: -12}, {x: 78, y: -10}, {x: 0, y: -1}, {x: 1, y: -2}, {x: 1, y: -2}, {x: 2, y: -3}, {x: 3, y: -3}, {x: 4, y: -5}, {x: 5, y: -5}, {x: 6, y: -6}, {x: 7, y: -7}, {x: 8, y: -7}, {x: 8, y: -8}, {x: 9, y: -9}, {x: 10, y: -8}, {x: 11, y: -8}, {x: 11, y: -10}, {x: 12, y: -10}, {x: 12, y: -11}, {x: 13, y: -11}, {x: 15, y: -11}, {x: 15, y: -12}, {x: 16, y: -12}, {x: 17, y: -13}, {x: 18, y: -14}, {x: 19, y: -13}, {x: 20, y: -14}, {x: 21, y: -14}, {x: 22, y: -15}, {x: 22, y: -16}, {x: 24, y: -15}, {x: 25, y: -16}, {x: 26, y: -16}, {x: 27, y: -17}, {x: 28, y: -17}, {x: 29, y: -17}, {x: 30, y: -17}, {x: 31, y: -18}, {x: 31, y: -19}, {x: 33, y: -18}, {x: 34, y: -18}, {x: 35, y: -18}, {x: 36, y: -19}],[{x: 34, y: -23}, {x: 36, y: -22}, {x: 37, y: -20}, {x: 37, y: -22}, {x: 39, y: -22}, {x: 39, y: -23}, {x: 40, y: -23}, {x: 42, y: -23}, {x: 42, y: -24}, {x: 44, y: -23}, {x: 44, y: -25}, {x: 45, y: -25}, {x: 47, y: -23}, {x: 47, y: -25}, {x: 48, y: -25}, {x: 50, y: -25}, {x: 51, y: -24}, {x: 53, y: -22}, {x: 53, y: -25}, {x: 54, y: -25}, {x: 55, y: -23}, {x: 56, y: -24}, {x: 57, y: -23}, {x: 58, y: -23}, {x: 59, y: -24}, {x: 60, y: -23}, {x: 61, y: -23}, {x: 62, y: -24}, {x: 62, y: -23}, {x: 63, y: -23}, {x: 65, y: -23}, {x: 65, y: -22}, {x: 66, y: -22}, {x: 67, y: -22}, {x: 68, y: -22}, {x: 69, y: -21}, {x: 71, y: -20}, {x: 71, y: -21}, {x: 73, y: -20}, {x: 74, y: -20}, {x: 74, y: -19}, {x: 75, y: -20}, {x: 76, y: -18}, {x: 0, y: -1}, {x: 1, y: -2}, {x: 1, y: -2}, {x: 2, y: -3}, {x: 3, y: -3}, {x: 3, y: -6}, {x: 5, y: -6}, {x: 5, y: -7}, {x: 7, y: -7}, {x: 7, y: -8}, {x: 7, y: -9}, {x: 8, y: -9}, {x: 9, y: -8}, {x: 9, y: -10}, {x: 10, y: -10}, {x: 10, y: -12}, {x: 11, y: -12}, {x: 12, y: -13}, {x: 13, y: -13}, {x: 14, y: -13}, {x: 15, y: -14}, {x: 16, y: -15}, {x: 17, y: -15}, {x: 18, y: -15}, {x: 18, y: -16}, {x: 20, y: -16}, {x: 20, y: -18}, {x: 21, y: -17}, {x: 23, y: -17}, {x: 23, y: -19}, {x: 24, y: -18}, {x: 24, y: -20}, {x: 25, y: -20}, {x: 27, y: -20}, {x: 28, y: -20}, {x: 28, y: -21}, {x: 30, y: -21}, {x: 30, y: -22}, {x: 32, y: -21}, {x: 33, y: -21}, {x: 33, y: -23}],[{x: 32, y: -27}, {x: 34, y: -26}, {x: 35, y: -24}, {x: 35, y: -25}, {x: 37, y: -25}, {x: 36, y: -27}, {x: 38, y: -26}, {x: 39, y: -27}, {x: 40, y: -28}, {x: 41, y: -27}, {x: 41, y: -30}, {x: 43, y: -29}, {x: 44, y: -28}, {x: 44, y: -30}, {x: 46, y: -30}, {x: 47, y: -29}, {x: 48, y: -29}, {x: 50, y: -28}, {x: 50, y: -31}, {x: 52, y: -29}, {x: 53, y: -28}, {x: 53, y: -30}, {x: 54, y: -30}, {x: 55, y: -30}, {x: 57, y: -29}, {x: 57, y: -30}, {x: 58, y: -30}, {x: 59, y: -30}, {x: 60, y: -29}, {x: 61, y: -30}, {x: 62, y: -29}, {x: 62, y: -28}, {x: 63, y: -29}, {x: 65, y: -28}, {x: 65, y: -29}, {x: 66, y: -29}, {x: 68, y: -28}, {x: 69, y: -28}, {x: 71, y: -27}, {x: 71, y: -28}, {x: 72, y: -27}, {x: 72, y: -28}, {x: 74, y: -26}, {x: 0, y: -1}, {x: 1, y: -2}, {x: 1, y: -2}, {x: 2, y: -3}, {x: 2, y: -4}, {x: 3, y: -6}, {x: 4, y: -6}, {x: 4, y: -7}, {x: 6, y: -7}, {x: 6, y: -8}, {x: 6, y: -10}, {x: 8, y: -10}, {x: 8, y: -9}, {x: 8, y: -11}, {x: 9, y: -11}, {x: 9, y: -12}, {x: 10, y: -13}, {x: 11, y: -14}, {x: 11, y: -15}, {x: 13, y: -14}, {x: 13, y: -16}, {x: 14, y: -16}, {x: 14, y: -17}, {x: 15, y: -18}, {x: 17, y: -17}, {x: 17, y: -19}, {x: 19, y: -19}, {x: 19, y: -20}, {x: 20, y: -20}, {x: 21, y: -20}, {x: 22, y: -21}, {x: 23, y: -22}, {x: 23, y: -23}, {x: 25, y: -23}, {x: 26, y: -22}, {x: 26, y: -24}, {x: 27, y: -24}, {x: 28, y: -25}, {x: 29, y: -25}, {x: 31, y: -25}, {x: 31, y: -26}],[{x: 29, y: -29}, {x: 30, y: -30}, {x: 32, y: -28}, {x: 32, y: -29}, {x: 34, y: -29}, {x: 33, y: -31}, {x: 35, y: -30}, {x: 36, y: -31}, {x: 37, y: -32}, {x: 38, y: -31}, {x: 37, y: -34}, {x: 40, y: -33}, {x: 41, y: -32}, {x: 41, y: -35}, {x: 42, y: -34}, {x: 44, y: -34}, {x: 45, y: -34}, {x: 47, y: -33}, {x: 46, y: -36}, {x: 49, y: -34}, {x: 50, y: -33}, {x: 49, y: -36}, {x: 51, y: -35}, {x: 51, y: -36}, {x: 53, y: -35}, {x: 54, y: -35}, {x: 55, y: -36}, {x: 56, y: -36}, {x: 56, y: -35}, {x: 57, y: -36}, {x: 59, y: -34}, {x: 60, y: -34}, {x: 60, y: -36}, {x: 61, y: -36}, {x: 62, y: -36}, {x: 64, y: -35}, {x: 65, y: -35}, {x: 65, y: -36}, {x: 67, y: -34}, {x: 68, y: -34}, {x: 69, y: -34}, {x: 69, y: -36}, {x: 71, y: -33}, {x: 0, y: -1}, {x: 0, y: -2}, {x: 0, y: -2}, {x: 1, y: -3}, {x: 2, y: -4}, {x: 2, y: -6}, {x: 3, y: -7}, {x: 4, y: -8}, {x: 5, y: -8}, {x: 6, y: -9}, {x: 5, y: -10}, {x: 6, y: -11}, {x: 8, y: -10}, {x: 7, y: -12}, {x: 8, y: -12}, {x: 8, y: -13}, {x: 8, y: -14}, {x: 9, y: -15}, {x: 10, y: -16}, {x: 12, y: -15}, {x: 12, y: -17}, {x: 12, y: -18}, {x: 13, y: -18}, {x: 13, y: -19}, {x: 16, y: -19}, {x: 15, y: -21}, {x: 17, y: -20}, {x: 17, y: -22}, {x: 17, y: -23}, {x: 19, y: -22}, {x: 19, y: -24}, {x: 21, y: -24}, {x: 20, y: -25}, {x: 23, y: -25}, {x: 23, y: -26}, {x: 22, y: -28}, {x: 25, y: -26}, {x: 24, y: -29}, {x: 27, y: -27}, {x: 28, y: -28}, {x: 27, y: -30}],[{x: 27, y: -31}, {x: 26, y: -33}, {x: 28, y: -32}, {x: 30, y: -32}, {x: 29, y: -34}, {x: 30, y: -34}, {x: 32, y: -34}, {x: 31, y: -36}, {x: 34, y: -34}, {x: 34, y: -36}, {x: 35, y: -37}, {x: 35, y: -38}, {x: 37, y: -37}, {x: 38, y: -38}, {x: 38, y: -39}, {x: 40, y: -38}, {x: 41, y: -39}, {x: 43, y: -38}, {x: 43, y: -40}, {x: 45, y: -39}, {x: 46, y: -37}, {x: 45, y: -40}, {x: 47, y: -40}, {x: 47, y: -41}, {x: 49, y: -41}, {x: 50, y: -40}, {x: 50, y: -42}, {x: 52, y: -42}, {x: 52, y: -41}, {x: 53, y: -41}, {x: 55, y: -41}, {x: 55, y: -40}, {x: 56, y: -41}, {x: 56, y: -42}, {x: 58, y: -41}, {x: 60, y: -41}, {x: 61, y: -41}, {x: 62, y: -42}, {x: 63, y: -42}, {x: 65, y: -41}, {x: 65, y: -40}, {x: 64, y: -43}, {x: 68, y: -40}, {x: 0, y: -1}, {x: 0, y: -2}, {x: 0, y: -2}, {x: 1, y: -3}, {x: 2, y: -4}, {x: 2, y: -6}, {x: 2, y: -7}, {x: 3, y: -8}, {x: 4, y: -9}, {x: 5, y: -9}, {x: 4, y: -11}, {x: 5, y: -11}, {x: 7, y: -10}, {x: 6, y: -12}, {x: 6, y: -13}, {x: 6, y: -14}, {x: 6, y: -15}, {x: 8, y: -15}, {x: 8, y: -17}, {x: 10, y: -17}, {x: 10, y: -18}, {x: 11, y: -19}, {x: 11, y: -20}, {x: 12, y: -20}, {x: 13, y: -21}, {x: 12, y: -22}, {x: 14, y: -22}, {x: 15, y: -23}, {x: 15, y: -24}, {x: 17, y: -24}, {x: 17, y: -25}, {x: 18, y: -26}, {x: 17, y: -28}, {x: 20, y: -27}, {x: 20, y: -28}, {x: 20, y: -29}, {x: 23, y: -28}, {x: 21, y: -31}, {x: 25, y: -29}, {x: 24, y: -31}, {x: 24, y: -33}],[{x: 23, y: -34}, {x: 22, y: -36}, {x: 25, y: -34}, {x: 26, y: -35}, {x: 26, y: -36}, {x: 27, y: -37}, {x: 29, y: -36}, {x: 28, y: -38}, {x: 31, y: -37}, {x: 30, y: -39}, {x: 30, y: -40}, {x: 31, y: -41}, {x: 32, y: -42}, {x: 35, y: -40}, {x: 34, y: -43}, {x: 37, y: -42}, {x: 36, y: -43}, {x: 38, y: -43}, {x: 39, y: -43}, {x: 38, y: -46}, {x: 40, y: -44}, {x: 42, y: -44}, {x: 41, y: -46}, {x: 43, y: -45}, {x: 45, y: -45}, {x: 45, y: -46}, {x: 47, y: -46}, {x: 47, y: -47}, {x: 48, y: -46}, {x: 49, y: -47}, {x: 51, y: -46}, {x: 51, y: -45}, {x: 51, y: -47}, {x: 52, y: -48}, {x: 54, y: -47}, {x: 54, y: -48}, {x: 56, y: -47}, {x: 57, y: -48}, {x: 58, y: -49}, {x: 60, y: -47}, {x: 61, y: -46}, {x: 59, y: -50}, {x: 63, y: -46}, {x: 0, y: -1}, {x: 0, y: -2}, {x: 0, y: -2}, {x: 1, y: -3}, {x: 1, y: -4}, {x: 1, y: -6}, {x: 2, y: -7}, {x: 2, y: -8}, {x: 3, y: -9}, {x: 4, y: -10}, {x: 3, y: -11}, {x: 4, y: -12}, {x: 5, y: -11}, {x: 5, y: -13}, {x: 5, y: -14}, {x: 5, y: -15}, {x: 5, y: -16}, {x: 7, y: -16}, {x: 6, y: -17}, {x: 8, y: -18}, {x: 8, y: -19}, {x: 9, y: -20}, {x: 9, y: -21}, {x: 9, y: -22}, {x: 11, y: -22}, {x: 11, y: -23}, {x: 12, y: -24}, {x: 12, y: -25}, {x: 13, y: -25}, {x: 14, y: -26}, {x: 15, y: -27}, {x: 15, y: -28}, {x: 14, y: -29}, {x: 17, y: -29}, {x: 17, y: -30}, {x: 16, y: -32}, {x: 20, y: -31}, {x: 18, y: -33}, {x: 22, y: -32}, {x: 21, y: -34}, {x: 20, y: -35}],[{x: 20, y: -36}, {x: 19, y: -38}, {x: 20, y: -37}, {x: 22, y: -37}, {x: 22, y: -39}, {x: 22, y: -40}, {x: 25, y: -39}, {x: 23, y: -41}, {x: 27, y: -40}, {x: 26, y: -42}, {x: 25, y: -44}, {x: 26, y: -44}, {x: 27, y: -45}, {x: 31, y: -44}, {x: 29, y: -46}, {x: 32, y: -45}, {x: 32, y: -47}, {x: 33, y: -47}, {x: 35, y: -47}, {x: 33, y: -49}, {x: 35, y: -48}, {x: 38, y: -47}, {x: 35, y: -50}, {x: 38, y: -49}, {x: 40, y: -49}, {x: 40, y: -51}, {x: 43, y: -49}, {x: 41, y: -52}, {x: 42, y: -52}, {x: 45, y: -50}, {x: 44, y: -52}, {x: 45, y: -52}, {x: 44, y: -54}, {x: 48, y: -51}, {x: 46, y: -55}, {x: 50, y: -52}, {x: 50, y: -54}, {x: 52, y: -54}, {x: 53, y: -54}, {x: 54, y: -54}, {x: 55, y: -53}, {x: 55, y: -54}, {x: 58, y: -53}, {x: 0, y: -1}, {x: 0, y: -2}, {x: 0, y: -2}, {x: 0, y: -3}, {x: 1, y: -4}, {x: 0, y: -6}, {x: 1, y: -7}, {x: 1, y: -8}, {x: 2, y: -9}, {x: 3, y: -10}, {x: 2, y: -11}, {x: 2, y: -12}, {x: 4, y: -12}, {x: 4, y: -13}, {x: 3, y: -14}, {x: 3, y: -15}, {x: 3, y: -16}, {x: 5, y: -17}, {x: 5, y: -18}, {x: 6, y: -19}, {x: 6, y: -20}, {x: 7, y: -20}, {x: 6, y: -22}, {x: 7, y: -22}, {x: 8, y: -23}, {x: 8, y: -24}, {x: 10, y: -25}, {x: 9, y: -26}, {x: 10, y: -27}, {x: 12, y: -27}, {x: 12, y: -28}, {x: 12, y: -29}, {x: 11, y: -31}, {x: 14, y: -30}, {x: 14, y: -31}, {x: 13, y: -33}, {x: 16, y: -33}, {x: 14, y: -35}, {x: 18, y: -34}, {x: 17, y: -36}, {x: 17, y: -37}],[{x: 15, y: -39}, {x: 16, y: -39}, {x: 18, y: -39}, {x: 19, y: -39}, {x: 18, y: -41}, {x: 18, y: -42}, {x: 21, y: -42}, {x: 19, y: -43}, {x: 23, y: -43}, {x: 20, y: -45}, {x: 21, y: -46}, {x: 23, y: -46}, {x: 22, y: -48}, {x: 26, y: -47}, {x: 24, y: -49}, {x: 27, y: -49}, {x: 27, y: -50}, {x: 28, y: -50}, {x: 30, y: -50}, {x: 28, y: -52}, {x: 30, y: -51}, {x: 32, y: -51}, {x: 31, y: -53}, {x: 33, y: -53}, {x: 34, y: -54}, {x: 34, y: -55}, {x: 37, y: -54}, {x: 35, y: -56}, {x: 36, y: -56}, {x: 39, y: -55}, {x: 38, y: -57}, {x: 40, y: -56}, {x: 39, y: -58}, {x: 44, y: -55}, {x: 41, y: -59}, {x: 44, y: -57}, {x: 44, y: -59}, {x: 45, y: -59}, {x: 48, y: -58}, {x: 47, y: -60}, {x: 48, y: -60}, {x: 51, y: -58}, {x: 50, y: -60}, {x: -1, y: -1}, {x: -1, y: -2}, {x: -1, y: -2}, {x: 0, y: -3}, {x: 0, y: -4}, {x: 0, y: -6}, {x: 0, y: -7}, {x: 0, y: -8}, {x: 1, y: -9}, {x: 1, y: -10}, {x: 1, y: -11}, {x: 1, y: -12}, {x: 3, y: -12}, {x: 2, y: -13}, {x: 2, y: -14}, {x: 2, y: -15}, {x: 2, y: -16}, {x: 3, y: -17}, {x: 3, y: -18}, {x: 4, y: -19}, {x: 4, y: -20}, {x: 4, y: -21}, {x: 4, y: -22}, {x: 5, y: -23}, {x: 6, y: -24}, {x: 6, y: -25}, {x: 7, y: -26}, {x: 6, y: -27}, {x: 7, y: -28}, {x: 9, y: -28}, {x: 8, y: -29}, {x: 9, y: -30}, {x: 8, y: -32}, {x: 10, y: -32}, {x: 12, y: -32}, {x: 9, y: -34}, {x: 12, y: -34}, {x: 11, y: -36}, {x: 15, y: -35}, {x: 14, y: -37}, {x: 13, y: -38}],[{x: 11, y: -40}, {x: 11, y: -41}, {x: 13, y: -40}, {x: 14, y: -41}, {x: 14, y: -42}, {x: 13, y: -44}, {x: 16, y: -44}, {x: 15, y: -45}, {x: 18, y: -45}, {x: 16, y: -47}, {x: 15, y: -48}, {x: 18, y: -48}, {x: 18, y: -49}, {x: 21, y: -49}, {x: 18, y: -51}, {x: 23, y: -51}, {x: 21, y: -52}, {x: 22, y: -53}, {x: 24, y: -53}, {x: 24, y: -54}, {x: 26, y: -54}, {x: 27, y: -54}, {x: 24, y: -57}, {x: 27, y: -56}, {x: 29, y: -57}, {x: 29, y: -58}, {x: 31, y: -58}, {x: 30, y: -59}, {x: 31, y: -59}, {x: 33, y: -59}, {x: 32, y: -60}, {x: 33, y: -60}, {x: 33, y: -61}, {x: 37, y: -60}, {x: 35, y: -62}, {x: 38, y: -62}, {x: 38, y: -63}, {x: 39, y: -63}, {x: 41, y: -63}, {x: 41, y: -65}, {x: 41, y: -64}, {x: 44, y: -64}, {x: 44, y: -65}, {x: -1, y: -1}, {x: -1, y: -2}, {x: -1, y: -2}, {x: 0, y: -3}, {x: 0, y: -4}, {x: -1, y: -6}, {x: -1, y: -7}, {x: -1, y: -8}, {x: 0, y: -9}, {x: 0, y: -10}, {x: 0, y: -11}, {x: 0, y: -12}, {x: 1, y: -12}, {x: 1, y: -13}, {x: 0, y: -14}, {x: 0, y: -15}, {x: 0, y: -16}, {x: 1, y: -17}, {x: 1, y: -18}, {x: 2, y: -19}, {x: 2, y: -20}, {x: 2, y: -21}, {x: 2, y: -22}, {x: 2, y: -23}, {x: 3, y: -24}, {x: 3, y: -25}, {x: 4, y: -26}, {x: 4, y: -27}, {x: 4, y: -28}, {x: 5, y: -29}, {x: 5, y: -30}, {x: 6, y: -31}, {x: 5, y: -32}, {x: 7, y: -33}, {x: 8, y: -34}, {x: 6, y: -35}, {x: 9, y: -35}, {x: 7, y: -37}, {x: 11, y: -37}, {x: 10, y: -38}, {x: 9, y: -39}],[{x: 7, y: -41}, {x: 7, y: -42}, {x: 9, y: -42}, {x: 10, y: -42}, {x: 9, y: -44}, {x: 9, y: -45}, {x: 11, y: -45}, {x: 10, y: -46}, {x: 13, y: -47}, {x: 11, y: -48}, {x: 11, y: -49}, {x: 12, y: -50}, {x: 13, y: -51}, {x: 15, y: -51}, {x: 13, y: -53}, {x: 17, y: -53}, {x: 16, y: -54}, {x: 17, y: -55}, {x: 18, y: -56}, {x: 18, y: -57}, {x: 20, y: -56}, {x: 21, y: -57}, {x: 19, y: -59}, {x: 21, y: -59}, {x: 23, y: -59}, {x: 22, y: -61}, {x: 25, y: -61}, {x: 23, y: -62}, {x: 24, y: -62}, {x: 27, y: -62}, {x: 26, y: -63}, {x: 28, y: -63}, {x: 26, y: -64}, {x: 30, y: -64}, {x: 28, y: -66}, {x: 32, y: -65}, {x: 31, y: -67}, {x: 32, y: -67}, {x: 33, y: -68}, {x: 34, y: -68}, {x: 35, y: -68}, {x: 38, y: -68}, {x: 37, y: -69}, {x: -1, y: -1}, {x: -1, y: -2}, {x: -1, y: -2}, {x: -1, y: -3}, {x: 0, y: -4}, {x: -1, y: -6}, {x: -2, y: -7}, {x: -2, y: -8}, {x: -1, y: -9}, {x: -1, y: -10}, {x: -1, y: -11}, {x: -2, y: -12}, {x: 0, y: -12}, {x: -1, y: -13}, {x: -1, y: -14}, {x: -2, y: -15}, {x: -2, y: -16}, {x: -1, y: -17}, {x: -1, y: -18}, {x: 0, y: -19}, {x: 0, y: -20}, {x: 0, y: -21}, {x: 0, y: -22}, {x: 0, y: -23}, {x: 1, y: -24}, {x: 0, y: -25}, {x: 1, y: -26}, {x: 1, y: -27}, {x: 1, y: -28}, {x: 2, y: -29}, {x: 2, y: -30}, {x: 2, y: -31}, {x: 2, y: -32}, {x: 4, y: -33}, {x: 4, y: -34}, {x: 2, y: -35}, {x: 5, y: -36}, {x: 3, y: -37}, {x: 7, y: -38}, {x: 6, y: -39}, {x: 5, y: -40}],[{x: 3, y: -41}, {x: 2, y: -42}, {x: 5, y: -42}, {x: 5, y: -43}, {x: 5, y: -44}, {x: 4, y: -45}, {x: 6, y: -46}, {x: 5, y: -47}, {x: 7, y: -48}, {x: 6, y: -49}, {x: 6, y: -50}, {x: 7, y: -51}, {x: 7, y: -52}, {x: 9, y: -53}, {x: 8, y: -54}, {x: 11, y: -54}, {x: 10, y: -56}, {x: 12, y: -56}, {x: 12, y: -57}, {x: 12, y: -58}, {x: 14, y: -58}, {x: 15, y: -59}, {x: 13, y: -60}, {x: 15, y: -61}, {x: 16, y: -61}, {x: 16, y: -62}, {x: 18, y: -63}, {x: 16, y: -65}, {x: 17, y: -64}, {x: 20, y: -64}, {x: 20, y: -65}, {x: 21, y: -65}, {x: 19, y: -67}, {x: 23, y: -67}, {x: 21, y: -68}, {x: 25, y: -68}, {x: 24, y: -69}, {x: 24, y: -70}, {x: 26, y: -71}, {x: 28, y: -71}, {x: 29, y: -71}, {x: 30, y: -71}, {x: 30, y: -73}, {x: -1, y: -1}, {x: -1, y: -2}, {x: -1, y: -2}, {x: -1, y: -3}, {x: -1, y: -4}, {x: -2, y: -6}, {x: -2, y: -7}, {x: -3, y: -8}, {x: -2, y: -9}, {x: -2, y: -10}, {x: -2, y: -11}, {x: -3, y: -12}, {x: -1, y: -12}, {x: -3, y: -13}, {x: -3, y: -14}, {x: -3, y: -15}, {x: -3, y: -16}, {x: -3, y: -17}, {x: -3, y: -18}, {x: -2, y: -19}, {x: -3, y: -20}, {x: -3, y: -21}, {x: -3, y: -22}, {x: -2, y: -23}, {x: -2, y: -24}, {x: -2, y: -25}, {x: -2, y: -26}, {x: -2, y: -27}, {x: -1, y: -28}, {x: -1, y: -29}, {x: -1, y: -30}, {x: -1, y: -31}, {x: -2, y: -32}, {x: 0, y: -33}, {x: 0, y: -34}, {x: -1, y: -35}, {x: 1, y: -36}, {x: 0, y: -37}, {x: 2, y: -38}, {x: 2, y: -39}, {x: 1, y: -40}],[{x: -2, y: -41}, {x: -2, y: -42}, {x: 0, y: -42}, {x: 0, y: -43}, {x: 0, y: -44}, {x: 0, y: -45}, {x: 1, y: -46}, {x: 0, y: -47}, {x: 2, y: -48}, {x: 1, y: -49}, {x: 0, y: -50}, {x: 1, y: -51}, {x: 2, y: -52}, {x: 3, y: -53}, {x: 2, y: -54}, {x: 5, y: -55}, {x: 4, y: -56}, {x: 6, y: -57}, {x: 6, y: -58}, {x: 6, y: -59}, {x: 8, y: -59}, {x: 8, y: -60}, {x: 7, y: -61}, {x: 8, y: -62}, {x: 10, y: -63}, {x: 9, y: -64}, {x: 12, y: -64}, {x: 10, y: -66}, {x: 11, y: -66}, {x: 12, y: -66}, {x: 13, y: -67}, {x: 15, y: -67}, {x: 12, y: -68}, {x: 16, y: -69}, {x: 14, y: -70}, {x: 17, y: -70}, {x: 17, y: -71}, {x: 18, y: -72}, {x: 19, y: -73}, {x: 20, y: -74}, {x: 21, y: -74}, {x: 22, y: -74}, {x: 22, y: -75}, {x: -1, y: -1}, {x: -2, y: -2}, {x: -2, y: -2}, {x: -1, y: -3}, {x: -1, y: -4}, {x: -3, y: -6}, {x: -3, y: -7}, {x: -4, y: -8}, {x: -3, y: -9}, {x: -3, y: -10}, {x: -3, y: -11}, {x: -4, y: -12}, {x: -3, y: -12}, {x: -4, y: -13}, {x: -4, y: -14}, {x: -5, y: -15}, {x: -5, y: -16}, {x: -5, y: -17}, {x: -5, y: -18}, {x: -4, y: -19}, {x: -5, y: -20}, {x: -5, y: -21}, {x: -5, y: -22}, {x: -5, y: -23}, {x: -4, y: -24}, {x: -5, y: -25}, {x: -5, y: -26}, {x: -5, y: -27}, {x: -4, y: -28}, {x: -4, y: -29}, {x: -4, y: -30}, {x: -5, y: -31}, {x: -5, y: -32}, {x: -3, y: -33}, {x: -4, y: -34}, {x: -5, y: -35}, {x: -3, y: -36}, {x: -4, y: -37}, {x: -2, y: -38}, {x: -3, y: -39}, {x: -3, y: -40}],[{x: -7, y: -41}, {x: -6, y: -42}, {x: -4, y: -42}, {x: -4, y: -43}, {x: -4, y: -44}, {x: -5, y: -45}, {x: -4, y: -46}, {x: -5, y: -47}, {x: -3, y: -48}, {x: -4, y: -49}, {x: -5, y: -50}, {x: -4, y: -51}, {x: -3, y: -52}, {x: -2, y: -53}, {x: -3, y: -54}, {x: -2, y: -55}, {x: -1, y: -56}, {x: 0, y: -57}, {x: 0, y: -58}, {x: 0, y: -59}, {x: 2, y: -59}, {x: 2, y: -60}, {x: 1, y: -61}, {x: 2, y: -62}, {x: 3, y: -63}, {x: 3, y: -64}, {x: 4, y: -65}, {x: 3, y: -66}, {x: 4, y: -66}, {x: 5, y: -67}, {x: 6, y: -68}, {x: 7, y: -68}, {x: 5, y: -69}, {x: 8, y: -70}, {x: 7, y: -71}, {x: 10, y: -72}, {x: 10, y: -73}, {x: 10, y: -74}, {x: 11, y: -75}, {x: 12, y: -76}, {x: 13, y: -75}, {x: 13, y: -76}, {x: 14, y: -77}, {x: -1, y: -1}, {x: -2, y: -2}, {x: -2, y: -2}, {x: -2, y: -3}, {x: -2, y: -4}, {x: -3, y: -6}, {x: -4, y: -6}, {x: -4, y: -7}, {x: -4, y: -9}, {x: -4, y: -10}, {x: -4, y: -11}, {x: -6, y: -11}, {x: -4, y: -12}, {x: -5, y: -12}, {x: -6, y: -13}, {x: -6, y: -14}, {x: -6, y: -15}, {x: -7, y: -16}, {x: -6, y: -17}, {x: -6, y: -19}, {x: -7, y: -19}, {x: -8, y: -20}, {x: -7, y: -21}, {x: -7, y: -22}, {x: -7, y: -23}, {x: -7, y: -24}, {x: -8, y: -25}, {x: -7, y: -27}, {x: -7, y: -28}, {x: -7, y: -29}, {x: -7, y: -30}, {x: -8, y: -30}, {x: -8, y: -32}, {x: -7, y: -33}, {x: -7, y: -34}, {x: -8, y: -35}, {x: -7, y: -36}, {x: -8, y: -37}, {x: -6, y: -38}, {x: -7, y: -39}, {x: -7, y: -40}],[{x: -10, y: -40}, {x: -11, y: -41}, {x: -9, y: -42}, {x: -9, y: -43}, {x: -9, y: -44}, {x: -10, y: -44}, {x: -9, y: -46}, {x: -9, y: -47}, {x: -8, y: -48}, {x: -9, y: -49}, {x: -10, y: -49}, {x: -9, y: -51}, {x: -8, y: -52}, {x: -8, y: -53}, {x: -9, y: -54}, {x: -8, y: -55}, {x: -7, y: -56}, {x: -6, y: -57}, {x: -7, y: -58}, {x: -7, y: -59}, {x: -5, y: -59}, {x: -5, y: -60}, {x: -6, y: -61}, {x: -5, y: -62}, {x: -4, y: -63}, {x: -4, y: -64}, {x: -3, y: -65}, {x: -4, y: -66}, {x: -3, y: -66}, {x: -2, y: -67}, {x: -2, y: -68}, {x: 0, y: -68}, {x: -2, y: -69}, {x: 1, y: -70}, {x: 0, y: -71}, {x: 2, y: -72}, {x: 2, y: -73}, {x: 2, y: -74}, {x: 3, y: -75}, {x: 4, y: -76}, {x: 5, y: -76}, {x: 5, y: -77}, {x: 6, y: -78}, {x: -1, y: -1}, {x: -2, y: -2}, {x: -2, y: -2}, {x: -2, y: -3}, {x: -2, y: -4}, {x: -4, y: -5}, {x: -5, y: -6}, {x: -5, y: -7}, {x: -5, y: -8}, {x: -5, y: -9}, {x: -5, y: -10}, {x: -7, y: -10}, {x: -5, y: -11}, {x: -6, y: -12}, {x: -7, y: -13}, {x: -8, y: -13}, {x: -8, y: -14}, {x: -8, y: -15}, {x: -8, y: -17}, {x: -8, y: -18}, {x: -9, y: -18}, {x: -9, y: -19}, {x: -10, y: -20}, {x: -9, y: -22}, {x: -9, y: -23}, {x: -10, y: -23}, {x: -10, y: -24}, {x: -10, y: -26}, {x: -10, y: -27}, {x: -11, y: -27}, {x: -10, y: -29}, {x: -11, y: -30}, {x: -11, y: -31}, {x: -10, y: -32}, {x: -11, y: -33}, {x: -11, y: -34}, {x: -11, y: -35}, {x: -12, y: -36}, {x: -10, y: -37}, {x: -11, y: -38}, {x: -11, y: -39}],[{x: -15, y: -39}, {x: -15, y: -40}, {x: -13, y: -40}, {x: -13, y: -41}, {x: -14, y: -42}, {x: -14, y: -43}, {x: -14, y: -44}, {x: -14, y: -45}, {x: -13, y: -47}, {x: -14, y: -47}, {x: -14, y: -48}, {x: -15, y: -49}, {x: -13, y: -51}, {x: -14, y: -52}, {x: -14, y: -53}, {x: -14, y: -54}, {x: -13, y: -55}, {x: -12, y: -56}, {x: -13, y: -57}, {x: -13, y: -58}, {x: -11, y: -58}, {x: -11, y: -59}, {x: -11, y: -60}, {x: -11, y: -62}, {x: -10, y: -63}, {x: -10, y: -64}, {x: -10, y: -65}, {x: -10, y: -66}, {x: -9, y: -66}, {x: -9, y: -67}, {x: -9, y: -68}, {x: -8, y: -68}, {x: -9, y: -69}, {x: -7, y: -70}, {x: -8, y: -71}, {x: -6, y: -72}, {x: -6, y: -73}, {x: -6, y: -74}, {x: -4, y: -75}, {x: -4, y: -76}, {x: -3, y: -76}, {x: -3, y: -77}, {x: -2, y: -78}, {x: -1, y: -1}, {x: -2, y: -2}, {x: -2, y: -2}, {x: -2, y: -3}, {x: -2, y: -4}, {x: -4, y: -5}, {x: -5, y: -5}, {x: -6, y: -6}, {x: -6, y: -7}, {x: -6, y: -8}, {x: -7, y: -9}, {x: -8, y: -10}, {x: -7, y: -10}, {x: -7, y: -11}, {x: -9, y: -11}, {x: -9, y: -12}, {x: -10, y: -13}, {x: -10, y: -14}, {x: -10, y: -16}, {x: -10, y: -17}, {x: -11, y: -17}, {x: -11, y: -19}, {x: -12, y: -19}, {x: -12, y: -20}, {x: -12, y: -21}, {x: -12, y: -22}, {x: -13, y: -23}, {x: -13, y: -24}, {x: -13, y: -25}, {x: -13, y: -26}, {x: -14, y: -27}, {x: -14, y: -28}, {x: -14, y: -29}, {x: -14, y: -30}, {x: -14, y: -31}, {x: -15, y: -32}, {x: -15, y: -33}, {x: -15, y: -34}, {x: -15, y: -35}, {x: -15, y: -37}, {x: -15, y: -38}]];
@@ -2634,8 +2958,10 @@ FallBlock.prototype.exist = function() {
 	var topRightB = point3d(this.x + p.worldX + 20, this.y + p.worldY, 0.9);
 	var bottomB = point3d(this.x + p.worldX, this.y + p.worldY + 60, 0.9);
 	c.fillStyle = "rgb(150, 150, 150)";
+	var shakeX = Math.random() * (this.timeShaking * 2) - this.timeShaking;
+	var shakeY = Math.random() * (this.timeShaking * 2) - this.timeShaking;
 	c.save();
-	c.translate(Math.random() * (this.timeShaking * 2) - this.timeShaking, Math.random() * (this.timeShaking * 2) - this.timeShaking);
+	c.translate(shakeX, shakeY);
 	//top face
 	c.beginPath();
 	c.moveTo(topLeftF.x, topLeftF.y);
@@ -2643,7 +2969,7 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(topRightB.x, topRightB.y);
 	c.lineTo(topRightF.x, topRightF.y);
 	c.fill();
-	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, [true, false, false, false], "collide");
+	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
 	//left face
 	c.beginPath();
 	c.moveTo(topLeftF.x, topLeftF.y);
@@ -2651,7 +2977,7 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(bottomB.x, bottomB.y);
 	c.lineTo(bottomF.x, bottomF.y);
 	c.fill();
-	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, [true, true, true, true], "collide");
+	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
 	//right face
 	c.beginPath();
 	c.moveTo(topRightF.x, topRightF.y);
@@ -2659,14 +2985,32 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(bottomB.x, bottomB.y);
 	c.lineTo(bottomF.x, bottomF.y);
 	c.fill();
-	collisionLine(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, [true, true, true, true], "collide");
+	collisionLine(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
 	//front face
 	c.fillStyle = "rgb(110, 110, 110)";
-	c.beginPath();
-	c.moveTo(topLeftF.x, topLeftF.y);
-	c.lineTo(topRightF.x, topRightF.y);
-	c.lineTo(bottomF.x, bottomF.y);
-	c.fill();
+	// c.beginPath();
+	// c.moveTo(topLeftF.x, topLeftF.y);
+	// c.lineTo(topRightF.x, topRightF.y);
+	// c.lineTo(bottomF.x, bottomF.y);
+	// c.fill();
+	boxFronts.push({
+		type: "polygon",
+		col: "rgb(110, 110, 110)",
+		loc: [
+			{
+				x: + topLeftF.x + shakeX,
+				y: + topLeftF.y + shakeY,
+			},
+			{
+				x: + topRightF.x + shakeX,
+				y: + topRightF.y + shakeY
+			},
+			{
+				x: + bottomF.x + shakeX,
+				y: + bottomF.y + shakeY
+			}
+		]
+	});
 	c.restore();
 	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 100 >= this.y + p.worldY && p.canJump && !this.allDone) {
 		this.steppedOn = true;
@@ -2843,7 +3187,7 @@ Forge.prototype.exist = function() {
 		this.used = true;
 	}
 };
-function Pulley(x1, w1, x2, w2, y) {
+function Pulley(x1, w1, x2, w2, y, maxHeight) {
 	this.x1 = x1;
 	this.y1 = y;
 	this.w1 = w1;
@@ -2851,6 +3195,8 @@ function Pulley(x1, w1, x2, w2, y) {
 	this.y2 = y;
 	this.w2 = w2;
 	this.velY = 0;
+	this.origY = y;
+	this.maxHeight = maxHeight;
 };
 Pulley.prototype.exist = function() {
 	//first platform
@@ -2889,24 +3235,32 @@ Pulley.prototype.exist = function() {
 	//moving
 	this.steppedOn1 = false;
 	this.steppedOn2 = false;
-	if(p.x + 5 > this.x1 + p.worldX && p.x - 5 < this.x1 + this.w1 + p.worldX && p.canJump && this.y1 < 300) {
-		this.velY += (this.velY < 3) ? 0.05 : 0;
+	if(p.x + 5 > this.x1 + p.worldX && p.x - 5 < this.x1 + this.w1 + p.worldX && p.canJump && this.y1 < this.origY + this.maxHeight) {
+		this.velY += (this.velY < 3) ? 0.1 : 0;
 		this.steppedOn1 = true;
 	}
-	if(p.x + 5 > this.x2 + p.worldX && p.x - 5 < this.x2 + this.w2 + p.worldX && p.canJump && this.y2 < 300) {
-		this.velY += (this.velY > -3) ? -0.05 : 0;
+	if(p.x + 5 > this.x2 + p.worldX && p.x - 5 < this.x2 + this.w2 + p.worldX && p.canJump && this.y2 < this.origY + this.maxHeight) {
+		this.velY += (this.velY > -3) ? -0.1 : 0;
 		this.steppedOn2 = true;
 	}
 	this.y1 += this.velY;
 	this.y2 -= this.velY;
-	if(!this.steppedOn1 && !this.steppedOn2) {
-		this.velY *= 0.94;
-	}
+	this.y1 = Math.round(this.y1);
+	this.y2 = Math.round(this.y2);
 	if(this.steppedOn1) {
-		p.y = this.y1 + p.worldY - 45;
+		p.y = this.y1 + p.worldY - 46;
 	}
 	else if(this.steppedOn2) {
-		p.y = this.y2 + p.worldY - 45;
+		p.y = this.y2 + p.worldY - 46;
+	}
+	if(!this.steppedOn1 && !this.steppedOn2) {
+		this.velY = 0;
+	}
+	if(this.y1 > this.origY + this.maxHeight) {
+		this.steppedOn1 = false;
+	}
+	if(this.y2 > this.origY + this.maxHeight) {
+		this.steppedOn2 = false;
 	}
 };
 function Window(x, y) {
@@ -2954,8 +3308,8 @@ Pillar.prototype.exist = function() {
 	cube(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12, 0.9, 1.1);
 	cube(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10, 0.9, 1.1);
 	//base collisions
-	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, [true, true, true, true], false, "teleport");
-	collisionRect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, [true, true, true, true], false, "teleport");
+	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, {walls: [true, true, true, true], illegalHandling: "teleport"});
+	collisionRect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	//top collisions
 	collisionRect(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12);
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10);
@@ -2965,7 +3319,7 @@ function Statue(x, y) {
 	this.y = y;
 	var possibleItems = Object.create(items);
 	itemLoop: for(var i = 0; i < possibleItems.length; i ++) {
-		if(!(new possibleItems[i]() instanceof Weapon) || new possibleItems[i]() instanceof Arrow) {
+		if(!(new possibleItems[i]() instanceof Weapon) || new possibleItems[i]() instanceof Arrow || new possibleItems[i]() instanceof Dagger) {
 			possibleItems.splice(i, 1);
 			i --;
 			continue;
@@ -2982,7 +3336,8 @@ function Statue(x, y) {
 	// this.itemHolding = new Sword();
 	this.facing = Math.random() < 0.5 ? "left" : "right";
 	// this.facing = "left";
-	this.pose = "kneeling";
+	// this.pose = "kneeling";
+	this.pose = (Math.random() < 0.5) ? "standing" : "kneeling";
 };
 Statue.prototype.exist = function() {
 	//item in hands
@@ -3019,7 +3374,7 @@ Statue.prototype.exist = function() {
 		}
 	}
 	//pedestal
-	cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 38, 0.95, 1.05, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
+	cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 34, 0.95, 1.05, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
 	c.save();
 	c.fillStyle = "rgb(125, 125, 125)";
 	c.lineCap = "round";
@@ -3103,36 +3458,142 @@ Statue.prototype.exist = function() {
 function TiltPlatform(x, y) {
 	this.x = x;
 	this.y = y;
+	this.origX = x;
+	this.origY = y;
 	this.tilt = 0;
 	this.tiltDir = 0;
 	this.platX = 0;
 	this.platY = 0;
+	this.interact = true;
+	this.dir = null;
+	this.velX = 0;
+	this.velY = 0;
 };
 TiltPlatform.prototype.exist = function() {
-	var point1 = getRotated(-50, -10, this.tilt);
-	var point2 = getRotated(-50, 10, this.tilt);
-	//graphics - front face
-	c.fillStyle = "rgb(110, 110, 110)";
-	c.beginPath();
-	c.moveTo(p.worldX + this.x + point1.x, p.worldY + this.y + point1.y);
-	c.lineTo(p.worldX + this.x + point2.x, p.worldY + this.y + point2.y);
-	c.lineTo(p.worldX + this.x - point1.x, p.worldY + this.y - point1.y);
-	c.lineTo(p.worldX + this.x - point2.x, p.worldY + this.y - point2.y);
-	c.fill();
-	if(p.x + 5 > this.x + p.worldX + point1.x && p.x - 5 < this.x + p.worldX - point1.x && p.canJump) {
-		if(p.x < this.x + p.worldX) {
-			this.tiltDir -= 0.1;
+	var p1 = getRotated(-75, -10, Math.floor(this.tilt));
+	var p2 = getRotated(75, -10, Math.floor(this.tilt));
+	this.p1 = p1;
+	this.p2 = p2;
+	//graphics
+	cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01);
+	if(Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
+		this.collides = function(x, y) {
+			var p1 = point3d(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, 1.1);
+			var p2 = point3d(this.p2.x + this.x + p.worldX, this.p2.y + this.y + p.worldY, 1.1);
+			var p3 = point3d(-this.p1.x + this.x + p.worldX, -this.p1.y + this.y + p.worldY, 1.1);
+			var p4 = point3d(-this.p2.x + this.x + p.worldX, -this.p2.y + this.y + p.worldY, 1.1);
+			c.beginPath();
+			c.moveTo(p1.x, -800);
+			c.lineTo(p2.x, -800);
+			c.lineTo(p3.x, p3.y);
+			c.lineTo(p4.x, p4.y);
+			return c.isPointInPath(x, y);
+		};
+		var topL = boxFronts[boxFronts.length - 1].loc[1];
+		while(this.collides(this.origX + p.worldX - 5, topL)) {
+			topL ++;
+		}
+		var topR = boxFronts[boxFronts.length - 1].loc[1];
+		while(this.collides(this.origX + p.worldX + 5, topR)) {
+			topR ++;
+		}
+		boxFronts[boxFronts.length - 1] = {
+		type: "polygon",
+		col: "rgb(110, 110, 110)",
+		loc: [
+			{
+				x: boxFronts[boxFronts.length - 1].loc[0],
+				y: topL
+			},
+			{
+				x: boxFronts[boxFronts.length - 1].loc[0] + boxFronts[boxFronts.length - 1].loc[2],
+				y: topR
+			},
+			{
+				x: boxFronts[boxFronts.length - 1].loc[0] + boxFronts[boxFronts.length - 1].loc[2],
+				y: 800
+			},
+			{
+				x: boxFronts[boxFronts.length - 1].loc[0],
+				y: 800
+			}
+		]
+	};
+	}
+	polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
+		{
+			x: p1.x + this.x + p.worldX,
+			y: p1.y + this.y + p.worldY
+		},
+		{
+			x: p2.x + this.x + p.worldX,
+			y: p2.y + this.y + p.worldY
+		},
+		{
+			x: -(p1.x) + this.x + p.worldX,
+			y: -(p1.y) + this.y + p.worldY
+		},
+		{
+			x: -(p2.x) + this.x + p.worldX,
+			y: -(p2.y) + this.y + p.worldY
+		}
+	]);
+	//hitbox
+	collisionLine(p1.x + this.x + p.worldX, p1.y + this.y + p.worldY, p2.x + this.x + p.worldX, p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
+	if(p.x > p1.x + this.x + p.worldX && p.x < -p1.x + this.x + p.worldX && !p.canJump && p.onGroundBefore && p.velY >= 0 && Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
+		while(!p.canJump) {
+			p.y ++;
+			collisionLine(p1.x + this.x + p.worldX, p1.y + this.y + p.worldY, p2.x + this.x + p.worldX, p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
+		}
+	}
+	//tilting
+	if(p.x + 5 > this.x + p.worldX - 75 && p.x - 5 < this.x + p.worldX + 75 && p.canJump && this.interact) {
+		if(p.x > this.x + p.worldX) {
+			this.tiltDir += 0.2;
 		}
 		else {
-			this.tiltDir += 0.1;
+			this.tiltDir -= 0.2;
 		}
 	}
-	this.tilt += this.tiltDir;
-	this.tiltDir *= 0.99;
-	if(this.tilt > 45) {
-		this.tiltDir += 0.1;
-		this.platX += 1;
+	else {
+		this.tiltDir *= 0.99;
 	}
+	this.tilt += this.tiltDir;
+	while(this.tilt > 360) {
+		this.tilt -= 360;
+	}
+	while(this.tilt < 0) {
+		this.tilt += 360;
+	}
+	//falling
+	this.y += 5;
+	this.collides = function() {
+		c.beginPath();
+		c.moveTo(this.p1.x + this.x, this.p1.y + this.y);
+		c.lineTo(this.p2.x + this.x, this.p2.y + this.y);
+		c.lineTo(-this.p1.x + this.x, -this.p1.y + this.y);
+		c.lineTo(-this.p2.x + this.x, -this.p2.y + this.y);
+		for(var x = -5; x <= 5; x += 10) {
+			if(c.isPointInPath(this.origX + x, this.origY + 10)) {
+				return true;
+			}
+		}
+		return false;
+	};
+	while(this.collides()) {
+		this.y --;
+	};
+	if(this.tilt > 45 && this.tilt < 90 && this.x < this.origX + 10) {
+		this.velX += 0.1;
+	}
+	if(this.tilt < 315 && this.tilt > 270 && this.x > this.origX - 10) {
+		this.velX -= 0.1;
+	}
+	if(this.y - this.origY > 800) {
+		this.x = -8000; // move offscreen
+	}
+	this.x += this.velX;
+	p.onGroundBefore = p.canJump;
 };
 function Bridge(x, y) {
 	this.x = x;
@@ -3194,14 +3655,18 @@ Bridge.prototype.exist = function() {
 	//graphics - top arches
 	var topB = point3d(this.x + p.worldX, this.y + p.worldY + 500, 0.9);
 	var topF = point3d(this.x + p.worldX, this.y + p.worldY + 500, 1.1);
-	for(var i = 1; i < this.topArch.length; i ++) {
+	for(var i = this.topArch.length / 36 + 1; i < this.topArch.length; i += (this.topArch.length / 36)) {
+		var index = Math.floor(i);
 		c.fillStyle = "rgb(150, 150, 150)";
+		c.strokeStyle = "rgb(150, 150, 150)";
+		c.lineWidth = 2;
 		c.beginPath();
-		c.moveTo(topB.x + this.topB[i].x, topB.y + this.topB[i].y);
-		c.lineTo(topF.x + this.topF[i].x, topF.y + this.topF[i].y);
-		c.lineTo(topF.x + this.topF[i - 1].x, topF.y + this.topF[i - 1].y);
-		c.lineTo(topB.x + this.topB[i - 1].x, topB.y + this.topB[i - 1].y);
+		c.moveTo(topB.x + this.topB[index].x, topB.y + this.topB[index].y);
+		c.lineTo(topF.x + this.topF[index].x, topF.y + this.topF[index].y);
+		c.lineTo(topF.x + this.topF[index - Math.floor(this.topArch.length / 36)].x, topF.y + this.topF[index - Math.floor(this.topArch.length / 36)].y);
+		c.lineTo(topB.x + this.topB[index - Math.floor(this.topArch.length / 36)].x, topB.y + this.topB[index - Math.floor(this.topArch.length / 36)].y);
 		c.fill();
+		c.stroke();
 	}
 	c.fillStyle = "rgb(110, 110, 110)";
 	c.beginPath();
@@ -3323,20 +3788,745 @@ Bridge.prototype.exist = function() {
 		}
 	}
 };
+function BookShelf(x, y) {
+	this.x = x;
+	this.y = y;
+	this.books = [];
+	for(var i = 1; i <= 4; i ++) {
+		this.books.push({
+			x: Math.random() * 160,
+			y: i * 50,
+			color: Math.random() < 0.5 ? (Math.random() < 0.5 ? "rgb(255, 255, 0)" : "rgb(255, 0, 0)") : (Math.random() < 0.5 ? "rgb(0, 0, 255)" : "rgb(0, 128, 0)")
+		});
+	}
+};
+BookShelf.prototype.exist = function() {
+	//graphics
+	for(var y = this.y; y >= this.y - 200; y -= 50) {
+		cube(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+		collisionRect(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, {walls: [true, false, false, false]});
+	}
+	for(var i = 0; i < this.books.length; i ++) {
+		break;
+		cube(this.books[i].x + this.x + p.worldX - 80, this.y + p.worldY - this.books[i].y, 10, 40, 0.9, 1, this.books[i].color, this.books[i].color);
+	}
+	cube(this.x + p.worldX - 100, this.y + p.worldY - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	cube(this.x + p.worldX + 90, this.y + p.worldY - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+};
+function Chandelier(x, y) {
+	this.x = x;
+	this.y = y;
+	this.points = [];
+	var pts = findPointsCircular(0, 0, 100);
+	for(var i = 0; i < pts.length; i ++) {
+		var point = pts[i];
+		this.points.push({
+			x: this.x + point.x,
+			y: this.y,
+			z: 1 + ((point.y < 0) ? (point.y / 500) : (point.y / 300))
+		});
+	}
+	this.particles = [];
+};
+Chandelier.prototype.exist = function() {
+	//this function breaks the graphics into multiple sub-functions so that they can be called in different orders depending on perspective.
+	this.topDisc = function() {
+		c.fillStyle = "rgb(110, 110, 110)";
+		c.beginPath();
+		for(var i = 0; i < this.points.length; i ++) {
+			var point = point3d(this.points[i].x + p.worldX, this.points[i].y + p.worldY, this.points[i].z);
+			if(i === 0) {
+				c.moveTo(point.x, point.y);
+			}
+			else {
+				c.lineTo(point.x, point.y);
+			}
+		}
+		c.fill();
+	};
+	this.middleDisc = function() {
+		c.fillStyle = "rgb(150, 150, 150)";
+		for(var offset = 0; offset < 20; offset ++) {
+			c.beginPath();
+			for(var j = 0; j < this.points.length; j ++) {
+				var point = point3d(this.points[j].x + p.worldX, this.points[j].y + p.worldY, this.points[j].z);
+				if(j === 0) {
+					c.moveTo(point.x, point.y + offset);
+				}
+				else {
+					c.lineTo(point.x, point.y + offset);
+				}
+			}
+			c.fill();
+		}
+	};
+	this.lowDisc = function() {
+		c.save();
+		c.translate(0, 20);
+		this.topDisc();
+		c.restore();
+	};
+	this.cords = function() {
+		var indexes = [];
+		while(indexes.length < 12) {
+			var lowestIndex = this.points.length / 2;
+			for(var i = 0; i < this.points.length - 10; i += Math.floor(this.points.length / 12)) {
+				if(this.points[i].z < this.points[lowestIndex].z) {
+					var alreadyDone = false;
+					for(var j = 0; j < indexes.length; j ++) {
+						if(indexes[j].index === i) {
+							alreadyDone = true;
+							break;
+						}
+					}
+					if(!alreadyDone) {
+						lowestIndex = i;
+					}
+				}
+			}
+			if(lowestIndex % Math.floor(this.points.length / 6) > 100 || lowestIndex === 0 | lowestIndex % Math.floor(this.points.length / 6) < 5) {
+				indexes.push({ index: lowestIndex, type: "torch", z: this.points[lowestIndex].z});
+			}
+			else {
+				indexes.push({ index: lowestIndex, type: "cord", z: this.points[lowestIndex].z});
+			}
+		}
+		for(var i = 0; i < indexes.length; i ++) {
+			if(indexes[i].type === "cord") {
+				var edge = point3d(this.points[indexes[i].index].x + p.worldX, this.points[indexes[i].index].y + p.worldY, this.points[indexes[i].index].z);
+				c.strokeStyle = "rgb(139, 69, 19)";
+				c.beginPath();
+				c.moveTo(this.x + p.worldX, this.y + p.worldY - 600);
+				c.lineTo(edge.x, edge.y);
+				c.stroke();
+			}
+			else {
+				cube(p.worldX + this.points[indexes[i].index].x - 5, p.worldY + this.points[indexes[i].index].y - 10, 10, 10, this.points[indexes[i].index].z - 0.01, this.points[indexes[i].index].z + 0.01, null, null, true);
+				this.particles.push(new Particle("rgb(255, 128, 0)", this.points[indexes[i].index].x, this.points[indexes[i].index].y - 10, Math.random() * 2 - 1, Math.random() * -2, 5));
+				this.particles[this.particles.length - 1].z = this.points[indexes[i].index].z;
+			}
+		}
+		for(var i = 0; i < this.particles.length; i ++) {
+			this.particles[i].exist();
+			if(this.particles[i].splicing) {
+				this.particles.splice(i, 1);
+				continue;
+			}
+		}
+		c.beginPath();
+		c.moveTo(this.x + p.worldX, this.y + p.worldY - 600);
+		c.lineTo(this.x + p.worldX, 0);
+		c.stroke();
+		c.beginPath();
+		c.moveTo(this.x + p.worldX - 72, this.y + p.worldY - 150);
+		c.lineTo(this.x + p.worldX + 72, this.y + p.worldY - 150);
+		c.stroke();
+		c.beginPath();
+		c.moveTo(this.x + p.worldX - 54, this.y + p.worldY - 300);
+		c.lineTo(this.x + p.worldX + 54, this.y + p.worldY - 300);
+		c.stroke();
+		collisionRect(this.x + p.worldX - 72, this.y + p.worldY - 150, 144, 3, {walls: [true, false, false, false]});
+		collisionRect(this.x + p.worldX - 54, this.y + p.worldY - 300, 108, 3, {walls: [true, false, false, false]});
+	};
+	if(this.y + p.worldY < 400) {
+		this.cords();
+		this.topDisc();
+		this.middleDisc();
+		this.lowDisc();
+	}
+	else {
+		this.lowDisc();
+		this.middleDisc();
+		this.topDisc();
+		this.cords();
+	}
+	collisionRect(this.x + p.worldX - 100, this.y + p.worldY, 200, 20);
+};
+function Table(x, y) {
+	this.x = x;
+	this.y = y;
+};
+Table.prototype.exist = function() {
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	cube(this.x + p.worldX + 40, this.y + p.worldY - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
+	cube(this.x + p.worldX + 40, this.y + p.worldY - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 100, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+};
+function Chair(x, y, dir) {
+	this.x = x;
+	this.y = y;
+	this.dir = dir;
+};
+Chair.prototype.exist = function() {
+	cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
+	cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
+	cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 50, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	cube(this.x + p.worldX + ((this.dir === "right") ? -25 : 15), this.y + p.worldY - 60, 10, 35, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+};
+function SpikeBall(x, y, dir) {
+	this.x = x;
+	this.y = y;
+	this.dir = dir;
+	this.velX = 0;
+	this.velY = 0;
+};
+SpikeBall.prototype.exist = function() {
+	c.fillStyle = "rgb(60, 60, 60)";
+	c.strokeStyle = "rgb(60, 60, 60)";
+	//graphics - chain
+	if(Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 20, p.y + 26) > 400) {
+		var line = findPointsLinear(this.x + p.worldX, this.y + p.worldY, p.x + 20, p.y + 26);
+		var interval = 0;
+		var lastAction;
+		while(Math.distSq(line[0].x, line[0].y, line[interval].x, line[interval].y) < 64 || Math.distSq(line[0].x, line[0].y, line[interval].x, line[interval].y) > 144) {
+			if(Math.distSq(line[0].x, line[0].y, line[interval].x, line[interval].y) < 64) {
+				interval ++;
+				if(lastAction === "subtract") {
+					break;
+				}
+				lastAction = "add";
+			}
+			else {
+				interval --;
+				if(lastAction === "add") {
+					break;
+				}
+				lastAction = "subtract";
+			}
+		}
+		if(interval < 1) {
+			interval = 1;
+		}
+		c.save();
+		c.lineWidth = 1;
+		for(var i = 0; i < line.length; i += interval) {
+			c.beginPath();
+			c.arc(line[Math.floor(i)].x, line[Math.floor(i)].y, 5, 0, 2 * Math.PI);
+			c.stroke();
+		}
+		c.restore();
+	}
+	//graphics - spikeball
+	c.save();
+	c.translate(this.x + p.worldX, this.y + p.worldY);
+	c.beginPath();
+	c.arc(0, 0, 10, 0, 2 * Math.PI);
+	c.fill();
+	for(var r = 0; r < 360; r += (360 / 6)) {
+		c.save();
+		c.rotate(Math.rad(r + (this.x + this.y)));
+		c.beginPath();
+		c.moveTo(-5, 0);
+		c.lineTo(5, 0);
+		c.lineTo(0, -20);
+		c.fill();
+		c.restore();
+	}
+	c.restore();
+	//movement
+	this.x += this.velX;
+	this.y += this.velY;
+	// this.velX += (this.dir === "right") ? 0.01 : -0.01;
+	this.velY += 0.01;
+	if(Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) > 100) {
+		if(Math.abs((this.x + p.worldX) - p.x) < Math.abs((this.y + p.worldY) - p.y)) {
+			if(this.y + p.worldY > p.y) {
+				this.velY = -1;
+			}
+			else {
+				this.velY = 1;
+			}
+		}
+		else {
+			if(this.x + p.worldX > p.x) {
+				this.velX = -1;
+			}
+			else {
+				this.velX = 1;
+			}
+		}
+	}
+};
+function Decoration(x, y) {
+	this.x = x;
+	this.y = y;
+	this.type = null;
+};
+Decoration.prototype.exist = function() {
+	if(this.type === null) {
+		//find self in the current room
+		var selfIndex = null;
+		for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+			if(roomInstances[theRoom].content[i] instanceof Decoration) {
+				selfIndex = i;
+				break;
+			}
+		}
+		//find other decorations to copy
+		var resolved = false;
+		for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+			if(roomInstances[theRoom].content[i] instanceof Torch) {
+				roomInstances[inRoom].content[selfIndex] = new Torch(this.x, this.y, roomInstances[theRoom].content[i].color);
+				roomInstances[inRoom].content[selfIndex].lit = true;
+				resolved = true;
+				break;
+			}
+			else if(roomInstances[theRoom].content[i] instanceof Banner) {
+				roomInstances[inRoom].content[selfIndex] = new Banner(this.x, this.y - 30, roomInstances[theRoom].content[i].color);
+				resolved = true;
+				break;
+			}
+			else if(roomInstances[theRoom].content[i] instanceof GlassWindow) {
+				roomInstances[inRoom].content[selfIndex] = new GlassWindow(this.x, this.y, roomInstances[theRoom].content[i].color);
+				resolved = true;
+				break;
+			}
+		}
+		//randomize decoration if none other to mimic
+		if(!resolved) {
+			var chooser = Math.random();
+			if(chooser < 0.33) {
+				roomInstances[theRoom].content[selfIndex] = new Torch(this.x, this.y);
+				roomInstances[theRoom].content[selfIndex].lit = true;
+			}
+			else if(chooser < 0.66) {
+				roomInstances[theRoom].content[selfIndex] = new Banner(this.x, this.y - 30);
+			}
+			else {
+				roomInstances[theRoom].content[selfIndex] = new GlassWindow(this.x, this.y, roomInstances[theRoom].colorScheme);
+			}
+		}
+	}
+};
+function Banner(x, y, color) {
+	this.x = x;
+	this.y = y;
+	this.color = color;
+};
+Banner.prototype.exist = function() {
+	if(this.color === undefined || this.color === "?") {
+		for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+			if(roomInstances[theRoom].content[i] instanceof Banner && roomInstances[theRoom].content[i].color !== undefined && roomInstances[theRoom].content[i].color !== "?") {
+				this.color = roomInstances[theRoom].content[i].color;
+				break;
+			}
+		}
+		if(this.color === undefined || this.color === "?") {
+			// var chooser = Math.random();
+			// if(chooser < 0.33) {
+			// 	this.color = "rgb(128, 0, 0)";
+			// }
+			// else if(chooser < 0.66) {
+			// 	this.color = "rgb(0, 0, 128)";
+			// }
+			// else {
+			// 	this.color = "rgb(0, 128, 0)";
+			// }
+			if(roomInstances[theRoom].colorScheme === "red") {
+				this.color = "rgb(128, 0, 0)";
+			}
+			else if(roomInstances[theRoom].colorScheme === "blue") {
+				this.color = "rgb(0, 0, 128)";
+			}
+			else {
+				this.color = "rgb(0, 128, 0)";
+			}
+		}
+	}
+	c.fillStyle = this.color;
+	var p1 = point3d(this.x + p.worldX - 40, this.y + p.worldY - 95, 0.91);
+	var p2 = point3d(this.x + p.worldX - 40, this.y + p.worldY, 0.9);
+	var p3 = point3d(this.x + p.worldX, this.y + p.worldY - 10, 0.9);
+	var p4 = point3d(this.x + p.worldX + 40, this.y + p.worldY, 0.9);
+	var p5 = point3d(this.x + p.worldX + 40, this.y + p.worldY - 95, 0.9);
+	c.beginPath();
+	c.moveTo(p1.x, p1.y);
+	c.lineTo(p2.x, p2.y);
+	c.lineTo(p3.x, p3.y);
+	c.lineTo(p4.x, p4.y);
+	c.lineTo(p5.x, p5.y);
+	c.fill();
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 100, 100, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+};
+function GlassWindow(x, y, color) {
+	this.x = x;
+	this.y = y;
+	this.color = color;
+};
+GlassWindow.prototype.exist = function() {
+	roomInstances[theRoom].background = "plain";
+	c.save();
+	var center = point3d(this.x + p.worldX, this.y + p.worldY, 0.9);
+	//delete bricks behind window
+	c.beginPath();
+	c.rect(center.x - 25, center.y - 100, 50, 100);
+	c.arc(center.x, center.y - 100, 25, 0, 2 * Math.PI);
+	c.clip();
+	c.fillStyle = "rgb(100, 100, 100)";
+	c.fillRect(0, 0, 800, 800);
+	//background
+	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, undefined, undefined, { noFrontExtended: true });
+	//cross patterns
+	if(this.color === "red") {
+		c.strokeStyle = "rgb(200, 50, 0)";
+	}
+	else if(this.color === "green") {
+		c.strokeStyle = "rgb(25, 128, 25)";
+	}
+	else if(this.color === "blue") {
+		c.strokeStyle = "rgb(0, 0, 100)";
+	}
+	c.lineWidth = 1;
+	for(var y = -150; y < 0; y += 10) {
+		c.beginPath();
+		c.moveTo(center.x - 25, center.y + y);
+		c.lineTo(center.x + 25, center.y + y + 50);
+		c.moveTo(center.x + 25, center.y + y);
+		c.lineTo(center.x - 25, center.y + y + 50);
+		c.stroke();
+	}
+	//window
+	c.lineWidth = 4;
+	c.strokeStyle = "rgb(50, 50, 50)";
+	if(this.color === "red") {
+		c.fillStyle = "rgba(255, 20, 0, 0.5)";
+	}
+	else if(this.color === "green") {
+		c.fillStyle = "rgba(0, 128, 20, 0.5)";
+	}
+	else if(this.color === "blue") {
+		c.fillStyle = "rgba(0, 0, 128, 0.5)";
+	}
+	c.fillRect(center.x - 25, center.y - 100, 50, 100);
+	c.strokeRect(center.x - 25, center.y - 100, 50, 100);
+	c.beginPath();
+	c.arc(center.x, center.y - 100, 25, Math.PI, 2 * Math.PI);
+	c.fill();
+	c.stroke();
+	c.restore();
+};
+function Roof(x, y, w) {
+	this.x = x;
+	this.y = y;
+	this.w = w;
+	this.type = null;
+};
+Roof.prototype.exist = function() {
+	if(this.type === null) {
+		var chooser = Math.random();
+		if(chooser < 0.25) {
+			this.type = "none";
+		}
+		else if(chooser < 0.5) {
+			this.type = "flat";
+		}
+		else if(chooser < 0.75) {
+			this.type = "sloped";
+		}
+		else {
+			this.type = "curved";
+		}
+	}
+	if(this.type === "flat") {
+		cube(-100, this.y + p.worldY - 1100, 1000, 1000, 0.9, 1.1);
+	}
+	else if(this.type === "sloped") {
+		polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
+			{
+				x: -100,
+				y: -100
+			},
+			{
+				x: -100,
+				y: this.y + p.worldY
+			},
+			{
+				x: this.x + p.worldX - this.w,
+				y: this.y + p.worldY
+			},
+			{
+				x: this.x + p.worldX - (this.w / 3),
+				y: this.y + p.worldY - 100
+			},
+			{
+				x: this.x + p.worldX + (this.w / 3),
+				y: this.y + p.worldY - 100
+			},
+			{
+				x: this.x + p.worldX + this.w,
+				y: this.y + p.worldY
+			},
+			{
+				x: 900,
+				y: this.y + p.worldY - 100
+			},
+			{
+				x: 900,
+				y: -100
+			}
+		])
+	}
+	else if(this.type === "curved") {
+		if(this.points === undefined) {
+			this.points = circularPointsTopHalf(0, 0, this.w);
+			for(var i = 0; i < this.points.length; i += 1) {
+				this.points[i].y /= 2;
+				this.points[i].x += this.x;
+				this.points[i].y += this.y;
+			}
+		}
+		var array = [];
+		array.push({x: -100, y: -100});
+		array.push({x: -100, y: this.y + p.worldY});
+		for(var i = 0; i < this.points.length; i += 2) {
+			array.push({x: this.points[i].x + p.worldX, y: this.points[i].y + p.worldY});
+		}
+		array.push({x: 900, y: this.y + p.worldY});
+		array.push({x: 900, y: -100});
+		polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, array);
+	}
+};
+function Fountain(x, y) {
+	this.x = x;
+	this.y = y;
+	this.waterAnimations = [];
+};
+Fountain.prototype.exist = function() {
+	//water slot
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 270, 100, 100, 0.8, 0.9, "rgb(100, 100, 100)", "rgba(100, 100, 100, 0)", { noFrontExtended: true, sideColors: { bottom: "rgb(150, 150, 150"}});
+	cube(this.x + p.worldX - 50 - 50, this.y + p.worldY - 170, 50, 40, 0.8, 0.9, "rgb(100, 100, 100)", "rgba(100, 100, 100, 0)", { noFrontExtended: true, sideColors: { right: "rgb(150, 150, 150"}});
+	cube(this.x + p.worldX + 50, this.y + p.worldY - 170, 50, 40, 0.8, 0.9, "rgb(100, 100, 100)", "rgba(100, 100, 100, 0)", { noFrontExtended: true, sideColors: { left: "rgb(150, 150, 150"}});
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 140, 100, 80, 0.8, 0.92, "rgb(100, 100, 100)", "rgba(100, 100, 100, 0)", { noFrontExtended: true, sideColors: { top: "rgb(150, 150, 150"}});
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 10, 0.8, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)", { noFrontExtended: true });
+	cube(this.x + p.worldX - 100, this.y + p.worldY - 270, 200, 100, 0.9, 0.9, "rgb(100, 100, 100)", "rgba(100, 100, 100, 0)", { noFrontExtended: true });
+	//water
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 150, 0.9, 0.92, "rgba(100, 100, 255, 0)", "rgb(100, 100, 255)", { noFrontExtended: true });
+	for(var i = 0; i < this.waterAnimations.length; i ++) {
+		var topY = this.waterAnimations[i].y;
+		var bottomY = this.waterAnimations[i].y + 50;
+		if(this.waterAnimations[i].y < 50) {
+			//all on horizontal section of waterfall
+			var p1 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, Math.map(topY, 0, 100, 0.8, 0.92));
+			var p2 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, Math.map(bottomY, 0, 100, 0.8, 0.92));
+			c.strokeStyle = "rgb(120, 120, 255)";
+			c.lineWidth = 3;
+			c.beginPath();
+			c.moveTo(p1.x, p1.y);
+			c.lineTo(p2.x, p2.y);
+			c.stroke();
+		}
+		else if(this.waterAnimations[i].y > 50 && this.waterAnimations[i].y <= 100) {
+			//runs over the corner - only display the upper section before the waterfall front
+			var p1 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, Math.map(topY, 0, 100, 0.8, 0.92));
+			var corner = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, 0.92);
+			c.strokeStyle = "rgb(120, 120, 255)";
+			c.lineWidth = 3;
+			c.beginPath();
+			c.moveTo(p1.x, p1.y);
+			c.lineTo(corner.x, corner.y);
+			c.stroke();
+		}
+	}
+	//black out sides
+	cube(this.x + p.worldX - 100, this.y + p.worldY - 140, 200, 80, 0.9, 0.9, "rgb(100, 100, 100)", "rgba(100, 100, 100, 0)", { noFrontExtended: true });
+	cube(this.x + p.worldX - 200, this.y + p.worldY - 170, 150, 120, 0.9, 0.9, "rgb(100, 100, 100)", "rgba(100, 100, 100, 0)", { noFrontExtended: true });
+	cube(this.x + p.worldX + 50, this.y + p.worldY - 170, 150, 120, 0.9, 0.9, "rgb(100, 100, 100)", "rgba(100, 100, 100, 0)", { noFrontExtended: true });
+	//water animation
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 150, 0.9, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)", { noFrontExtended: true });
+	if(frameCount % 10 === 0) {
+		this.waterAnimations.push( {x: Math.random() * 100 - 50, y: -50} );
+	}
+	c.save();
+	c.lineCap = "round";
+	for(var i = 0; i < this.waterAnimations.length; i ++) {
+		this.waterAnimations[i].y += 3;
+		var topY = this.waterAnimations[i].y < 0 ? 0 : this.waterAnimations[i].y;
+		var bottomY = this.waterAnimations[i].y + 50;
+		if(topY < 100 && bottomY > 100) {
+			//runs over the corner - only display the lower section after the waterfall front
+			var corner = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, 0.92);
+			var p2 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (bottomY - 100), 0.92);
+			c.strokeStyle = "rgb(120, 120, 255)";
+			c.lineWidth = 3;
+			c.beginPath();
+			c.moveTo(corner.x, corner.y);
+			c.lineTo(p2.x, p2.y);
+			c.stroke();
+		}
+		else if(topY > 100) {
+			//all on front of the waterfall
+			var p1 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (topY - 100), 0.92);
+			var p2 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (bottomY - 100), 0.92);
+			c.strokeStyle = "rgb(120, 120, 255)";
+			c.lineWidth = 3;
+			c.beginPath();
+			c.moveTo(p1.x, p1.y);
+			c.lineTo(p2.x, p2.y);
+			c.stroke();
+		}
+		if(topY > 150) {
+			this.waterAnimations.splice(i, 1);
+			continue;
+		}
+	}
+	c.restore();
+	//base
+	cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 10, 50, 0.9, 1);
+	cube(this.x + p.worldX + 90, this.y + p.worldY - 50, 10, 50, 0.9, 1);
+	cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 200, 50, 0.98, 1);
+};
+function Gear(x, y, size, dir) {
+	this.x = x;
+	this.y = y;
+	this.size = size;
+	this.dir = dir;
+	this.rot = 0;
+	// this.smallArr = findPointsCircular(0, 0, this.size * 0.8);
+	this.largeArr = findPointsCircular(0, 0, this.size);
+	this.smallArr = [];
+	for(var i = 0; i < this.largeArr.length; i ++) {
+		this.smallArr.push({
+			x: this.largeArr[i].x * 0.8,
+			y: this.largeArr[i].y * 0.8
+		});
+	}
+};
+Gear.prototype.exist = function() {
+	var centerB = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
+	var centerF = point3d(this.x + p.worldX, this.y + p.worldY, 1.05);
+	//sides
+	var gearType = "inside";
+	c.fillStyle = "rgb(150, 150, 150)";
+	for(var r = this.rot; r < this.rot + 360; r += 3) {
+		var rotation = r;
+		while(rotation > 360) {
+			rotation -= 360;
+		}
+		while(rotation < 0) {
+			rotation += 360;
+		}
+		if((rotation - this.rot) % 30 === 0) {
+			gearType = (gearType === "inside") ? "outside" : "inside";
+		}
+		var next = r + 3;
+		while(next > 360) {
+			next -= 360;
+		}
+		while(next < 0) {
+			next += 360;
+		}
+		if(gearType === "inside") {
+			if((next - this.rot) % 30 !== 0) {
+				var index1 = Math.floor(rotation / 360 * (this.smallArr.length - 1));
+				var index2 = Math.floor(next / 360 * (this.smallArr.length - 1));
+				c.beginPath();
+				c.moveTo(centerF.x + this.smallArr[index1].x, centerF.y + this.smallArr[index1].y);
+				c.lineTo(centerB.x + this.smallArr[index1].x, centerB.y + this.smallArr[index1].y);
+				c.lineTo(centerB.x + this.smallArr[index2].x, centerB.y + this.smallArr[index2].y);
+				c.lineTo(centerF.x + this.smallArr[index2].x, centerF.y + this.smallArr[index2].y);
+				c.fill();
+				collisionLine(this.x + p.worldX + this.smallArr[index1].x, this.y + p.worldY + this.smallArr[index1].y, this.x + p.worldX + this.smallArr[index2].x, this.y + p.worldY + this.smallArr[index2].y, { moving: true });
+			}
+			else {
+				var index1 = Math.floor(rotation / 360 * (this.smallArr.length - 1));
+				var index2 = Math.floor(next / 360 * (this.largeArr.length - 1));
+				c.beginPath();
+				c.moveTo(centerF.x + this.smallArr[index1].x, centerF.y + this.smallArr[index1].y);
+				c.lineTo(centerB.x + this.smallArr[index1].x, centerB.y + this.smallArr[index1].y);
+				c.lineTo(centerB.x + this.largeArr[index2].x, centerB.y + this.largeArr[index2].y);
+				c.lineTo(centerF.x + this.largeArr[index2].x, centerF.y + this.largeArr[index2].y);
+				c.fill();
+				collisionLine(this.x + p.worldX + this.smallArr[index1].x, this.y + p.worldY + this.smallArr[index1].y, this.x + p.worldX + this.largeArr[index2].x, this.y + p.worldY + this.largeArr[index2].y, { moving: true, extraBouncy: (this.largeArr[index2].x < this.size * 0.8) });
+			}
+		}
+		else {
+			if((next - this.rot) % 30 !== 0) {
+				var index1 = Math.floor(rotation / 360 * (this.largeArr.length - 1));
+				var index2 = Math.floor(next / 360 * (this.largeArr.length - 1));
+				c.beginPath();
+				c.moveTo(centerF.x + this.largeArr[index1].x, centerF.y + this.largeArr[index1].y);
+				c.lineTo(centerB.x + this.largeArr[index1].x, centerB.y + this.largeArr[index1].y);
+				c.lineTo(centerB.x + this.largeArr[index2].x, centerB.y + this.largeArr[index2].y);
+				c.lineTo(centerF.x + this.largeArr[index2].x, centerF.y + this.largeArr[index2].y);
+				c.fill();
+				collisionLine(this.x + p.worldX + this.largeArr[index1].x, this.y + p.worldY + this.largeArr[index1].y, this.x + p.worldX + this.largeArr[index2].x, this.y + p.worldY + this.largeArr[index2].y, { moving: true });
+			}
+			else {
+				var index1 = Math.floor(rotation / 360 * (this.largeArr.length - 1));
+				var index2 = Math.floor(next / 360 * (this.smallArr.length - 1));
+				c.beginPath();
+				c.moveTo(centerF.x + this.largeArr[index1].x, centerF.y + this.largeArr[index1].y);
+				c.lineTo(centerB.x + this.largeArr[index1].x, centerB.y + this.largeArr[index1].y);
+				c.lineTo(centerB.x + this.smallArr[index2].x, centerB.y + this.smallArr[index2].y);
+				c.lineTo(centerF.x + this.smallArr[index2].x, centerF.y + this.smallArr[index2].y);
+				c.fill();
+				collisionLine(this.x + p.worldX + this.largeArr[index1].x, this.y + p.worldY + this.largeArr[index1].y, this.x + p.worldX + this.smallArr[index2].x, this.y + p.worldY + this.smallArr[index2].y, { moving: true, extraBouncy: (this.largeArr[index1].x < this.size * 0.8) });
+			}
+		}
+	}
+	//front face
+	c.beginPath();
+	c.fillStyle = "rgb(110, 110, 110)";
+	gearType = "inside";
+	for(var r = this.rot; r <= this.rot + 360; r += 3) {
+		var rotation = r;
+		while(rotation > 360) {
+			rotation -= 360;
+		}
+		while(rotation < 0) {
+			rotation += 360;
+		}
+		if((rotation - this.rot) % 30 === 0) {
+			gearType = (gearType === "inside") ? "outside" : "inside";
+		}
+		var smallIndex = Math.floor(rotation / 360 * (this.smallArr.length - 1));
+		var largeIndex = Math.floor(rotation / 360 * (this.largeArr.length - 1));
+		if(r === this.rot) {
+			if(gearType === "inside") {
+				c.moveTo(centerF.x + this.smallArr[smallIndex].x, centerF.y + this.smallArr[smallIndex].y);
+			}
+			else {
+				c.moveTo(centerF.x + this.largeArr[largeIndex].x, centerF.y + this.largeArr[largeIndex].y);
+			}
+		}
+		else {
+			if(gearType === "inside") {
+				c.lineTo(centerF.x + this.smallArr[smallIndex].x, centerF.y + this.smallArr[smallIndex].y);
+			}
+			else {
+				c.lineTo(centerF.x + this.largeArr[largeIndex].x, centerF.y + this.largeArr[largeIndex].y);
+			}
+		}
+	}
+	c.fill();
+	this.rot += (this.dir === "right") ? 0.5 : -0.5;
+};
 
 /** ROOM DATA **/
 var inRoom = 0;
 var numRooms = 0;
 var theRoom = null;
-function Room(type, content, id, minWorldY) {
+function Room(type, content, id, minWorldY, background) {
 	this.type = type;
 	this.content = content;
 	this.id = id;
 	this.hasEnemy = false;
 	this.pathScore = null;
+	this.background = background || null;
 	this.minWorldY = minWorldY;
+	this.colorScheme = null;
 };
 Room.prototype.exist = function(index) {
+	if(this.background === null) {
+		this.background = (Math.random() < 0.5) ? "plain" : "bricks";
+	}
 	boxFronts = [];
 	extraGraphics = [];
 	hitboxes = [];
@@ -3410,13 +4600,13 @@ Room.prototype.exist = function(index) {
 			}
 			//show hitboxes
 			if(showHitboxes) {
-				hitboxes.push({x: this.content[i].x + p.worldX + this.content[i].leftX, y: this.content[i].y + p.worldY + this.content[i].topY, w: (this.content[i].rightX + Math.abs(this.content[i].leftX)), h: (this.content[i].bottomY + Math.abs(this.content[i].topY))});
+				hitboxes.push({x: this.content[i].x + p.worldX + this.content[i].leftX, y: this.content[i].y + p.worldY + this.content[i].topY, w: (this.content[i].rightX + Math.abs(this.content[i].leftX)), h: (this.content[i].bottomY + Math.abs(this.content[i].topY)), color: "green"});
 			}
 		}
 		else if(this.content[i] instanceof ShotArrow) {
 			this.content[i].exist();
 			if(showHitboxes) {
-				hitboxes.push({x: this.content[i].x + p.worldX - 1, y: this.content[i].y + p.worldY - 1, w: 2, h: 2});
+				hitboxes.push({x: this.content[i].x + p.worldX - 1, y: this.content[i].y + p.worldY - 1, w: 2, h: 2, color: "green"});
 			}
 			if(this.content[i].opacity <= 0) {
 				this.content.splice(i, 1);
@@ -3494,8 +4684,16 @@ Room.prototype.exist = function(index) {
 		this.content[boulderIndexes[i]].exist();
 	}
 	//show hitboxes
-	c.strokeStyle = "rgb(0, " + (Math.sin(frameCount / 30) * 30 + 225) + ", " + (Math.sin(frameCount / 30) * 30 + 225) + ")";
 	for(var i = 0; i < hitboxes.length; i ++) {
+		if(hitboxes[i].color === "light blue") {
+			c.strokeStyle = "rgb(0, " + (Math.sin(frameCount / 30) * 30 + 225) + ", " + (Math.sin(frameCount / 30) * 30 + 225) + ")";
+		}
+		else if(hitboxes[i].color === "dark blue") {
+			c.strokeStyle = "rgb(0, 0, " + (Math.sin(frameCount / 30) * 30 + 225) + ")";
+		}
+		else if(hitboxes[i].color === "green") {
+			c.strokeStyle = "rgb(0, " + (Math.sin(frameCount / 30) * 30 + 225) + ", 0)";
+		}
 		c.strokeRect(hitboxes[i].x, hitboxes[i].y, hitboxes[i].w, hitboxes[i].h);
 	}
 	//fading transitions between rooms
@@ -3507,10 +4705,10 @@ Room.prototype.exist = function(index) {
 	c.globalAlpha = (p.screenOp < p.fallOp) ? p.fallOp : p.screenOp;
 	c.fillRect(0, 0, 800, 800);
 };
-var rooms = ["ambient1", "ambient2", "ambient3", "secret1", "secret2", "combat1", "combat2", "combat3", "parkour1", "parkour2", "reward1", "reward2", "reward3", "reward4"];
-rooms = [
+var rooms = [
 	{
 		name: "ambient1",
+		difficulty: 0,
 		extraDoors: 2,
 		add: function() {
 			roomInstances.push(
@@ -3536,6 +4734,7 @@ rooms = [
 	}, //3 pillars room
 	{
 		name: "ambient2",
+		difficulty: 0,
 		extraDoors: 1,
 		add: function() {
 			roomInstances.push(
@@ -3550,8 +4749,8 @@ rooms = [
 						new Torch(600, 440),
 						new Torch(700, 440),
 						new Torch(800, 440),
-						new Door(400, 500, ["combat", "parkour", "secret"]),
-						new Door(900, 500, ["combat", "parkour", "secret"])
+						new Door(400, 500, ["combat", "parkour", "secret"], false, false, "toggle"),
+						new Door(900, 500, ["combat", "parkour", "secret"], false, false, "toggle")
 					],
 					"?"
 				)
@@ -3560,6 +4759,7 @@ rooms = [
 	}, //torches hallway room
 	{
 		name: "ambient3",
+		difficulty: 0,
 		extraDoors: 1,
 		add: function() {
 			if(Math.random() < 0.5) {
@@ -3570,7 +4770,7 @@ rooms = [
 							new Block(-4000, 0, 8000, 1000), //floor
 							new Stairs(200, 0, 10, "right"),
 							new Block(600, -4000, 4000, 4100), //right wall
-							new Door(500, 0, ["combat", "parkour", "secret"], true),
+							new Door(500, 0, ["combat", "parkour", "secret"], true, false, "toggle"),
 							new Block(-800, -200, 1001, 1000), //higher floor
 							new Door(100, -200, ["combat", "parkour", "secret"]),
 							new Block(-1000, -4000, 1000, 8000), //left wall
@@ -3588,7 +4788,7 @@ rooms = [
 							new Block(-4000, 0, 8000, 1000), //floor
 							new Stairs(-200, 0, 10, "left"),
 							new Block(-4600, -4000, 4000, 4100), //left wall
-							new Door(-500, 0, ["combat", "parkour", "secret"], true),
+							new Door(-500, 0, ["combat", "parkour", "secret"], true, false, "toggle"),
 							new Block(-200, -200, 1000, 1000), //higher floor
 							new Door(-100, -200, ["combat", "parkour", "secret"]),
 							new Block(0, -4000, 1000, 8000), //right wall
@@ -3601,7 +4801,61 @@ rooms = [
 		}
 	}, //stairs room
 	{
+		name: "ambient4",
+		difficulty: 1,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"ambient4",
+					[
+						new Block(-1000, -1000, 1300, 2000), //left wall
+						new Block(-100, 500, 600, 1000), //left floor
+						new Block(780, 500, 1000, 1000), //right floor
+						new Block(-400, -1000, 2000, 1300), //roof
+						new Block(980, -500, 1000, 1100), //right wall
+						new FallBlock(520, 500),
+						new FallBlock(560, 500),
+						new FallBlock(600, 500),
+						new FallBlock(640, 500),
+						new FallBlock(680, 500),
+						new FallBlock(720, 500),
+						new FallBlock(760, 500),
+						new Door(400, 500, ["combat", "parkour", "secret"], false, false, "toggle"),
+						new Door(880, 500, ["combat", "parkour", "secret"], false, false, "toggle")
+					],
+					"?",
+					-200
+				)
+			);
+		}
+	}, //collapsing floor room
+	{
+		name: "ambient5",
+		difficulty: 0,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"ambient5",
+					[
+						new Fountain(650, 500),
+						new Block(-1000, -1000, 1300, 2000), //left wall
+						new Block(-100, 500, 1500, 500), //floor
+						new Block(999, -500, 1000, 1100), //right wall
+						new Roof(650, 200, 350),
+						new Door(400, 500, ["combat", "parkour", "secret"], false, false, "toggle"),
+						new Door(900, 500, ["combat", "parkour", "secret"], false, false, "toggle")
+					],
+					"?",
+					undefined,
+					"plain"
+				)
+			);
+			roomInstances[roomInstances.length - 1].colorScheme = "blue";
+		}
+	}, //fountain room
+	{
 		name: "secret1",
+		difficulty: 0,
 		extraDoors: 1,
 		add: function() {
 			roomInstances.push(
@@ -3613,28 +4867,29 @@ rooms = [
 						new Block(-1000, -1000, 1000, 2000), //left wall
 						new Block(-100, 500, 1010, 500), //floor
 						new Block(900, -1000, 1000, 2000), //right wall,
-						new Block(-300, 0, 500, 100), //left roof,
-						new Block(700, 0, 500, 100), //right roof
-						new Block(-300, -1300, 500, 1100), //left roof,
-						new Block(700, -1300, 500, 1100), //right roof
 						new Door(100, 500, ["ambient", "combat", "parkour"]),
 						new Door(800, 500, ["ambient", "combat", "parkour"]),
 						new LightRay(200, 500),
-						new Tree(450, 500)
+						new Tree(450, 500),
+						new Block(-300, 0, 500, 100), //left roof,
+						new Block(700, 0, 500, 100), //right roof
+						new Block(-300, -1300, 500, 1100), //left roof,
+						new Block(700, -1300, 500, 1100), //right roo
 					],
 					"?"
 				)
 			);
+			roomInstances[roomInstances.length - 1].colorScheme = "green";
 		}
 	}, //garden
 	{
 		name: "secret2",
+		difficulty: 0,
 		extraDoors: 1,
 		add: function() {
 			var possibleItems = Object.create(items);
 			for(var i = 0; i < possibleItems.length; i ++) {
-				console.log(possibleItems[i]);
-				if(!(new possibleItems[i]() instanceof Weapon)) {
+				if(!(new possibleItems[i]() instanceof Weapon) || new possibleItems[i]() instanceof Arrow || new possibleItems[i]() instanceof Dagger) {
 					possibleItems.splice(i, 1);
 					i --;
 					continue;
@@ -3652,7 +4907,6 @@ rooms = [
 				}
 			}
 			if(possibleItems.length === 0) {
-				console.log("weapons don't exist");
 				//default to combat1 if the player has all the weapons in the
 				for(var i = 0; i < rooms.length; i ++) {
 					if(rooms[i].name === "combat3") {
@@ -3662,7 +4916,6 @@ rooms = [
 				}
 				return;
 			}
-			console.log("weapons exist");
 			roomInstances.push(
 				new Room(
 					"secret2",
@@ -3670,7 +4923,10 @@ rooms = [
 						new Block(-1000, -1000, 1000, 2000), //left wall
 						new Block(-100, 500, 1010, 500), //floor
 						new Block(600, -1000, 1000, 2000), //right wall,
-						new Block(-4000, -2000, 8000, 2200), //roof
+						// new Block(-4000, -2000, 8000, 2200), //roof
+						new Roof(300, 200, 300),
+						new Decoration(200, 450),
+						new Decoration(400, 450),
 						new Statue(300, 370, new Sword()),
 						new Door(100, 500, ["ambient", "combat", "parkour"]),
 						new Door(500, 500, ["ambient", "combat", "parkour"])
@@ -3681,7 +4937,41 @@ rooms = [
 		}
 	}, //statue room
 	{
+		name: "secret3",
+		difficulty: 1,
+		extraDoors: 1,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"secret3",
+					[
+						new Block(-4000, 0, 8000, 1000), //floor
+						new Block(500, -4000, 1000, 8000), //right wall
+						new Block(-1500, -4000, 1000, 8000), //left wall
+						new Door(-220, 0, ["ambient"]),
+						new Door(220, 0, ["ambient"]),
+						new BookShelf(-380, 0),
+						new BookShelf(380, 0),
+						new Chandelier(0, -300),
+						new Table(0, 0),
+						new Chair(-100, 0, "right"),
+						new Chair(100, 0, "left"),
+						new Block(220, -700, 1000, 300),
+						new Block(-1220, -700, 1000, 300),
+						new Block(220, -1300, 1000, 300),
+						new Block(-1220, -1300, 1000, 300),
+						new Door(400, -700, ["reward"], "no entries"),
+						new Door(-400, -700, ["reward"], "no entries")
+					],
+					"?"
+				)
+			);
+			roomInstances[roomInstances.length - 1].colorScheme = "red";
+		}
+	}, //library room
+	{
 		name: "combat1",
+		difficulty: 3,
 		extraDoors: 1.5,
 		add: function() {
 			roomInstances.push(
@@ -3691,12 +4981,12 @@ rooms = [
 						new Block(-2000, 0, 4000, 1000), //floor
 						new Block(-1000, -4000, 500, 8000), //left wall
 						new Block(500, -4000, 1000, 8000), //right wall
-						new Block(-2000, -1900, 4000, 1600), //roof
+						new Roof(0, -300, 500),
 						new Door(-450, 0, ["ambient"], false),
-						new Door(0, 0, ["reward"], true),
+						new Door(0, 0, ["reward"], true, false, "toggle"),
 						new Door(450, 0, ["ambient"], false),
-						new Window(300, -50), new Window(-300, -50),
-						new Window(150, -50), new Window(-150, -50),
+						new Decoration(300, -50), new Decoration(-300, -50),
+						new Decoration(150, -50), new Decoration(-150, -50),
 						new RandomEnemy(50, 0)
 					],
 					"?"
@@ -3706,6 +4996,7 @@ rooms = [
 	}, //basic combat room
 	{
 		name: "combat2",
+		difficulty: 5,
 		extraDoors: 1,
 		add: function() {
 			roomInstances.push(
@@ -3721,7 +5012,7 @@ rooms = [
 						new Block(-4000, -1400, 8000, 1000), //roof
 						new Door(-300, 0, ["reward"], true),
 						new Door(500, 0, ["reward"], true),
-						new Door(100, -200, ["ambient"]),
+						new Door(100, -200, ["ambient"], false, false, "toggle"),
 						new RandomEnemy(500, 0),
 						new RandomEnemy(-300, 0)
 					],
@@ -3732,6 +5023,7 @@ rooms = [
 	}, //stairs double combat room
 	{
 		name: "combat3",
+		difficulty: 4,
 		extraDoors: 0.5,
 		add: function() {
 			roomInstances.push(
@@ -3747,13 +5039,16 @@ rooms = [
 						new Door(0, 0, ["reward"]),
 						new RandomEnemy(400, -200)
 					],
-					"?"
+					"?",
+					undefined,
+					"plain"
 				)
 			)
 		}
 	}, //bridge combat room
 	{
 		name: "parkour1",
+		difficulty: 3,
 		extraDoors: 1.5,
 		add: function() {
 			roomInstances.push(
@@ -3767,14 +5062,16 @@ rooms = [
 						new FallBlock(400, 450),
 						new FallBlock(500, 425),
 						new Block(600, 400, 200, 2000), //middle platform
-						new Door(700, 400, ["reward"], true),
+						new Door(700, 400, ["reward"], true, false, "toggle"),
 						new FallBlock(900, 425),
 						new FallBlock(1000, 450),
 						new FallBlock(1100, 475),
 						new Block(1200, 500, 1000, 2000), //right floor
 						new Block(1400, -1000, 1000, 2000), //right wall
 						new Door(1300, 500, ["ambient"], false),
-						new Block(-4000, -1200, 8000, 1300)
+						new Roof(700, 200, 700),
+						new Decoration(600, 350),
+						new Decoration(800, 350)
 					],
 					"?",
 					-200
@@ -3784,6 +5081,7 @@ rooms = [
 	}, //falling platforms room
 	{
 		name: "parkour2",
+		difficulty: 2,
 		extraDoors: 1.5,
 		add: function() {
 			roomInstances.push(
@@ -3794,7 +5092,7 @@ rooms = [
 						new Block(200, 0, 1000, 4000), //left floor
 						new Door(1100, 0, ["ambient"]),
 						new Block(1550, 200, 200, 8000), //middle platform
-						new Pulley(1300, 150, 1850, 150, 200),
+						new Pulley(1300, 150, 1850, 150, 200, 150),
 						new Door(1650, 200, ["reward"], true),
 						new Block(2100, 0, 1000, 4000), //right floor
 						new Block(2300, -4000, 1000, 8000), //right wall
@@ -3807,7 +5105,115 @@ rooms = [
 		}
 	}, //pulley room
 	{
+		name: "parkour3",
+		difficulty: 4,
+		extraDoors: 0.5,
+		add: function() {
+			if(Math.random() < 0.5) {
+				roomInstances.push(
+					new Room(
+						"parkour3",
+						[
+							new Block(-100, 0, 1000, 1000), //lower floor
+							new Block(100, -4000, 1000, 8000), //left wall
+							new TiltPlatform(-300, -100),
+							new TiltPlatform(-500, -200),
+							new Block(-1700, -300, 1000, 1000), //upper floor
+							new Block(-1900, -4000, 1000, 8000), //right wall
+							new Door(0, 0, ["ambient"]),
+							new Door(-800, -300, ["reward"], true),
+							new Roof(-400, -500, 500),
+							new Decoration(-100, -50),
+							new Decoration(-700, -350)
+						],
+						"?",
+						420
+					)
+				);
+			}
+			else {
+				roomInstances.push(
+					new Room(
+						"parkour3",
+						[
+							new Block(-100, -300, 1000, 1000), //upper floor
+							new Block(100, -4000, 1000, 8000), //left wall
+							new TiltPlatform(-300, -200),
+							new TiltPlatform(-500, -100),
+							new Block(-1700, 0, 1000, 1000), //lower floor
+							new Block(-1900, -4000, 1000, 8000), //right wall
+							new Door(0, -300, ["reward"], true),
+							new Door(-800, 0, ["reward"]),
+							new Roof(-400, -500, 500),
+							new Decoration(-700, -50),
+							new Decoration(-100, -350)
+						],
+						"?",
+						420
+					)
+				);
+			}
+		}
+	}, //tilting platforms room
+	{
+		name: "parkour4",
+		difficulty: 5,
+		extraDoors: 2,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"parkour4",
+					[
+						new Decoration(-1200, -140),
+						new Decoration(0, -140),
+						new Decoration(-1200, -540),
+						new Decoration(0, -540),
+						new Block(-100, 0, 1000, 4000), //right floor
+						new Block(100, -4000, 1000, 8000), //right wall
+						new Pulley(-400, 200, -1000, 200, -150, 150),
+						new TiltPlatform(-600, -100),
+						new Block(-2100, 0, 1000, 1000), //left floor
+						new Block(-2300, -4000, 1000, 8000), //left wall
+						new Block(-100, -400, 1000, 100), //upper right floor
+						new Block(-2100, -400, 1000, 100), //upper left floor
+						new Door(-1200, 0, ["ambient"]),
+						new Door(0, 0, ["ambient"]),
+						new Door(-1200, -400, ["reward"], true, false, "toggle"),
+						new Door(0, -400, ["reward"], true, false, "toggle")
+					],
+					"?",
+					300
+				)
+			);
+		}
+	}, //tilting platform + pulley room
+	{
+		name: "parkour5",
+		difficulty: 2,
+		extraDoors: 0.5,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"parkour5",
+					[
+						new Block(-1000, 0, 1100, 1000), //left floor
+						new Block(-1100, -4000, 1000, 8000), //left wall
+						new Block(1190, 0, 1000, 1000), //right floor
+						new Block(1390, -4000, 1000, 8000), //right wall
+						new Gear(400, 0, 250, "right"),
+						new Gear(890, 0, 250, "left"),
+						new Door(0, 0, ["reward"]),
+						new Door(1290, 0, ["reward"])
+					],
+					"?",
+					446
+				)
+			);
+		}
+	}, //gear room
+	{
 		name: "reward1",
+		difficulty: 0,
 		extraDoors: 0,
 		add: function() {
 			roomInstances.push(
@@ -3829,6 +5235,7 @@ rooms = [
 	}, //2 chests room
 	{
 		name: "reward2",
+		difficulty: 0,
 		extraDoors: 1,
 		add: function() {
 			var chooser = Math.random();
@@ -3842,13 +5249,13 @@ rooms = [
 			if(!hasAStaff) {
 				chooser = 0;
 			}
-			if(p.healthAltarsFound >= 5) {
+			if(p.healthAltarsFound >= 5 || roomInstances[inRoom].colorScheme === "blue") {
 				chooser = 1;
 			}
-			if(p.manaAltarsFound >= 5) {
+			if(p.manaAltarsFound >= 5 || roomInstances[inRoom].colorScheme === "red") {
 				chooser = 0;
 			}
-			if(p.healthAltarsFound >= 5 && p.manaAltarsFound >= 5) {
+			if((p.healthAltarsFound >= 5 || roomInstances[inRoom].colorScheme === "blue") && (p.manaAltarsFound >= 5 || roomInstances[inRoom].colorScheme === "red")) {
 				roomInstances.push(
 					new Room(
 						"reward",
@@ -3887,10 +5294,12 @@ rooms = [
 					"?"
 				)
 			);
+			roomInstances[roomInstances.length - 1].colorScheme = (chooser < 0.5) ? "red" : "blue";
 		}
 	}, //altar room
 	{
 		name: "reward3",
+		difficulty: 0,
 		extraDoors: 1,
 		add: function() {
 			roomInstances.push(new Room(
@@ -3906,10 +5315,12 @@ rooms = [
 				],
 				"?"
 			));
+			roomInstances[roomInstances.length - 1].colorScheme = "red";
 		}
 	}, //forge room
 	{
 		name: "reward4",
+		difficulty: 0,
 		extraDoors: 0,
 		add: function() {
 			if(Math.random() < 0.5) {
@@ -3921,6 +5332,7 @@ rooms = [
 							new Stairs(200, 0, 10, "right"),
 							new Block(600, -4000, 4000, 4100), //right wall
 							new Chest(500, 0),
+							new Decoration(500, -100),
 							new Block(-800, -200, 1001, 1000), //higher floor
 							new Door(100, -200, ["combat", "parkour", "secret"]),
 							new Block(-1000, -4000, 1000, 8000), //left wall
@@ -3939,6 +5351,7 @@ rooms = [
 							new Stairs(-200, 0, 10, "left"),
 							new Block(-4600, -4000, 4000, 4100), //left wall
 							new Chest(-500, 0),
+							new Decoration(-500, -100),
 							new Block(-200, -200, 1000, 1000), //higher floor
 							new Door(-100, -200, ["combat", "parkour", "secret"]),
 							new Block(0, -4000, 1000, 8000), //right wall
@@ -3961,13 +5374,13 @@ var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /
 if(hax) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "secret2" && rooms[i].name !== "combat3") {
+		if(rooms[i].name !== "parkour5") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	enemies = [Wraith];
+	enemies = [Bat];
 }
 var roomInstances = [
 	new Room(
@@ -3981,9 +5394,9 @@ var roomInstances = [
 			new Block(-600, -200, 700, 900), //left wall
 			new Block(-400, -1000, 2000, 1300), //ceiling
 			new Block(900, -200, 500, 1000), //right wall
-			new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
-			new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
-			new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
+			new Door(300,  500, ["ambient", "combat", "parkour", "secret"], false, false, "arch"),
+			new Door(500,  500, ["ambient", "combat", "parkour", "secret"], false, false, "arch"),
+			new Door(700,  500, ["ambient", "combat", "parkour", "secret"], false, false, "arch")
 		],
 		"?"
 	)
@@ -4143,6 +5556,7 @@ function Dagger(modifier) {
 	this.damLow = p.class === "warrior" ? 6 : 5;
 	this.damHigh = p.class === "warrior" ? 8 : 7;
 	this.range = 30;
+	this.power = 2;
 };
 inheritsFrom(Dagger, MeleeWeapon);
 Dagger.prototype.getDesc = function() {
@@ -4201,6 +5615,7 @@ function Sword(modifier) {
 	this.damLow = p.class === "warrior" ? 8 : 7;
 	this.damHigh = p.class === "warrior" ? 11 : 10;
 	this.range = 60;
+	this.power = 3;
 };
 inheritsFrom(Sword, MeleeWeapon);
 Sword.prototype.display = function(type) {
@@ -4278,6 +5693,7 @@ function Spear(modifier) {
 	this.damLow = p.class === "warrior" ? 8 : 7;
 	this.damHigh = p.class === "warrior" ? 11 : 10;
 	this.range = 60;
+	this.power = 3;
 };
 inheritsFrom(Spear, MeleeWeapon);
 Spear.prototype.display = function(type) {
@@ -4327,6 +5743,79 @@ Spear.prototype.getDesc = function() {
 		},
 		{
 			content: "It's a spear. You can stab people with it",
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		}
+	];
+};
+function Mace(modifier) {
+	MeleeWeapon.call(this, modifier);
+	this.damLow = 12;
+	this.damHigh = 15;
+	this.attackSpeed = "slow";
+	this.power = 4;
+};
+inheritsFrom(Mace, MeleeWeapon);
+Mace.prototype.display = function(type) {
+	if(type === "item" || type === "holding") {
+		c.fillStyle = "rgb(60, 60, 60)";
+		c.strokeStyle = "rgb(60, 60, 60)";
+		//spikeball
+		c.beginPath();
+		c.arc(10, 0, 10, 0, 2 * Math.PI);
+		c.fill();
+		for(var r = 0; r < 360; r += (360 / 6)) {
+			c.save();
+			c.translate(10, 0);
+			c.rotate(Math.rad(r));
+			c.beginPath();
+			c.moveTo(-5, 0);
+			c.lineTo(5, 0);
+			c.lineTo(0, -20);
+			c.fill();
+			c.restore();
+		}
+		//handle
+		c.save();
+		c.translate(-20, 0);
+		c.rotate(Math.rad(45));
+		c.fillRect(-2, -5, 4, 10);
+		c.restore();
+		//chain
+		c.lineWidth = 2;
+		c.beginPath();
+		c.arc(-15, -3, 3, 0, 2 * Math.PI);
+		c.arc(-10, -6, 3, 0, 2 * Math.PI);
+		c.arc(-5, -6, 3, 0, 2 * Math.PI);
+		c.stroke();
+	}
+};
+Mace.prototype.getDesc = function() {
+	return [
+		{
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
+			+ "Mace" +
+			((this.element === "none") ? "" : (" of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length))),
+			font: "bold 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Damage: " + this.damLow + "-" + this.damHigh,
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Range: Short",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Attack Speed: " + this.attackSpeed.substr(0, 1).toUpperCase() + this.attackSpeed.substr(1, Infinity),
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "This giant spiked ball on a chain will cause some serious damage, but it's weight makes it slow to use.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -4392,6 +5881,7 @@ function WoodBow(modifier) {
 	this.damLow = p.class === "archer" ? 8 : 7;
 	this.damHigh = p.class === "archer" ? 11 : 10;
 	this.range = "long";
+	this.power = 3;
 	/*
 	ranges: very short (daggers), short (swords), medium (forceful bows), long (bows & forceful longbows), very long (longbows & distant bows), super long (distant longbows)
 	*/
@@ -4452,6 +5942,7 @@ function MetalBow(modifier) {
 	this.damLow = p.class === "archer" ? 11 : 10;
 	this.damHigh = p.class === "archer" ? 13 : 12;
 	this.range = "long";
+	this.power = 4;
 };
 inheritsFrom(MetalBow, RangedWeapon);
 MetalBow.prototype.display = function(type) {
@@ -4510,6 +6001,7 @@ function MechBow(modifier) {
 	this.range = "long";
 	this.damLow = (p.class === "archer") ? 7 : 6;
 	this.damHigh = (p.class === "archer") ? 10 : 9;
+	this.power = 4;
 };
 inheritsFrom(MechBow, RangedWeapon);
 MechBow.prototype.display = function(type) {
@@ -4604,6 +6096,7 @@ function LongBow(modifier) {
 	this.range = "very long";
 	this.damLow = (p.class === "archer") ? 9 : 8;
 	this.damHigh = (p.class === "archer") ? 10 : 9;
+	this.power = 5;
 };
 inheritsFrom(LongBow, RangedWeapon);
 LongBow.prototype.display = function(type) {
@@ -4671,6 +6164,7 @@ function EnergyStaff(modifier) {
 	this.manaCost = (this.modifier === "none") ? 4 : (this.modifier === "arcane" ? 5 : 3);
 	this.damLow = (p.class === "mage") ? 8 : 7;
 	this.damHigh = (p.class === "mage") ? 11 : 10;
+	this.power = 3;
 };
 inheritsFrom(EnergyStaff, MagicWeapon);
 EnergyStaff.prototype.display = function(type) {
@@ -4719,6 +6213,7 @@ function ElementalStaff(modifier) {
 	this.manaCost = 3;
 	this.damLow = (p.class === "mage") ? 6 : 5;
 	this.damHigh = (p.class === "mage") ? 9 : 8;
+	this.power = 4;
 };
 inheritsFrom(ElementalStaff, MagicWeapon);
 ElementalStaff.prototype.display = function(type) {
@@ -4903,6 +6398,7 @@ function PurityStaff(modifier) {
 	this.damLow = 0;
 	this.damHigh = 0;
 	this.chargeType = "purity";
+	this.power = 2;
 };
 inheritsFrom(PurityStaff, MagicWeapon);
 PurityStaff.prototype.display = function(type) {
@@ -4958,6 +6454,7 @@ function Helmet() {
 	Equipable.call(this);
 	this.defLow = 3;
 	this.defHigh = 5;
+	this.power = 3;
 };
 Helmet.prototype.display = function() {
 
@@ -5974,7 +7471,7 @@ function Bat(x, y) {
 	this.defHigh = 3;
 	this.damLow = 2;
 	this.damHigh = 3;
-	this.name = "a blood-sucking bat"
+	this.name = "a bat"
 };
 inheritsFrom(Bat, Enemy);
 Bat.prototype.display = function() {
@@ -7103,6 +8600,7 @@ if(hax) {
 	}
 	p.addItem(new Spear());
 	p.addItem(new Sword());
+	p.addItem(new Mace());
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
@@ -7470,6 +8968,9 @@ function fancyText(x, y, txt) {
 };
 /** FRAMES **/
 function doByTime() {
+	if(hax) {
+		p.health = p.maxHealth;
+	}
 	cursorHand = false;
 	frameCount ++;
 	resizeCanvas();
@@ -7477,6 +8978,27 @@ function doByTime() {
 	c.fillRect(0, 0, 800, 800);
 
 	if(p.onScreen === "play") {
+		if(roomInstances[inRoom].background === "bricks") {
+			var transX = (p.worldX * 0.9) % 100;
+			var transY = (p.worldY * 0.9) % 100;
+			c.save();
+			c.translate(transX, transY);
+			c.strokeStyle = "rgb(110, 110, 110)";
+			c.lineWidth = 4;
+			for(var y = -100; y < 800; y += 50) {
+				c.beginPath();
+				c.moveTo(-100, y);
+				c.lineTo(900, y);
+				c.stroke();
+				for(var x = (y % 100 === 0) ? -100 : -50; x < 900; x += 100) {
+					c.beginPath();
+					c.moveTo(x, y);
+					c.lineTo(x, y + 50);
+					c.stroke();
+				}
+			}
+			c.restore();
+		}
 		p.update();
 
 		for(var i = 0; i < roomInstances.length; i ++) {
@@ -7516,6 +9038,7 @@ function doByTime() {
 		}
 		if(unseenEnemy) {
 			for(var i = 0; i < roomInstances.length; i ++) {
+				theRoom = i;
 				enemyLoop: for(var j = 0; j < roomInstances[i].content.length; j ++) {
 					if(roomInstances[i].content[j] instanceof Enemy) { // roomInstances[i].content[j] is the enemy
 						var doorLoc = null;
@@ -7555,14 +9078,14 @@ function doByTime() {
 							}
 						}
 						roomInstances[i].content[j].update(doorLoc);
-						roomInstances[i].content[j].display();
+						// roomInstances[i].content[j].display();
 					}
 					else if(roomInstances[i].content[j] instanceof Block || roomInstances[i].content[j] instanceof Platform || roomInstances[i].content[j] instanceof Stairs || roomInstances[i].content[j] instanceof Pulley) {
 						// roomInstances[i].content[j].x -= p.worldX;
 						// roomInstances[i].content[j].y -= p.worldY;
 						if(roomInstances[i].content[j] instanceof Block || roomInstances[i].content[j] instanceof Platform) {
 							roomInstances[i].content[j].update();
-							roomInstances[i].content[j].display();
+							// roomInstances[i].content[j].display();
 						}
 						else if(roomInstances[i].content[j] instanceof Stairs) {
 							roomInstances[i].content[j].exist(false);
@@ -7827,6 +9350,8 @@ function doByTime() {
 	else {
 		canvas.style.cursor = "auto";
 	}
-	window.setTimeout(doByTime, 1000 / fps);
+	if(!frozen) {
+		window.setTimeout(doByTime, 1000 / fps);
+	}
 };
 window.setTimeout(doByTime, 1000 / fps);
