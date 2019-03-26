@@ -271,16 +271,17 @@ function collisionRect(x, y, w, h, settings) {
 	settings.walls = settings.walls || [true, true, true, true];
 	settings.illegalHandling = settings.illegalHandling || "collide";
 	settings.moving = settings.moving || false;
+	settings.player = settings.player || p;
 	if(showHitboxes) {
 		hitboxes.push({x: x, y: y, w: w, h: h, color: settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
 	}
 	if(inRoom === theRoom) {
 		if(!settings.moving) {
-			if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + p.velY + 1 && settings.walls[0]) {
-				p.velY = 0;
-				p.y = y - 46;
-				p.canJump = true;
-				if(p.fallDmg !== 0) {
+			if(settings.player.x + 5 > x && settings.player.x - 5 < x + w && settings.player.y + 46 >= y && settings.player.y + 46 <= y + settings.player.velY + 1 && settings.walls[0]) {
+				settings.player.velY = 0;
+				settings.player.y = y - 46;
+				settings.player.canJump = true;
+				if(settings.player.fallDmg !== 0) {
 					p.hurt(p.fallDmg, "falling");
 					p.fallDmg = 0;
 				}
@@ -611,11 +612,12 @@ function Player() {
 	this.fallDir = 0;
 	this.fallDmg = 0;
 	//health bars
-	this.health = 10;
-	this.maxHealth = 10;
+	this.health = 100;
+	this.maxHealth = 100;
 	this.visualHealth = 1;
-	this.mana = 10;
-	this.maxMana = 10;
+	this.mana = 100;
+	this.maxMana = 100;
+	this.manaRegen = 18; //1 mana / 18 frames
 	this.visualMana = 1;
 	this.gold = 0;
 	this.maxGold = 1;
@@ -663,6 +665,9 @@ Player.prototype.init = function() {
 		for(var x = 0; x < 5; x ++) {
 			this.invSlots.push({x: x * 80 - 35 + 240, y: y * 80 - 35 + 250, content: "empty", type: "storage"});
 		}
+	}
+	for(var x = 0; x < 2; x ++) {
+		this.invSlots.push({x: x * 80 + 630, y: 20, content: "empty", type: "equip"});
 	}
 };
 Player.prototype.display = function(noSideScroll, straightArm) {
@@ -812,13 +817,13 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.stroke();
 		c.restore();
 		if(this.attackArm < -20) {
-			this.attackArmDir = 1;
+			this.attackArmDir = 1 * (this.attackSpeed / 5);
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
 		else if(this.attackArm > 0) {
-			this.attackArmDir = -4;
+			this.attackArmDir = -4 * (this.attackSpeed / 5);
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
@@ -849,13 +854,13 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.stroke();
 		c.restore();
 		if(this.attackArm < 0) {
-			this.attackArmDir = 4;
+			this.attackArmDir = 4 * (this.attackSpeed / 5);
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
 		}
 		else if(this.attackArm > 20) {
-			this.attackArmDir = -1;
+			this.attackArmDir = -1 * (this.attackSpeed / 5);
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
 				this.canHit = true;
 			}
@@ -1036,9 +1041,10 @@ Player.prototype.update = function() {
 	if(!keys[37] && !keys[39]) {
 		this.velX *= 0.93;
 	}
-	this.velY += 0.15;
+	// this.velY += 0.15;
+	this.velY += 0.3;
 	if(keys[38] && this.canJump && !this.aiming) {
-		this.velY = -7.5;
+		this.velY = -10;
 	}
 	this.canJump = false;
 	//screen transitions
@@ -1127,7 +1133,7 @@ Player.prototype.update = function() {
 				this.attackArm = 0;
 				this.attackArmDir = this.attackSpeed;
 				if(this.attackingWith instanceof Spear) {
-					this.attackArmDir = 4;
+					this.attackArmDir = 4 * (this.attackSpeed / 5);
 				}
 			}
 		}
@@ -1193,8 +1199,8 @@ Player.prototype.update = function() {
 			weaponPos.x += this.x;
 			weaponPos.y += this.y + 26 - this.velY;
 			if(showHitboxes) {
-				c.fillStyle = "rgb(255, 0, 0)";
-				c.fillRect(weaponPos.x - 5, weaponPos.y - 5, 10, 10);
+				c.fillStyle = "rgb(0, 255, 0)";
+				c.fillRect(weaponPos.x - 3, weaponPos.y - 3, 6, 6);
 			}
 			//check enemies to see if weapon hits any
 			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
@@ -1320,13 +1326,21 @@ Player.prototype.update = function() {
 						roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].origX = roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].x;
 					}
 				}
+				this.arrowEfficiency = 0;
 				for(var i = 0; i < this.invSlots.length; i ++) {
-					if(this.invSlots[i].content instanceof Arrow) {
-						if(this.invSlots[i].content.quantity > 1) {
-							this.invSlots[i].content.quantity --;
-						}
-						else {
-							this.invSlots[i].content = "empty";
+					if(this.invSlots[i].type === "equip" && this.invSlots[i].content.arrowEfficiency !== undefined) {
+						this.arrowEfficiency += this.invSlots[i].content.arrowEfficiency * 0.01;
+					}
+				}
+				if(Math.random() < (1 - this.arrowEfficiency)) {
+					for(var i = 0; i < this.invSlots.length; i ++) {
+						if(this.invSlots[i].content instanceof Arrow) {
+							if(this.invSlots[i].content.quantity > 1) {
+								this.invSlots[i].content.quantity --;
+							}
+							else {
+								this.invSlots[i].content = "empty";
+							}
 						}
 					}
 				}
@@ -1388,13 +1402,21 @@ Player.prototype.update = function() {
 				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 			}
+			this.arrowEfficiency = 0;
 			for(var i = 0; i < this.invSlots.length; i ++) {
-				if(this.invSlots[i].content instanceof Arrow) {
-					if(this.invSlots[i].content.quantity > 1) {
-						this.invSlots[i].content.quantity --;
-					}
-					else {
-						this.invSlots[i].content = "empty";
+				if(this.invSlots[i].type === "equip" && this.invSlots[i].content.arrowEfficiency !== undefined) {
+					this.arrowEfficiency += this.invSlots[i].content.arrowEfficiency * 0.01;
+				}
+			}
+			if(Math.random() < (1 - this.arrowEfficiency)) {
+				for(var i = 0; i < this.invSlots.length; i ++) {
+					if(this.invSlots[i].content instanceof Arrow) {
+						if(this.invSlots[i].content.quantity > 1) {
+							this.invSlots[i].content.quantity --;
+						}
+						else {
+							this.invSlots[i].content = "empty";
+						}
 					}
 				}
 			}
@@ -1409,10 +1431,16 @@ Player.prototype.update = function() {
 	}
 	if(this.numHeals > 0 && frameCount % 300 === 0) {
 		this.health ++;
-		this.numHeals --;
+		this.numHeals -= 0.1;
 	}
-	if(frameCount % 180 === 0 && this.mana < this.maxMana) {
-		this.mana ++;
+	this.manaRegen = 1;
+	for(var i = 0; i < this.invSlots.length; i ++) {
+		if(this.invSlots[i].type === "equip" && this.invSlots[i].content instanceof WizardHat) {
+			this.manaRegen -= (this.invSlots[i].content.manaRegen * 0.01);
+		}
+	}
+	if(frameCount % Math.floor(18 * this.manaRegen) === 0 && this.mana < this.maxMana) {
+		this.mana += 1;
 	}
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		if(this.invSlots[i].content instanceof Coin) {
@@ -1449,7 +1477,14 @@ Player.prototype.gui = function() {
 		else if(this.guiOpen === "inventory") {
 			this.guiOpen = "none";
 		}
+		else if(this.guiOpen.substr(0, 7) === "reforge") {
+			this.guiOpen = "none";
+		}
 		this.openCooldown = 2;
+	}
+	if(keys[27]) {
+		// escape key to exit guis
+		this.guiOpen = "none";
 	}
 	//inventory
 	if(this.guiOpen === "inventory") {
@@ -1514,12 +1549,39 @@ Player.prototype.gui = function() {
 		}
 		if(hoverIndex !== null) {
 			//display desc of hovered item
-			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + 70, this.invSlots[hoverIndex].y + 35);
+			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + ((this.invSlots[hoverIndex].type === "equip") ? 0 : 70), this.invSlots[hoverIndex].y + 35, (this.invSlots[hoverIndex].type === "equip") ? "left" : "right");
 			//move item if clicked
 			if(mouseIsPressed) {
-				if(this.invSlots[hoverIndex].type === "storage") { //hoverIndex is deleted, i is created
-					for(var i = 0; i < 3; i ++) {
-						if(this.invSlots[i].content === "empty") {
+				if(this.invSlots[hoverIndex].type === "storage") {
+					//hoverIndex is deleted, i is created
+					if(!(this.invSlots[hoverIndex].content instanceof Equipable)) {
+						for(var i = 0; i < 3; i ++) {
+							if(this.invSlots[i].content === "empty") {
+								this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
+								for(var j in this.invSlots[hoverIndex].content) {
+									this.invSlots[i].content[j] = this.invSlots[hoverIndex].content[j];
+								}
+								this.invSlots[hoverIndex].content = "empty";
+								break;
+							}
+						}
+					}
+					else {
+						for(var i = 0; i < this.invSlots.length; i ++) {
+							if(this.invSlots[i].type === "equip" && this.invSlots[i].content === "empty") {
+								this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
+								for(var j in this.invSlots[hoverIndex].content) {
+									this.invSlots[i].content[j] = this.invSlots[hoverIndex].content[j];
+								}
+								this.invSlots[hoverIndex].content = "empty";
+								break;
+							}
+						}
+					}
+				}
+				else if(this.invSlots[hoverIndex].type === "holding") {
+					for(var i = 0; i < this.invSlots.length; i ++) {
+						if(this.invSlots[i].type === "storage" && this.invSlots[i].content === "empty") {
 							this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
 							for(var j in this.invSlots[hoverIndex].content) {
 								this.invSlots[i].content[j] = this.invSlots[hoverIndex].content[j];
@@ -1529,7 +1591,7 @@ Player.prototype.gui = function() {
 						}
 					}
 				}
-				else if(this.invSlots[hoverIndex].type === "holding") {
+				else if(this.invSlots[hoverIndex].type === "equip") {
 					for(var i = 0; i < this.invSlots.length; i ++) {
 						if(this.invSlots[i].type === "storage" && this.invSlots[i].content === "empty") {
 							this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
@@ -1624,7 +1686,7 @@ Player.prototype.gui = function() {
 		}
 		if(hoverIndex !== null) {
 			//display desc of hovered item
-			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + 70, this.invSlots[hoverIndex].y + 35);
+			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + (this.invSlots[hoverIndex].type === "equip" ? 0 : 70), this.invSlots[hoverIndex].y + 35, this.invSlots[hoverIndex].type === "equip" ? "left" : "right");
 			if(mouseIsPressed && this.invSlots[hoverIndex].content instanceof Weapon && !(this.invSlots[hoverIndex].content instanceof Arrow) && this.invSlots[hoverIndex].content.element !== this.infusedGui) {
 				this.invSlots[hoverIndex].content.element = this.infusedGui;
 				this.guiOpen = "none";
@@ -1708,7 +1770,7 @@ Player.prototype.gui = function() {
 		}
 		if(hoverIndex !== null) {
 			//display desc of hovered item
-			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + 70, this.invSlots[hoverIndex].y + 35);
+			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + (this.invSlots[hoverIndex].type === "equip" ? 0 : 70), this.invSlots[hoverIndex].y + 35, this.invSlots[hoverIndex].type === "equip" ? "left" : "right");
 			if(mouseIsPressed && (this.invSlots[hoverIndex].content instanceof Weapon || this.invSlots[hoverIndex].content instanceof Equipable) && !(this.invSlots[hoverIndex].content instanceof Arrow)) {
 				this.reforgeIndex = hoverIndex;
 				if(this.invSlots[hoverIndex].content.modifier === "none") {
@@ -1823,6 +1885,12 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
 				}
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof Forge) {
+						roomInstances[inRoom].content[i].used = true;
+						break;
+					}
+				}
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
@@ -1843,6 +1911,12 @@ Player.prototype.gui = function() {
 				}
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
+			}
+			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+				if(roomInstances[inRoom].content[i] instanceof Forge) {
+					roomInstances[inRoom].content[i].used = true;
+					break;
 				}
 			}
 		}
@@ -1915,6 +1989,12 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
 				}
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof Forge) {
+						roomInstances[inRoom].content[i].used = true;
+						break;
+					}
+				}
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
@@ -1935,6 +2015,12 @@ Player.prototype.gui = function() {
 				}
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof Forge) {
+						roomInstances[inRoom].content[i].used = true;
+						break;
+					}
 				}
 			}
 		}
@@ -2008,6 +2094,12 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
 				}
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof Forge) {
+						roomInstances[inRoom].content[i].used = true;
+						break;
+					}
+				}
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
@@ -2027,6 +2119,12 @@ Player.prototype.gui = function() {
 				}
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof Forge) {
+						roomInstances[inRoom].content[i].used = true;
+						break;
+					}
 				}
 			}
 		}
@@ -2106,6 +2204,12 @@ Player.prototype.addItem = function(item) {
 Player.prototype.hurt = function(amount, killer) {
 	this.defLow = 0;//work in progress, this will change depending on armor
 	this.defHigh = 0;
+	for(var i = 0; i < this.invSlots.length; i ++) {
+		if(this.invSlots[i].type === "equip" && this.invSlots[i].content.defLow !== undefined && this.invSlots[i].content.defHigh !== undefined) {
+			this.defLow += this.invSlots[i].content.defLow;
+			this.defHigh += this.invSlots[i].content.defHigh;
+		}
+	}
 	var defense = Math.random() * (this.defHigh - this.defLow) + this.defLow;
 	var damage = amount - defense;
 	if(damage < 0) {
@@ -2168,6 +2272,7 @@ Player.prototype.reset = function() {
 		case "mage":
 			this.addItem(new EnergyStaff());
 			this.addItem(new Dagger());
+			this.addItem(new WizardHat());
 			break;
 	}
 };
@@ -2285,6 +2390,58 @@ function Door(x, y, dest, noEntry, invertEntries, type) {
 	this.type = type || "same";
 	this.onPath = false;
 };
+Door.prototype.getInfo = function() {
+	//returns the text to display when the user is holding a map
+	if(!(p.invSlots[p.activeSlot].content instanceof Map)) {
+		return ""; //not holding a map -> no explanatory text
+	}
+	if(typeof this.dest === "object") {
+		return "?"; //unexplored -> "?"
+	}
+	var isDeadEnd = true;
+	for(var i = 0; i < roomInstances[this.dest].content.length; i ++) {
+		if(roomInstances[this.dest].content[i] instanceof Door) {
+			isDeadEnd = false;
+			break;
+		}
+	}
+	if(isDeadEnd) {
+		return "x"; // "x" if no doors in the room
+	}
+	var indices = [theRoom];
+	function isUnknown(index) {
+		for(var i = 0; i < indices.length; i ++) {
+			if(index === indices[i]) {
+				return false;
+			}
+		}
+		indices.push(index);
+		var containsUnknown = false;
+		for(var i = 0; i < roomInstances[index].content.length; i ++) {
+			if(!(roomInstances[index].content[i] instanceof Door)) {
+				continue;
+			}
+			if(typeof roomInstances[index].content[i].dest === "object") {
+				return true;
+			}
+			else {
+				var leadsToUnknown = isUnknown(roomInstances[index].content[i].dest);
+				if(leadsToUnknown) {
+					return true;
+				}
+			}
+		}
+		return false;
+	};
+	var leadsToUnexplored = isUnknown(this.dest);
+	if(leadsToUnexplored) {
+		return "^";
+	}
+	for(var i = 0; i < roomInstances.length; i ++) {
+		delete roomInstances[i].doorPathScore;
+	}
+	return "x";
+};
 Door.prototype.exist = function() {
 	if(this.type === "same" || this.type === "toggle") {
 		if(this.type === "same") {
@@ -2357,6 +2514,23 @@ Door.prototype.exist = function() {
 
 		c.restore();
 
+	}
+	//text for maps
+	var symbol = this.getInfo();
+	var center = point3d(this.x + p.worldX, this.y + p.worldY - 40, 0.9);
+	c.font = "15pt monospace";
+	c.fillStyle = "rgb(255, 255, 255)";
+	c.textAlign = "center";
+	if(symbol !== ">" || true) {
+		c.fillText(symbol, center.x, center.y);
+	}
+	else {
+		if(p.x > this.x + p.worldX) {
+			c.fillText("<", center.x, center.y);
+		}
+		else {
+			c.fillText(">", center.x, center.y);
+		}
 	}
 	//transition between rooms
 	if(p.x - 5 > leftBX && p.x + 5 < rightBX && p.y + 46 > topBY && p.y + 46 < bottomBY + 10 && p.canJump && keys[83] && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
@@ -2608,15 +2782,15 @@ Torch.prototype.exist = function() {
 			this.color = "rgb(0, 255, 255)";
 		}
 	}
-	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95);
-	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97);
+	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97, undefined, undefined, { noFrontExtended: true });
 	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
 		this.lit = true;
 	}
 	if(this.lit) {
 		// this.fireParticles.push(new FireParticle(this.x, this.y - 25));
 		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.random() * -3, Math.random() * 5 + 5));
-		this.fireParticles[this.fireParticles.length - 1].z = 0.97;
+		this.fireParticles[this.fireParticles.length - 1].z = Math.random() * 0.02 + 0.94;
 		for(var i = 0; i < this.fireParticles.length; i ++) {
 			this.fireParticles[i].exist();
 			if(this.fireParticles[i].splicing) {
@@ -2625,6 +2799,8 @@ Torch.prototype.exist = function() {
 			}
 		}
 	}
+	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.95, 0.95, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.97, 0.97, undefined, undefined, { noFrontExtended: true });
 };
 function FireParticle(x, y) {
 	this.x = x;
@@ -3077,13 +3253,13 @@ function Altar(x, y, type) {
 Altar.prototype.exist = function() {
 	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 46 > this.y + p.worldY - 20 && p.y - 5 < this.y + p.worldY + 20) {
 		if(this.type === "health") {
-			p.health ++;
-			p.maxHealth ++;
+			p.health += 10;
+			p.maxHealth += 10;
 			// roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max health", "rgb(255, 0, 0)"));
 		}
 		else if(this.type === "mana") {
-			p.mana ++;
-			p.maxMana ++;
+			p.mana += 10;
+			p.maxMana += 10;
 			// roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max mana", "rgb(0, 0, 255)"));
 		}
 		this.splicing = true;
@@ -3184,7 +3360,6 @@ Forge.prototype.exist = function() {
 	//usage
 	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && keys[83] && !this.used) {
 		p.guiOpen = "reforge-item";
-		this.used = true;
 	}
 };
 function Pulley(x1, w1, x2, w2, y, maxHeight) {
@@ -4371,8 +4546,9 @@ Fountain.prototype.exist = function() {
 			c.lineTo(p2.x, p2.y);
 			c.stroke();
 		}
-		if(topY > 150) {
+		if(topY > 250) {
 			this.waterAnimations.splice(i, 1);
+			i --;
 			continue;
 		}
 	}
@@ -4558,14 +4734,19 @@ Room.prototype.exist = function(index) {
 			if(!this.content[i].initialized) {
 				this.content[i].init();
 			}
+			var chestIndex = 0;
+			for(var j = 0; j < this.content.length; j ++) {
+				if(this.content[j] instanceof Chest && Math.distSq(this.content[j].x, this.content[j].y, this.content[i].x, this.content[i].y) < Math.distSq(this.content[chestIndex].x, this.content[chestIndex].y, this.content[i].x, this.content[i].y)) {
+					chestIndex = j;
+				}
+			}
 			c.save();
 			c.globalAlpha = (this.content[i].opacity < 0) ? 0 : this.content[i].opacity;
 			c.translate(this.content[i].x + p.worldX, this.content[i].y + p.worldY);
-			this.content[i].display("item");
-			c.fillStyle = "rgb(255, 0, 0)";
 			c.beginPath();
-			//c.arc(0, 0, 500000000, 0, 2 * Math.PI);
-			c.fill();
+			c.rect(this.content[chestIndex].x - 20 - (this.content[i].x), this.content[chestIndex].y - 1000 - (this.content[i].y), 40, 1000);
+			c.clip();
+			this.content[i].display("item");
 			c.restore();
 			this.content[i].animate();
 			if(this.content[i].opacity <= 0) {
@@ -5368,20 +5549,11 @@ var items = [
 	Dagger, Sword, Spear, //melee weapons
 	WoodBow, MetalBow, MechBow, LongBow, //ranged weapons
 	EnergyStaff, ElementalStaff, PurityStaff, //magic weapons
-	Barricade, FireCrystal, WaterCrystal, EarthCrystal, AirCrystal //extras / bonuses
+	WizardHat, MagicQuiver, //equipables
+	Barricade, Map, //extras / bonuses
+	FireCrystal, WaterCrystal, EarthCrystal, AirCrystal //crystals
 ];
 var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
-if(hax) {
-	// items = [items[2]];
-	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "parkour5") {
-			rooms.splice(i, 1);
-			i --;
-			continue;
-		}
-	}
-	enemies = [Bat];
-}
 var roomInstances = [
 	new Room(
 		"ambient1",
@@ -5401,6 +5573,23 @@ var roomInstances = [
 		"?"
 	)
 ];
+if(hax) {
+	// items = [items[2]];
+	for(var i = 0; i < rooms.length; i ++) {
+		if(rooms[i].name !== "combat3" && rooms[i].name !== "reward1") {
+			rooms.splice(i, 1);
+			i --;
+			continue;
+		}
+	}
+	enemies = [Wraith];
+	// items = [MechBow];
+	for(var i = 0; i < roomInstances[0].content.length; i ++) {
+		if(roomInstances[0].content[i] instanceof Door) {
+			// roomInstances[0].content[i].dest = ["reward"];
+		}
+	}
+}
 
 
 /** ITEMS **/
@@ -5432,7 +5621,8 @@ Item.prototype.animate = function() {
 		this.opacity -= 0.05;
 	}
 };
-Item.prototype.displayDesc = function(x, y) {
+Item.prototype.displayDesc = function(x, y, dir) {
+	dir = dir || "left";
 	//split overflow into multiple lines
 	for(var i = 0; i < this.desc.length; i ++) {
 		c.font = this.desc[i].font;
@@ -5488,22 +5678,42 @@ Item.prototype.displayDesc = function(x, y) {
 	var idealY = y - (descHeight / 2);
 	var actualY = (idealY > 20) ? idealY : 20;
 	actualY = (actualY + (descHeight / 2) < 780) ? actualY : 780 - (descHeight / 2);
-	//text box
-	c.fillStyle = "rgb(100, 100, 100)";
-	c.beginPath();
-	c.moveTo(x, y);
-	c.lineTo(x + 10, y - 10);
-	c.lineTo(x + 10, y + 10);
-	c.fill();
-	c.fillRect(x + 10, actualY, 200, descHeight);
-	//text
-	c.textAlign = "left";
-	for(var i = 0; i < this.desc.length; i ++) {
-		c.fillStyle = this.desc[i].color;
-		c.font = this.desc[i].font;
-		c.fillText(this.desc[i].content, x + 15, actualY + (i * 12) + 15);
+	if(dir === "right") {
+		//text box
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.beginPath();
+		c.moveTo(x, y);
+		c.lineTo(x + 10, y - 10);
+		c.lineTo(x + 10, y + 10);
+		c.fill();
+		c.fillRect(x + 10, actualY, 200, descHeight);
+		//text
+		c.textAlign = "left";
+		for(var i = 0; i < this.desc.length; i ++) {
+			c.fillStyle = this.desc[i].color;
+			c.font = this.desc[i].font;
+			c.fillText(this.desc[i].content, x + 15, actualY + (i * 12) + 15);
+		}
+		c.textAlign = "center";
 	}
-	c.textAlign = "center";
+	else {
+		//text box
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.beginPath();
+		c.moveTo(x, y);
+		c.lineTo(x - 10, y - 10);
+		c.lineTo(x - 10, y + 10);
+		c.fill();
+		c.fillRect(x - 210, actualY, 200, descHeight);
+		//text
+		c.textAlign = "left";
+		for(var i = 0; i < this.desc.length; i ++) {
+			c.fillStyle = this.desc[i].color;
+			c.font = this.desc[i].font;
+			c.fillText(this.desc[i].content, x - 205, actualY + (i * 12) + 15);
+		}
+		c.textAlign = "center";
+	}
 };
 
 //weapons
@@ -5553,8 +5763,8 @@ MeleeWeapon.prototype.attack = function() {
 };
 function Dagger(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = p.class === "warrior" ? 6 : 5;
-	this.damHigh = p.class === "warrior" ? 8 : 7;
+	this.damLow = p.class === "warrior" ? 60 : 50;
+	this.damHigh = p.class === "warrior" ? 80 : 70;
 	this.range = 30;
 	this.power = 2;
 };
@@ -5612,8 +5822,8 @@ Dagger.prototype.display = function(type) {
 };
 function Sword(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = p.class === "warrior" ? 8 : 7;
-	this.damHigh = p.class === "warrior" ? 11 : 10;
+	this.damLow = p.class === "warrior" ? 80 : 70;
+	this.damHigh = p.class === "warrior" ? 110 : 100;
 	this.range = 60;
 	this.power = 3;
 };
@@ -5690,8 +5900,8 @@ Sword.prototype.getDesc = function() {
 };
 function Spear(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = p.class === "warrior" ? 8 : 7;
-	this.damHigh = p.class === "warrior" ? 11 : 10;
+	this.damLow = p.class === "warrior" ? 80 : 70;
+	this.damHigh = p.class === "warrior" ? 110 : 100;
 	this.range = 60;
 	this.power = 3;
 };
@@ -5750,8 +5960,8 @@ Spear.prototype.getDesc = function() {
 };
 function Mace(modifier) {
 	MeleeWeapon.call(this, modifier);
-	this.damLow = 12;
-	this.damHigh = 15;
+	this.damLow = 120;
+	this.damHigh = 150;
 	this.attackSpeed = "slow";
 	this.power = 4;
 };
@@ -5878,8 +6088,8 @@ Arrow.prototype.getDesc = function() {
 };
 function WoodBow(modifier) {
 	RangedWeapon.call(this, modifier);
-	this.damLow = p.class === "archer" ? 8 : 7;
-	this.damHigh = p.class === "archer" ? 11 : 10;
+	this.damLow = p.class === "archer" ? 80 : 70;
+	this.damHigh = p.class === "archer" ? 110 : 100;
 	this.range = "long";
 	this.power = 3;
 	/*
@@ -5939,8 +6149,8 @@ WoodBow.prototype.getDesc = function() {
 };
 function MetalBow(modifier) {
 	RangedWeapon.call(this, modifier);
-	this.damLow = p.class === "archer" ? 11 : 10;
-	this.damHigh = p.class === "archer" ? 13 : 12;
+	this.damLow = p.class === "archer" ? 110 : 100;
+	this.damHigh = p.class === "archer" ? 130 : 120;
 	this.range = "long";
 	this.power = 4;
 };
@@ -5999,8 +6209,8 @@ function MechBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.attackSpeed = "fast";
 	this.range = "long";
-	this.damLow = (p.class === "archer") ? 7 : 6;
-	this.damHigh = (p.class === "archer") ? 10 : 9;
+	this.damLow = (p.class === "archer") ? 70 : 60;
+	this.damHigh = (p.class === "archer") ? 100 : 90;
 	this.power = 4;
 };
 inheritsFrom(MechBow, RangedWeapon);
@@ -6094,8 +6304,8 @@ MechBow.prototype.getDesc = function() {
 function LongBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.range = "very long";
-	this.damLow = (p.class === "archer") ? 9 : 8;
-	this.damHigh = (p.class === "archer") ? 10 : 9;
+	this.damLow = (p.class === "archer") ? 90 : 80;
+	this.damHigh = (p.class === "archer") ? 100 : 90;
 	this.power = 5;
 };
 inheritsFrom(LongBow, RangedWeapon);
@@ -6161,9 +6371,9 @@ inheritsFrom(MagicWeapon, Weapon);
 function EnergyStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.chargeType = "energy";
-	this.manaCost = (this.modifier === "none") ? 4 : (this.modifier === "arcane" ? 5 : 3);
-	this.damLow = (p.class === "mage") ? 8 : 7;
-	this.damHigh = (p.class === "mage") ? 11 : 10;
+	this.manaCost = (this.modifier === "none") ? 40 : (this.modifier === "arcane" ? 50 : 30);
+	this.damLow = (p.class === "mage") ? 80 : 70;
+	this.damHigh = (p.class === "mage") ? 110 : 100;
 	this.power = 3;
 };
 inheritsFrom(EnergyStaff, MagicWeapon);
@@ -6210,9 +6420,9 @@ EnergyStaff.prototype.getDesc = function() {
 function ElementalStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.element = "none";
-	this.manaCost = 3;
-	this.damLow = (p.class === "mage") ? 6 : 5;
-	this.damHigh = (p.class === "mage") ? 9 : 8;
+	this.manaCost = (this.modifier === "none") ? 30 : (this.modifier === "arcane" ? 40 : 20);
+	this.damLow = (p.class === "mage") ? 60 : 50;
+	this.damHigh = (p.class === "mage") ? 90 : 80;
 	this.power = 4;
 };
 inheritsFrom(ElementalStaff, MagicWeapon);
@@ -6394,7 +6604,7 @@ ElementalStaff.prototype.getDesc = function() {
 };
 function PurityStaff(modifier) {
 	MagicWeapon.call(this, modifier);
-	this.manaCost = 6;
+	this.manaCost = 60;
 	this.damLow = 0;
 	this.damHigh = 0;
 	this.chargeType = "purity";
@@ -6447,24 +6657,93 @@ function Equipable() {
 	Item.call(this);
 	this.equipable = true;
 };
+inheritsFrom(Equipable, Item);
 Equipable.prototype.init = function() {
 	return;
 };
-function Helmet() {
-	Equipable.call(this);
-	this.defLow = 3;
-	this.defHigh = 5;
-	this.power = 3;
+function WizardHat(modifier) {
+	Equipable.call(this, modifier);
+	this.defLow = 5;
+	this.defHigh = 10;
+	this.manaRegen = 15;
 };
-Helmet.prototype.display = function() {
-
+inheritsFrom(WizardHat, Equipable);
+WizardHat.prototype.display = function() {
+	c.fillStyle = "rgb(109, 99, 79)";
+	c.beginPath();
+	c.moveTo(-30, 20);
+	c.lineTo(30, 20);
+	c.lineTo(10, 15);
+	c.lineTo(0, -20);
+	c.lineTo(-10, 15);
+	c.fill();
 };
-Helmet.prototype.getDesc = function() {
+WizardHat.prototype.getDesc = function() {
 	return [
 		{
-			content: "something",
-			font: "bolder 10pt Cursive",
-			color: "rgb(255, 255, 255)"
+			content: "Wizard Hat",
+			color: "rgb(255, 255, 255)",
+			font: "bolder 10pt Cursive"
+		},
+		{
+			content: "Defense: " + this.defLow + "-" + this.defHigh,
+			color: "rgb(255, 255, 255)",
+			font: "10pt monospace"
+		},
+		{
+			content: "Mana Regen: " + this.manaRegen + "%",
+			color: "rgb(255, 255, 255)",
+			font: "10pt monospace"
+		},
+		{
+			content: "An old, weathered pointy hat.",
+			color: "rgb(150, 150, 150)",
+			font: "10pt Cursive"
+		}
+	];
+};
+function MagicQuiver(modifier) {
+	Equipable.call(this, modifier);
+	this.arrowEfficiency = 15;
+	this.defLow = 0;
+	this.defHigh = 5;
+};
+inheritsFrom(MagicQuiver, Equipable);
+MagicQuiver.prototype.display = function() {
+	c.save();
+	c.fillStyle = "rgb(139, 69, 19)";
+	c.translate(-5, 5);
+	c.rotate(45 / 180 * Math.PI);
+	c.fillRect(-10, -20, 20, 40);
+	c.beginPath();
+	c.arc(0, 20, 10, 0, 2 * Math.PI);
+	c.fill();
+	c.translate(-p.worldX, -p.worldY);
+	new ShotArrow(-3, -20, 0, -2).exist();
+	new ShotArrow(3, -30, 0, -2).exist();
+	c.restore();
+};
+MagicQuiver.prototype.getDesc = function() {
+	return [
+		{
+			content: "Magic Quiver",
+			color: "rgb(255, 255, 255)",
+			font: "bolder 10pt Cursive"
+		},
+		{
+			content: "Defense: " + this.defLow + "-" + this.defHigh,
+			color: "rgb(255, 255, 255)",
+			font: "10pt monospace"
+		},
+		{
+			content: "Arrow Efficiency: " + this.arrowEfficiency + "%",
+			color: "rgb(255, 255, 255)",
+			font: "10pt monospace"
+		},
+		{
+			content: "For some reason, arrows placed inside this quiver are able to be shot multiple times.",
+			color: "rgb(150, 150, 150)",
+			font: "10pt Cursive"
 		}
 	];
 };
@@ -6853,6 +7132,49 @@ WindBurst.prototype.update = function() {
 	if(this.opacity < 0) {
 		this.splicing = true;
 	}
+};
+function Map() {
+	Extra.call(this);
+};
+inheritsFrom(Map, Extra);
+Map.prototype.display = function() {
+	c.save();
+
+	c.fillStyle = "rgb(255, 255, 200)";
+	c.fillRect(-20, -20, 40, 40);
+
+	c.fillStyle = "rgb(255, 0, 0)";
+	c.fillText("x", 10, -10);
+
+	c.strokeStyle = "rgb(0, 0, 0)";
+	c.setLineDash([3, 3]);
+	c.lineWidth = 1;
+	c.beginPath();
+	c.moveTo(10, -5);
+	c.lineTo(10, 5);
+	c.lineTo(-5, 5);
+	c.lineTo(-20, 20);
+	c.stroke();
+	c.restore();
+};
+Map.prototype.getDesc = function() {
+	return [
+		{
+			content: "Map",
+			font: "bolder 10pt Cursive",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Shows you the way",
+			font: "10pt monospace",
+			color: "rgb(255, 255, 255)"
+		},
+		{
+			content: "Dead ends are marked with x's. Unexplored doors are marked with a '?'. Doors eventually leading to unexplored doors are marked with arrows.",
+			font: "10pt Cursive",
+			color: "rgb(150, 150, 150)"
+		}
+	];
 };
 
 function Barricade() {
@@ -7279,12 +7601,12 @@ function Spider(x, y) {
 	this.bottomY = 22;
 
 	//stats
-	this.health = 5;
-	this.maxHealth = 5;
-	this.defLow = 2;
-	this.defHigh = 3;
-	this.damLow = 2;
-	this.damHigh = 3;
+	this.health = 50;
+	this.maxHealth = 50;
+	this.defLow = 20;
+	this.defHigh = 30;
+	this.damLow = 20;
+	this.damHigh = 30;
 	this.name = "a giant spider";
 };
 inheritsFrom(Spider, Enemy);
@@ -7465,12 +7787,12 @@ function Bat(x, y) {
 	this.bottomY = 12;
 
 	//stats
-	this.health = 5;
-	this.maxHealth = 5;
-	this.defLow = 2;
-	this.defHigh = 3;
-	this.damLow = 2;
-	this.damHigh = 3;
+	this.health = 50;
+	this.maxHealth = 50;
+	this.defLow = 20;
+	this.defHigh = 30;
+	this.damLow = 20;
+	this.damHigh = 30;
 	this.name = "a bat"
 };
 inheritsFrom(Bat, Enemy);
@@ -7579,12 +7901,12 @@ function Skeleton(x, y) {
 	this.legDir = -0.5;
 
 	//stats
-	this.health = 10;
-	this.maxHealth = 10;
-	this.damLow = 2;
-	this.damHigh = 4;
-	this.defLow = 2;
-	this.defHigh = 4;
+	this.health = 100;
+	this.maxHealth = 100;
+	this.damLow = 20;
+	this.damHigh = 40;
+	this.defLow = 20;
+	this.defHigh = 40;
 
 	//hitbox
 	this.leftX = -13;
@@ -7687,12 +8009,12 @@ function SkeletonWarrior(x, y) {
 	this.bottomY = 43;
 
 	//stats
-	this.health = 10;
-	this.maxHealth = 10;
-	this.defLow = 4;
-	this.defHigh = 6;
-	this.damLow = 5;
-	this.damHigh = 7;
+	this.health = 100;
+	this.maxHealth = 100;
+	this.defLow = 40;
+	this.defHigh = 60;
+	this.damLow = 50;
+	this.damHigh = 70;
 	this.complexAttack = true;
 	this.name = "a skeletal warrior";
 };
@@ -7862,6 +8184,7 @@ function SkeletonArcher(x, y) {
 	this.aimDir = 1;
 	this.timeSinceAttack = 0;
 	this.timeAiming = 0;
+	this.velX = null;
 
 	//hitbox
 	this.leftX = -13;
@@ -7870,13 +8193,12 @@ function SkeletonArcher(x, y) {
 	this.bottomY = 43;
 
 	//stats
-	this.velX = null;
-	this.health = 10;
-	this.maxHealth = 10;
+	this.health = 100;
+	this.maxHealth = 100;
 	this.defLow = 0;
-	this.defHigh = 2;
-	this.damLow = 5;
-	this.damHigh = 7;
+	this.defHigh = 20;
+	this.damLow = 50;
+	this.damHigh = 70;
 	this.complexAttack = true;
 	this.name = "a skeletal archer";
 };
@@ -8151,12 +8473,12 @@ function Wraith(x, y) {
 	this.bottomY = 50;
 
 	//stats
-	this.health = 15;
-	this.maxHealth = 15;
-	this.damLow = 4;
-	this.damHigh = 5;
-	this.defLow = 4;
-	this.defHigh = 5;
+	this.health = 150;
+	this.maxHealth = 150;
+	this.damLow = 40;
+	this.damHigh = 50;
+	this.defLow = 40;
+	this.defHigh = 50;
 	this.complexAttack = true;
 	this.name = "a wraith of shadow";
 };
@@ -8596,11 +8918,12 @@ if(hax) {
 	// p.reset();
 	p.onScreen = "play";
 	for(var i = 0; i < items.length; i ++) {
-		//p.addItem(new items[i]());
+		p.addItem(new items[i]());
 	}
-	p.addItem(new Spear());
-	p.addItem(new Sword());
-	p.addItem(new Mace());
+	// p.addItem(new Map());
+	// p.addItem(new WoodBow());
+	// p.addItem(new Arrow(100));
+	// p.addItem(new MagicQuiver());
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
@@ -8618,6 +8941,15 @@ mageClass.y = 504;
 mageClass.addItem(new EnergyStaff());
 mageClass.attackingWith = new EnergyStaff();
 mageClass.activeSlot = 0;
+var howChar = new Player();
+howChar.init();
+var tutorialWorld = new Room(
+	"tutorial",
+	[
+		new Block(-4000, 400, 8000, 1000)
+	],
+	"?"
+);
 var platHeight1 = 550;
 var platHeight2 = 550;
 var platHeight3 = 550;
@@ -9057,7 +9389,7 @@ function doByTime() {
 							if(roomInstances[i].content[k] instanceof Door && typeof roomInstances[i].content[k].dest !== "object") {
 								var door = roomInstances[i].content[k];
 								var enemy = roomInstances[i].content[j];
-								if(enemy.x + enemy.rightX > door.x - 30 && enemy.x + enemy.leftX < door.x + 30 && enemy.y + enemy.bottomY > door.y - 60 && enemy.y + enemy.topY < door.y + 3) {
+								if(enemy.x + enemy.rightX > door.x - 30 && enemy.x + enemy.leftX < door.x + 30 && enemy.y + enemy.bottomY > door.y - 60 && enemy.y + enemy.topY < door.y + 3 && roomInstances[door.dest].pathScore < roomInstances[i].pathScore) {
 									roomInstances[door.dest].content.push(new enemy.constructor());
 									var newIndex = roomInstances[door.dest].content.length - 1;
 									var exitDoorIndex = null;
@@ -9081,17 +9413,12 @@ function doByTime() {
 						// roomInstances[i].content[j].display();
 					}
 					else if(roomInstances[i].content[j] instanceof Block || roomInstances[i].content[j] instanceof Platform || roomInstances[i].content[j] instanceof Stairs || roomInstances[i].content[j] instanceof Pulley) {
-						// roomInstances[i].content[j].x -= p.worldX;
-						// roomInstances[i].content[j].y -= p.worldY;
 						if(roomInstances[i].content[j] instanceof Block || roomInstances[i].content[j] instanceof Platform) {
 							roomInstances[i].content[j].update();
-							// roomInstances[i].content[j].display();
 						}
 						else if(roomInstances[i].content[j] instanceof Stairs) {
-							roomInstances[i].content[j].exist(false);
+							roomInstances[i].content[j].exist(true);
 						}
-						// roomInstances[i].content[j].x += p.worldX;
-						// roomInstances[i].content[j].y += p.worldY;
 					}
 				}
 			}
@@ -9123,6 +9450,16 @@ function doByTime() {
 		//left door text
 		fancyText(125, 495, "how");
 		c.fillStyle = "rgb(20, 20, 20)";
+		if(btn2 > 0) {
+			c.beginPath();
+			c.moveTo(125 - btn2, 505);
+			c.lineTo(125 + btn2, 505);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(125 - btn2, 505 - 40);
+			c.lineTo(125 + btn2, 505 - 40);
+			c.stroke();
+		}
 		//middle door
 		c.fillRect(320, 380, 160, 200);
 		c.beginPath();
@@ -9155,12 +9492,29 @@ function doByTime() {
 				btn1 += 5;
 			}
 			if(mouseIsPressed) {
+				roomInstances = [tutorialWorld];
+				inRoom = 0;
+				theRoom = 0;
+				howChar.tutorialTime = 0;
 				fading = "out";
 				fadeDest = "class-select";
 			}
 		}
 		else if(btn1 > 0) {
 			btn1 -= 5;
+		}
+		if(Math.dist(mouseX, mouseY, 125, 440) <= 80 || (mouseX > 40 && mouseX < 40 + 170 && mouseY > 380 && mouseY < 580)) {
+			cursorHand = true;
+			if(btn2 < 40) {
+				btn2 += 5;
+			}
+			if(mouseIsPressed) {
+				fading = "out";
+				fadeDest = "how";
+			}
+		}
+		else if(btn2 > 0) {
+			btn2 -= 5;
 		}
 	}
 	else if(p.onScreen === "class-select") {
@@ -9208,7 +9562,7 @@ function doByTime() {
 		c.fillText("+Start with staff", 550, 290);
 		c.fillText("+Start with dagger", 550, 330);
 		if(mouseX < 300) {
-			platHeight1 -= Math.dist(platHeight1, 0, 500, 0) / 30;
+			platHeight1 -= (platHeight1 > 500) ? 5 : 0;
 			if(mouseIsPressed && !pMouseIsPressed) {
 				p.class = "warrior";
 				fading = "out";
@@ -9217,10 +9571,10 @@ function doByTime() {
 			}
 		}
 		else {
-			platHeight1 += Math.dist(platHeight1, 0, 550, 0) / 30;
+			platHeight1 += (platHeight1 < 550) ? 5 : 0;
 		}
 		if(mouseX > 300 && mouseX < 500) {
-			platHeight2 -= Math.dist(platHeight2, 0, 500, 0) /30;
+			platHeight2 -= (platHeight2 > 500) ? 5 : 0;
 			if(mouseIsPressed && !pMouseIsPressed) {
 				p.class = "archer";
 				fading = "out";
@@ -9229,10 +9583,10 @@ function doByTime() {
 			}
 		}
 		else {
-			platHeight2 += Math.dist(platHeight2, 0, 550, 0) / 30;
+			platHeight2 += (platHeight2 < 550) ? 5 : 0;
 		}
 		if(mouseX > 500) {
-			platHeight3 -= Math.dist(platHeight3, 0, 500, 0) / 30;
+			platHeight3 -= (platHeight3 > 500) ? 5 : 0;
 			if(mouseIsPressed && !pMouseIsPressed) {
 				p.class = "mage";
 				fading = "out";
@@ -9241,7 +9595,7 @@ function doByTime() {
 			}
 		}
 		else {
-			platHeight3 += Math.dist(platHeight3, 0, 550, 0) / 30;
+			platHeight3 += (platHeight3 < 550) ? 5 : 0;
 		}
 		loadBoxFronts();
 	}
@@ -9319,6 +9673,15 @@ function doByTime() {
 		else if(btn2 > 0) {
 			btn2 -= 5;
 		}
+	}
+	else if(p.onScreen === "how") {
+		p.worldX = howChar.worldX, p.worldY = howChar.worldY;
+		theRoom = 0;
+		keys = [], mouseIsPressed = false, mouseX = -100, mouseY = -100;
+		howChar.update();
+		tutorialWorld.exist();
+		howChar.display();
+		howChar.gui();
 	}
 	if(p.onScreen !== "play" || p.dead || true) {
 		if(fading === "out") {
