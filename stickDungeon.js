@@ -21,6 +21,7 @@ var mouseIsPressed = false;
 var pMouseIsPressed;
 var cursorHand = false;
 function resizeCanvas() {
+	return;
 	if(window.innerWidth < window.innerHeight) {
 		canvas.style.width = "100%";
 		canvas.style.height = "";
@@ -41,6 +42,7 @@ function resizeCanvas() {
 };
 
 /** UTILITIES **/
+//generic utilities
 Math.dist = function(x1, y1, x2, y2) {
 	/*
 	Returns the distance between ('x1', 'y1') and ('x2', 'y2')
@@ -53,15 +55,13 @@ Math.distSq = function(x1, y1, x2, y2) {
 	*/
 	return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
 };
-Array.prototype.removeAll = function(item) {
-	/**
-	Splices all instances of item in the array
-	**/
-	for(var i = 0; i < this.length; i ++) {
-		if(this[i] === item) {
-			this.splice(i, 1);
-		}
-	}
+Math.normalize = function(x, y) {
+	/*
+	Scales the point ('x', 'y') so that it is 1 pixel away from the origin.
+	Expects to be able to use Math.rotate(), as shown above
+	*/
+	var deg = Math.atan2(y, x) / Math.PI * 180;
+	return Math.rotate(1, 0, deg);
 };
 Math.rad = function(deg) {
 	return deg / 180 * Math.PI;
@@ -72,14 +72,161 @@ Math.map = function(value, min1, max1, min2, max2) {
 	*/
 	return (value - min1) / (max1 - min1) * (max2 - min2) + min2;
 };
-var boxFronts = [];//for 3d-ish rendering
-var extraGraphics = [];
-function getRotated(x, y, deg) {
+Math.rotate = function(x, y, deg) {
 	deg = Math.rad(deg);
 	return {
 		x: x * Math.cos(deg) - y * Math.sin(deg),
 		y: x * Math.sin(deg) + y * Math.cos(deg)
 	};
+};
+function deepClone(obj) {
+	/*
+	Returns a new object, identical to 'obj' but not a reference.
+	Note: do not pass circular objects.
+	*/
+	if(typeof(obj) !== "object" || obj === null) {
+		return obj;
+	}
+	var clone = {};
+	if(Array.isArray(obj)) {
+		clone = [];
+	}
+	for(var i in obj) {
+		if(Array.isArray(obj) && isNaN(parseInt(i))) {
+			continue;
+		}
+		clone[i] = deepClone(obj[i]);
+	}
+	return clone;
+};
+function findPointsCircular(x, y, r) {
+	var circularPoints = [];
+	//top right quadrant
+	for(var X = x; X < x + r; X ++) {
+		for(var Y = y - r; Y < y; Y ++) {
+			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
+				circularPoints.push({x: X, y: Y});
+			}
+		}
+	}
+	//bottom right quadrant
+	for(var X = x + r; X > x; X --) {
+		for(var Y = y; Y < y + r; Y ++) {
+			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
+				circularPoints.push({x: X, y: Y});
+			}
+		}
+	}
+	//bottom left
+	for(var X = x; X > x - r; X --) {
+		for(var Y = y + r; Y > y; Y --) {
+			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
+				circularPoints.push({x: X, y: Y});
+			}
+		}
+	}
+	//top left
+	for(var X = x - r; X < x; X ++) {
+		for(var Y = y; Y > y - r; Y --) {
+			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
+				circularPoints.push({x: X, y: Y});
+			}
+		}
+	}
+	return circularPoints;
+};
+function findPointsLinear(x1, y1, x2, y2) {
+	var inverted = false;
+	if(Math.abs(x1 - x2) < Math.abs(y1 - y2)) {
+		inverted = true;
+		//swap x's and y's
+		var oldX1 = x1;
+		x1 = y1;
+		y1 = oldX1;
+		var oldX2 = x2;
+		x2 = y2;
+		y2 = oldX2;
+	}
+	var m = Math.abs(y1 - y2) / Math.abs(x1 - x2);
+	var linearPoints = [];
+	if(x1 < x2) {
+		if(y1 < y2) {
+			var y = y1;
+			for(var x = x1; x < x2; x ++) {
+				y += m;
+				linearPoints.push({x: x, y: y});
+			}
+		}
+		else if(y2 < y1) {
+			var y = y2;
+			for(var x = x2; x > x1; x --) {
+				y += m;
+				linearPoints.push({x: x, y: y});
+			}
+		}
+	}
+	else if(x2 < x1) {
+		if(y1 < y2) {
+			var y = y1;
+			for(var x = x1; x > x2; x --) {
+				y += m;
+				linearPoints.push({x: x, y: y});
+			}
+		}
+		else if(y2 < y1) {
+			var y = y2;
+			for(var x = x2; x < x1; x ++) {
+				y += m;
+				linearPoints.push({x: x, y: y});
+			}
+		}
+	}
+	if(x1 === x2) {
+		for(var y = (y1 < y2) ? y1 : y2; y < (y1 < y2) ? y2 : y1; y ++) {
+			linearPoints.push({x: x1, y: y});
+		}
+	}
+	else if(y1 === y2) {
+		if(x1 < x2) {
+			for(var x = x1; x < x2; x ++) {
+				linearPoints.push({x: x, y: y1});
+			}
+		}
+		if(x2 < x1) {
+			for(var x = x2; x < x1; x ++) {
+				linearPoints.push({x: x, y: y1});
+			}
+		}
+	}
+	if(inverted) {
+		for(var i = 0; i < linearPoints.length; i ++) {
+			var oldX = linearPoints[i].x;
+			linearPoints[i].x = linearPoints[i].y;
+			linearPoints[i].y = oldX;
+		}
+	}
+	return linearPoints;
+};
+//parallax graphic utilities
+function point3d(x, y, z) {
+	//returns the visual position of a point at x, y, z
+	return {
+		x: 400 - (400 - x) * z,
+		y: 400 - (400 - y) * z,
+	}
+};
+function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
+	var p1 = point3d(x1, y1, startDepth);
+	var p2 = point3d(x1, y1, endDepth);
+	var p3 = point3d(x2, y2, endDepth);
+	var p4 = point3d(x2, y2, startDepth);
+	c.fillStyle = col;
+	c.beginPath();
+	c.moveTo(p1.x, p1.y);
+	c.lineTo(p2.x, p2.y);
+	c.lineTo(p3.x, p3.y);
+	c.lineTo(p4.x, p4.y);
+	c.fill();
 };
 function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 	if(typeof sideCol !== "string") {
@@ -167,60 +314,6 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 		c.fillRect(leftFX, topFY, rightFX - leftFX, bottomFY - topFY);
 	}
 };
-function cylinder(x, y, r, startDepth, endDepth, frontCol, sideCol, arr) {
-	var width = c.lineWidth;
-	c.lineWidth = 4;
-	if(arr === undefined) {
-		//if you know what the array of points is, pass it to the function as 'arr' so it doesn't have to calculate for better fps (should be centered on the origin)
-		var arr = findPointsCircular(x, y, r);
-	}
-	else {
-		for(var i = 0; i < arr.length; i ++) {
-			arr[i].x += x;
-			arr[i].y += y;
-		}
-	}
-	for(var i = 0; i < arr.length - 1; i ++) {
-		var front1 = point3d(arr[i].x, arr[i].y, startDepth);
-		var back1 = point3d(arr[i].x, arr[i].y, endDepth);
-		var front2 = point3d(arr[i + 1].x, arr[i + 1].y, startDepth);
-		var back2 = point3d(arr[i + 1].x, arr[i + 1].y, endDepth);
-		c.fillStyle = sideCol;
-		c.beginPath();
-		c.moveTo(front1.x, front1.y);
-		c.lineTo(back1.x, back1.y);
-		c.lineTo(back2.x, back2.y);
-		c.lineTo(front2.x, front2.y);
-		c.fill();
-	}
-	var center = point3d(x, y, (startDepth > endDepth) ? startDepth : endDepth);
-	boxFronts.push({
-		type: "circle",
-		loc: [center.x, center.y, r],
-		col: frontCol
-	});
-	c.lineWidth = width;
-};
-function point3d(x, y, z) {
-	//returns the visual position of a point at x, y, z
-	return {
-		x: 400 - (400 - x) * z,
-		y: 400 - (400 - y) * z,
-	}
-};
-function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
-	var p1 = point3d(x1, y1, startDepth);
-	var p2 = point3d(x1, y1, endDepth);
-	var p3 = point3d(x2, y2, endDepth);
-	var p4 = point3d(x2, y2, startDepth);
-	c.fillStyle = col;
-	c.beginPath();
-	c.moveTo(p1.x, p1.y);
-	c.lineTo(p2.x, p2.y);
-	c.lineTo(p3.x, p3.y);
-	c.lineTo(p4.x, p4.y);
-	c.fill();
-};
 function polygon3d(frontCol, sideCol, startDepth, endDepth, points) {
 	//swap 'startDepth' and 'endDepth' if in wrong order
 	if(startDepth > endDepth) {
@@ -259,6 +352,43 @@ function polygon3d(frontCol, sideCol, startDepth, endDepth, points) {
 	}
 	c.fill();
 };
+function cylinder(x, y, r, startDepth, endDepth, frontCol, sideCol, arr) {
+	var width = c.lineWidth;
+	c.lineWidth = 4;
+	if(arr === undefined) {
+		//if you know what the array of points is, pass it to the function as 'arr' so it doesn't have to calculate for better fps (should be centered on the origin)
+		var arr = findPointsCircular(x, y, r);
+	}
+	else {
+		for(var i = 0; i < arr.length; i ++) {
+			arr[i].x += x;
+			arr[i].y += y;
+		}
+	}
+	for(var i = 0; i < arr.length - 1; i ++) {
+		var front1 = point3d(arr[i].x, arr[i].y, startDepth);
+		var back1 = point3d(arr[i].x, arr[i].y, endDepth);
+		var front2 = point3d(arr[i + 1].x, arr[i + 1].y, startDepth);
+		var back2 = point3d(arr[i + 1].x, arr[i + 1].y, endDepth);
+		c.fillStyle = sideCol;
+		c.beginPath();
+		c.moveTo(front1.x, front1.y);
+		c.lineTo(back1.x, back1.y);
+		c.lineTo(back2.x, back2.y);
+		c.lineTo(front2.x, front2.y);
+		c.fill();
+	}
+	var center = point3d(x, y, (startDepth > endDepth) ? startDepth : endDepth);
+	boxFronts.push({
+		type: "circle",
+		loc: [center.x, center.y, r],
+		col: frontCol
+	});
+	c.lineWidth = width;
+};
+var boxFronts = [];//for 3d-ish rendering
+var extraGraphics = [];
+//game-specific utilities
 function hitboxRect(x, y, w, h) {
 	if(showHitboxes) {
 		hitboxes.push({x: x, y: y, w: w, h: h, color: "green"});
@@ -271,7 +401,15 @@ function collisionRect(x, y, w, h, settings) {
 	settings.walls = settings.walls || [true, true, true, true];
 	settings.illegalHandling = settings.illegalHandling || "collide";
 	settings.moving = settings.moving || false;
-	settings.player = settings.player || p;
+	if(settings.player === undefined) {
+		if(p.onScreen === "play") {
+			settings.player = p;
+		}
+		else if(p.onScreen === "how") {
+			settings.player = howChar;
+		}
+	}
+	// settings.player = settings.player || p;
 	if(showHitboxes) {
 		hitboxes.push({x: x, y: y, w: w, h: h, color: settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
 	}
@@ -282,57 +420,57 @@ function collisionRect(x, y, w, h, settings) {
 				settings.player.y = y - 46;
 				settings.player.canJump = true;
 				if(settings.player.fallDmg !== 0) {
-					p.hurt(p.fallDmg, "falling");
-					p.fallDmg = 0;
+					settings.player.hurt(settings.player.fallDmg, "falling", true);
+					settings.player.fallDmg = 0;
 				}
 			}
-			if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h + p.velY - 1 && settings.walls[1]) {
-				p.velY = 2;
+			if(settings.player.x + 5 > x && settings.player.x - 5 < x + w && settings.player.y <= y + h && settings.player.y >= y + h + settings.player.velY - 1 && settings.walls[1]) {
+				settings.player.velY = 2;
 			}
-			if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + p.velX + 1 && settings.walls[2]) {
+			if(settings.player.y + 46 > y && settings.player.y < y + h && settings.player.x + 5 >= x && settings.player.x + 5 <= x + settings.player.velX + 1 && settings.walls[2]) {
 				if(settings.illegalHandling === "collide") {
-					p.velX = (settings.extraBouncy) ? -3 : -1;
+					settings.player.velX = (settings.extraBouncy) ? -3 : -1;
 				}
 				else {
-					p.y = y - 46;
+					settings.player.y = y - 46;
 				}
 			}
-			if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w + p.velX - 1 && settings.walls[3]) {
+			if(settings.player.y + 46 > y && settings.player.y < y + h && settings.player.x - 5 <= x + w && settings.player.x - 5 >= x + w + settings.player.velX - 1 && settings.walls[3]) {
 				if(settings.illegalHandling === "collide") {
-					p.velX = (settings.extraBouncy) ? 3 : 1;
+					settings.player.velX = (settings.extraBouncy) ? 3 : 1;
 				}
 				else {
-					p.y = y - 46;
+					settings.player.y = y - 46;
 				}
 			}
 		}
 		else {
-			if(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 >= y && p.y + 46 <= y + 6 && settings.walls[0]) {
-				p.velY = 0;
-				p.y = y - 46;
-				p.canJump = true;
-				if(p.fallDmg !== 0) {
-					p.hurt(p.fallDmg, "falling");
-					p.fallDmg = 0;
+			if(settings.player.x + 5 > x && settings.player.x - 5 < x + w && settings.player.y + 46 >= y && settings.player.y + 46 <= y + 6 && settings.walls[0]) {
+				settings.player.velY = 0;
+				settings.player.y = y - 46;
+				settings.player.canJump = true;
+				if(settings.player.fallDmg !== 0) {
+					settings.player.hurt(settings.player.fallDmg, "falling");
+					settings.player.fallDmg = 0;
 				}
 			}
-			if(p.x + 5 > x && p.x - 5 < x + w && p.y <= y + h && p.y >= y + h - 6 && settings.walls[1]) {
-				p.velY = 2;
+			if(settings.player.x + 5 > x && settings.player.x - 5 < x + w && settings.player.y <= y + h && settings.player.y >= y + h - 6 && settings.walls[1]) {
+				settings.player.velY = 2;
 			}
-			if(p.y + 46 > y && p.y < y + h && p.x + 5 >= x && p.x + 5 <= x + 6 && settings.walls[2]) {
+			if(settings.player.y + 46 > y && settings.player.y < y + h && settings.player.x + 5 >= x && settings.player.x + 5 <= x + 6 && settings.walls[2]) {
 				if(settings.illegalHandling === "collide") {
-					p.velX = (settings.extraBouncy) ? -3 : -1;
+					settings.player.velX = (settings.extraBouncy) ? -3 : -1;
 				}
 				else {
-					p.y = y - 46;
+					settings.player.y = y - 46;
 				}
 			}
-			if(p.y + 46 > y && p.y < y + h && p.x - 5 <= x + w && p.x - 5 >= x + w - 6 && settings.walls[3]) {
+			if(settings.player.y + 46 > y && settings.player.y < y + h && settings.player.x - 5 <= x + w && settings.player.x - 5 >= x + w - 6 && settings.walls[3]) {
 				if(settings.illegalHandling === "collide") {
-					p.velX = (settings.extraBouncy) ? 3 : 1;
+					settings.player.velX = (settings.extraBouncy) ? 3 : 1;
 				}
 				else {
-					p.y = y - 46;
+					settings.player.y = y - 46;
 				}
 			}
 		}
@@ -387,15 +525,36 @@ function collisionRect(x, y, w, h, settings) {
 					}
 				}
 				if(!(typeof enemy.velX === "number") && enemy.x + enemy.rightX + p.worldX > x && enemy.x + enemy.rightX + p.worldX < x + 5) {
-					enemy.x = x - p.worldX - Math.abs(enemy.rightX);
+					enemy.x = x - p.worldX - Math.abs(enemy.rightX) - 1;
 				}
 				if(!(typeof enemy.velX === "number") && enemy.x + enemy.leftX + p.worldX < x + w && enemy.x + enemy.leftX + p.worldX > x + w - 5) {
-					enemy.x = x + w - p.worldX + Math.abs(enemy.leftX);
+					enemy.x = x + w - p.worldX + Math.abs(enemy.leftX) + 1;
 				}
 			}
 		}
 		else if(roomInstances[theRoom].content[i] instanceof MagicCharge && roomInstances[theRoom].content[i].x + p.worldX > x && roomInstances[theRoom].content[i].x + p.worldX < x + w && roomInstances[theRoom].content[i].y + p.worldY > y && roomInstances[theRoom].content[i].y + p.worldY < y + h) {
 			roomInstances[theRoom].content[i].splicing = true;
+			if(roomInstances[theRoom].content[i].type === "chaos" && !p.aiming) {
+				if(roomInstances[theRoom].content[i].timeWarp) {
+					fps = 30;
+					realTime = 0;
+				}
+				else {
+					var charge = roomInstances[theRoom].content[i];
+					p.x = charge.x + p.worldX;
+					p.y = charge.y + p.worldY;
+					console.log(p.x + 5 > x);
+					while(p.x + 5 > x && p.x - 5 < x + 10 && p.y + 46 > y && p.y - 7 < y + h) {
+						p.x --;
+					}
+					while(p.x - 5 < x + w && p.x + 5 > x + w - 10 && p.y + 46 > y && p.y - 7 < y + h) {
+						p.x ++;
+					}
+					while(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 > y && p.y - 7 < y + 10) {
+						p.y --;
+					}
+				}
+			}
 			continue;
 		}
 		else if(roomInstances[theRoom].content[i] instanceof SpikeBall) {
@@ -439,42 +598,6 @@ function collisionRect(x, y, w, h, settings) {
 		}
 	}
 };
-function findPointsCircular(x, y, r) {
-	var circularPoints = [];
-	//top right quadrant
-	for(var X = x; X < x + r; X ++) {
-		for(var Y = y - r; Y < y; Y ++) {
-			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
-				circularPoints.push({x: X, y: Y});
-			}
-		}
-	}
-	//bottom right quadrant
-	for(var X = x + r; X > x; X --) {
-		for(var Y = y; Y < y + r; Y ++) {
-			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
-				circularPoints.push({x: X, y: Y});
-			}
-		}
-	}
-	//bottom left
-	for(var X = x; X > x - r; X --) {
-		for(var Y = y + r; Y > y; Y --) {
-			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
-				circularPoints.push({x: X, y: Y});
-			}
-		}
-	}
-	//top left
-	for(var X = x - r; X < x; X ++) {
-		for(var Y = y; Y > y - r; Y --) {
-			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
-				circularPoints.push({x: X, y: Y});
-			}
-		}
-	}
-	return circularPoints;
-};
 function circularPointsTopHalf(x, y, r) {
 	/*
 	Similar to findPointsCircular(), but it only returns the top half (negative y values) and it is in the correct order.
@@ -488,78 +611,6 @@ function circularPointsTopHalf(x, y, r) {
 		}
 	}
 	return circularPoints;
-};
-function findPointsLinear(x1, y1, x2, y2) {
-	var inverted = false;
-	if(Math.abs(x1 - x2) < Math.abs(y1 - y2)) {
-		inverted = true;
-		//swap x's and y's
-		var oldX1 = x1;
-		x1 = y1;
-		y1 = oldX1;
-		var oldX2 = x2;
-		x2 = y2;
-		y2 = oldX2;
-	}
-	var m = Math.abs(y1 - y2) / Math.abs(x1 - x2);
-	var linearPoints = [];
-	if(x1 < x2) {
-		if(y1 < y2) {
-			var y = y1;
-			for(var x = x1; x < x2; x ++) {
-				y += m;
-				linearPoints.push({x: x, y: y});
-			}
-		}
-		else if(y2 < y1) {
-			var y = y2;
-			for(var x = x2; x > x1; x --) {
-				y += m;
-				linearPoints.push({x: x, y: y});
-			}
-		}
-	}
-	else if(x2 < x1) {
-		if(y1 < y2) {
-			var y = y1;
-			for(var x = x1; x > x2; x --) {
-				y += m;
-				linearPoints.push({x: x, y: y});
-			}
-		}
-		else if(y2 < y1) {
-			var y = y2;
-			for(var x = x2; x < x1; x ++) {
-				y += m;
-				linearPoints.push({x: x, y: y});
-			}
-		}
-	}
-	if(x1 === x2) {
-		for(var y = (y1 < y2) ? y1 : y2; y < (y1 < y2) ? y2 : y1; y ++) {
-			linearPoints.push({x: x1, y: y});
-		}
-	}
-	else if(y1 === y2) {
-		if(x1 < x2) {
-			for(var x = x1; x < x2; x ++) {
-				linearPoints.push({x: x, y: y1});
-			}
-		}
-		if(x2 < x1) {
-			for(var x = x2; x < x1; x ++) {
-				linearPoints.push({x: x, y: y1});
-			}
-		}
-	}
-	if(inverted) {
-		for(var i = 0; i < linearPoints.length; i ++) {
-			var oldX = linearPoints[i].x;
-			linearPoints[i].x = linearPoints[i].y;
-			linearPoints[i].y = oldX;
-		}
-	}
-	return linearPoints;
 };
 function collisionLine(x1, y1, x2, y2, settings) {
 	settings = settings || {};
@@ -617,11 +668,13 @@ function Player() {
 	this.visualHealth = 1;
 	this.mana = 100;
 	this.maxMana = 100;
-	this.manaRegen = 18; //1 mana / 18 frames
 	this.visualMana = 1;
 	this.gold = 0;
 	this.maxGold = 1;
-	this.visualGold = 1;
+	this.visualGold = 0;
+	this.damOp = 0;
+	this.manaRegen = 18; //1 mana / 18 frames
+	this.healthRegen = 18; // health / 18 frames
 	//movement
 	this.canJump = false;
 	this.velX = 0;
@@ -643,6 +696,7 @@ function Player() {
 	this.numHeals = 0;
 	this.attackSpeed = 5;
 	this.canStopAttacking = true;
+	this.class = "warrior";
 	//other object properties
 	this.healthAltarsFound = 0;
 	this.manaAltarsFound = 0;
@@ -656,6 +710,12 @@ function Player() {
 	this.secretsFound = 0;
 	this.dead = false;
 	this.power = 0;
+	this.scores = [
+		{ coins: 15, rooms: 150, kills: 7, class: "mage"},
+		{ coins: 6, rooms: 5, kills: 1, class: "archer"},
+		{ coins: 20, rooms: 1000, kills: 60, class: "warrior"}
+	];
+	this.scores = [];
 };
 Player.prototype.init = function() {
 	for(var x = 0; x < 3; x ++) {
@@ -670,25 +730,28 @@ Player.prototype.init = function() {
 		this.invSlots.push({x: x * 80 + 630, y: 20, content: "empty", type: "equip"});
 	}
 };
+Player.prototype.sideScroll = function() {
+	if(this.y > 400 && (this.worldY > roomInstances[inRoom].minWorldY || roomInstances[inRoom].minWorldY === undefined)) {
+		this.worldY -= Math.dist(0, this.y, 0, 400);
+		this.y = 400;
+	}
+	else if(this.y < 400) {
+		this.worldY += Math.dist(0, this.y, 0, 400);
+		this.y = 400;
+	}
+	if(this.x > 400) {
+		this.worldX -= Math.dist(this.x, 0, 400, 0);
+		this.x = 400;
+	}
+	else if(this.x < 400) {
+		this.worldX += Math.dist(this.x, 0, 400, 0);
+		this.x = 400;
+	}
+};
 Player.prototype.display = function(noSideScroll, straightArm) {
 	//parameters are only for custom stick figures on class selection screens
 	if(!noSideScroll) {
-		if(this.y > 400 && (this.worldY > roomInstances[inRoom].minWorldY || roomInstances[inRoom].minWorldY === undefined)) {
-			this.worldY -= Math.dist(0, this.y, 0, 400);
-			this.y = 400;
-		}
-		else if(this.y < 400) {
-			this.worldY += Math.dist(0, this.y, 0, 400);
-			this.y = 400;
-		}
-		if(this.x > 400) {
-			this.worldX -= Math.dist(this.x, 0, 400, 0);
-			this.x = 400;
-		}
-		else if(this.x < 400) {
-			this.worldX += Math.dist(this.x, 0, 400, 0);
-			this.x = 400;
-		}
+		this.sideScroll();
 	}
 	c.lineWidth = 5;
 	c.lineCap = "round";
@@ -994,14 +1057,14 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.arc(775, 100, 12, 0, 2 * Math.PI);
 		c.fill();
 		c.fillStyle = "rgb(255, 255, 0)";
-		c.fillRect(550, 87.5, ((this.visualGold / this.maxGold) * 225), 25);
+		c.fillRect(550, 87.5, this.visualGold * 225, 25);
 		c.beginPath();
 		c.arc(550, 100, 12, 0, 2 * Math.PI);
-		c.arc(550 + ((this.visualGold / this.maxGold) * 225), 100, 12, 0, 2 * Math.PI);
+		c.arc(550 + (this.visualGold * 225), 100, 12, 0, 2 * Math.PI);
 		c.fill();
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.fillText("Gold: " + this.gold, 662, 102.5);
-		this.visualGold += (this.gold - this.visualGold) / 10;
+		this.visualGold += ((this.gold / this.maxGold) - this.visualGold) / 10;
 	}
 };
 Player.prototype.update = function() {
@@ -1041,6 +1104,9 @@ Player.prototype.update = function() {
 	if(!keys[37] && !keys[39]) {
 		this.velX *= 0.93;
 	}
+	if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon && !(this.invSlots[this.activeSlot].content instanceof Dagger) && this.class !== "warrior") {
+		this.velX *= 0.965;
+	}
 	// this.velY += 0.15;
 	this.velY += 0.3;
 	if(keys[38] && this.canJump && !this.aiming) {
@@ -1073,7 +1139,7 @@ Player.prototype.update = function() {
 		this.x = 500;
 		this.y = -100;
 		this.velY = 2;
-		this.fallDmg = Math.round(Math.random() + 4);
+		this.fallDmg = Math.round(Math.random() * 10 + 40);
 		roomInstances.push(
 			new Room(
 				"ambient1",
@@ -1083,8 +1149,8 @@ Player.prototype.update = function() {
 					new Pillar(600, 500, Math.random() * 100 + 200),
 					new Pillar(800, 500, Math.random() * 100 + 200),
 					new Block(-200, 500, 2000, 600),//floor
-					new Block(-600, -1200, 700, 1900), //left wall
-					new Block(900, -1200, 500, 1900), //right wall
+					new Block(-600, -1200, 700, 3000), //left wall
+					new Block(900, -1200, 500, 3000), //right wall
 					new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
 					new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
 					new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
@@ -1141,7 +1207,7 @@ Player.prototype.update = function() {
 			if(this.aimRot === null) {
 				this.aimRot = 0;
 				this.attackingWith = this.invSlots[this.activeSlot].content;
-				if(this.attackingWith instanceof MagicWeapon && this.mana >= this.attackingWith.manaCost && !(this.attackingWith instanceof ElementalStaff && this.attackingWith.element === "none")) {
+				if(this.attackingWith instanceof MagicWeapon && (this.mana >= this.attackingWith.manaCost || this.attackingWith instanceof ChaosStaff) && !(this.attackingWith instanceof ElementalStaff && this.attackingWith.element === "none")) {
 					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
 					if(this.facing === "right") {
 						roomInstances[inRoom].content.push(new MagicCharge(450 - this.worldX, 400 - this.worldY, 0, 0, this.attackingWith.chargeType, damage));
@@ -1151,8 +1217,13 @@ Player.prototype.update = function() {
 						roomInstances[inRoom].content.push(new MagicCharge(350 - this.worldX, 400 - this.worldY, 0, 0, this.attackingWith.chargeType, damage));
 						roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].beingAimed = true;
 					}
-					this.mana -= this.attackingWith.manaCost;
-					this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
+					if(this.attackingWith instanceof ChaosStaff) {
+						this.hurt(this.attackingWith.hpCost, "meddling with arcane magic", true);
+					}
+					else {
+						this.mana -= this.attackingWith.manaCost;
+					}
+					this.chargeLoc = Math.rotate((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 				}
 			}
 			this.aiming = true;
@@ -1191,7 +1262,7 @@ Player.prototype.update = function() {
 				}
 			}
 			else {
-				var weaponPos = getRotated(10, -this.attackingWith.range, this.attackArm);
+				var weaponPos = Math.rotate(10, -this.attackingWith.range, this.attackArm);
 			}
 			if(this.facing === "left" && !(this.attackingWith instanceof Spear)) {
 				weaponPos.x = -weaponPos.x;
@@ -1272,17 +1343,23 @@ Player.prototype.update = function() {
 	}
 	this.timeSinceAttack ++;
 	if(this.aiming && keys[38] && this.aimRot > -45) {
+		if((this.attackingWith instanceof RangedWeapon && this.class !== "archer") || (this.attackingWith instanceof MagicWeapon && this.class !== "mage")) {
+			this.aimRot += 1.5;
+		}
 		this.aimRot -= 2;
 		if(this.attackingWith instanceof MagicWeapon) {
 			this.aimRot -= 2;
-			this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
+			this.chargeLoc = Math.rotate((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 		}
 	}
 	if(this.aiming && keys[40] && this.aimRot < 45) {
+		if((this.attackingWith instanceof RangedWeapon && this.class !== "archer") || (this.attackingWith instanceof MagicWeapon && this.class !== "mage")) {
+			this.aimRot -= 1.5;
+		}
 		this.aimRot += 2;
 		if(this.attackingWith instanceof MagicWeapon) {
 			this.aimRot += 2;
-			this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
+			this.chargeLoc = Math.rotate((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 		}
 	}
 	if(!this.aiming && this.aimingBefore && this.shootReload < 0 && !(this.attackingWith instanceof MechBow)) {
@@ -1301,7 +1378,7 @@ Player.prototype.update = function() {
 					this.shootReload = 60;
 				}
 				if(this.facing === "right") {
-					var velocity = getRotated(10, 0, this.aimRot);
+					var velocity = Math.rotate(10, 0, this.aimRot);
 					var velX = velocity.x;
 					var velY = velocity.y;
 					velocity.x += (this.x - this.worldX + 10);
@@ -1314,7 +1391,7 @@ Player.prototype.update = function() {
 					}
 				}
 				else {
-					var velocity = getRotated(-10, 0, -this.aimRot);
+					var velocity = Math.rotate(-10, 0, -this.aimRot);
 					var velX = velocity.x;
 					var velY = velocity.y;
 					velocity.x += (this.x - this.worldX + 10);
@@ -1368,7 +1445,7 @@ Player.prototype.update = function() {
 		}
 	}
 	if(this.facingBefore !== this.facing) {
-		this.chargeLoc = getRotated((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
+		this.chargeLoc = Math.rotate((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 	}
 	if(!this.aiming) {
 		this.aimRot = null;
@@ -1383,7 +1460,7 @@ Player.prototype.update = function() {
 		if(hasArrows) {
 			this.shootReload = 60;
 			if(this.facing === "right") {
-				var velocity = getRotated(10, 0, this.aimRot);
+				var velocity = Math.rotate(10, 0, this.aimRot);
 				var velX = velocity.x;
 				var velY = velocity.y;
 				velocity.x += (this.x - this.worldX + 10);
@@ -1393,7 +1470,7 @@ Player.prototype.update = function() {
 				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 			}
 			else {
-				var velocity = getRotated(-10, 0, -this.aimRot);
+				var velocity = Math.rotate(-10, 0, -this.aimRot);
 				var velX = velocity.x;
 				var velY = velocity.y;
 				velocity.x += (this.x - this.worldX + 10);
@@ -1429,9 +1506,15 @@ Player.prototype.update = function() {
 	if(this.health >= this.maxHealth) {
 		this.numHeals = 0;
 	}
-	if(this.numHeals > 0 && frameCount % 300 === 0) {
+	this.healthRegen = 1;
+	for(var i = 0; i < this.invSlots.length; i ++) {
+		if(this.invSlots[i].type === "equip" && this.invSlots[i].content instanceof Helmet) {
+			this.healthRegen -= (this.invSlots[i].content.healthRegen * 0.01);
+		}
+	}
+	if(this.numHeals > 0 && frameCount % Math.floor(18 * this.healthRegen) === 0) {
 		this.health ++;
-		this.numHeals -= 0.1;
+		this.numHeals -= 0.1 * this.healthRegen;
 	}
 	this.manaRegen = 1;
 	for(var i = 0; i < this.invSlots.length; i ++) {
@@ -1453,14 +1536,23 @@ Player.prototype.update = function() {
 	}
 	if(this.dead) {
 		this.op -= 0.05;
-		if(this.op <= 0) {
+		if(this.op <= 0 && fading !== "out") {
 			fading = "out";
 			fadeDest = "dead";
+			this.scores.push({
+				coins: this.gold,
+				rooms: this.roomsExplored,
+				kills: this.enemiesKilled,
+				class: this.class
+			});
+			var scores = JSON.stringify(this.scores);
+			localStorage.setItem("scores", scores);
 		}
 	}
 	if(this.health < 0) {
 		this.health = 0;
 	}
+	this.damOp -= 0.05;
 };
 Player.prototype.gui = function() {
 	//delete consumed items
@@ -1816,8 +1908,8 @@ Player.prototype.gui = function() {
 		c.strokeRect(300 - 35, 400 - 35, 70, 70);
 		var choice1 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering"));
 		choice1.element = this.invSlots[this.reforgeIndex].content.element;
-		choice1.damLow -= 1;
-		choice1.damHigh -= 1;
+		choice1.damLow -= 10;
+		choice1.damHigh -= 10;
 		if(choice1 instanceof MeleeWeapon) {
 			if(choice1.attackSpeed === "normal") {
 				choice1.attackSpeed = "fast";
@@ -1843,8 +1935,8 @@ Player.prototype.gui = function() {
 		c.strokeRect(500 - 35, 400 - 35, 70, 70);
 		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy"));
 		choice2.element = this.invSlots[this.reforgeIndex].content.element;
-		choice2.damLow += 1;
-		choice2.damHigh += 1;
+		choice2.damLow += 10;
+		choice2.damHigh += 10;
 		if(choice2 instanceof MeleeWeapon) {
 			if(choice2.attackSpeed === "normal") {
 				choice2.attackSpeed = "slow";
@@ -1869,7 +1961,7 @@ Player.prototype.gui = function() {
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice1.desc = choice1.getDesc();
-			choice1.displayDesc(335, 400);
+			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
 				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering");
 				this.guiOpen = "none";
@@ -1885,6 +1977,9 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
 				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
+					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
+				}
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
 						roomInstances[inRoom].content[i].used = true;
@@ -1896,7 +1991,7 @@ Player.prototype.gui = function() {
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice2.desc = choice2.getDesc();
-			choice2.displayDesc(535, 400);
+			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
 				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy");
 				this.guiOpen = "none";
@@ -1911,6 +2006,9 @@ Player.prototype.gui = function() {
 				}
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
+					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
 			}
 			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
@@ -1948,8 +2046,8 @@ Player.prototype.gui = function() {
 		c.strokeRect(500 - 35, 400 - 35, 70, 70);
 		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy"));
 		choice2.element = this.invSlots[this.reforgeIndex].content.element;
-		choice2.damLow += 1;
-		choice2.damHigh += 1;
+		choice2.damLow += 10;
+		choice2.damHigh += 10;
 		if(choice2 instanceof MeleeWeapon) {
 			if(choice2.attackSpeed === "normal") {
 				choice2.attackSpeed = "slow";
@@ -1974,7 +2072,7 @@ Player.prototype.gui = function() {
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice1.desc = choice1.getDesc();
-			choice1.displayDesc(335, 400);
+			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
 				this.guiOpen = "none";
 				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
@@ -1989,6 +2087,9 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
 				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
+					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
+				}
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
 						roomInstances[inRoom].content[i].used = true;
@@ -2000,7 +2101,7 @@ Player.prototype.gui = function() {
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice2.desc = choice2.getDesc();
-			choice2.displayDesc(535, 400);
+			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
 				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy");
 				this.guiOpen = "none";
@@ -2015,6 +2116,9 @@ Player.prototype.gui = function() {
 				}
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
+					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
@@ -2043,8 +2147,8 @@ Player.prototype.gui = function() {
 		c.strokeRect(300 - 35, 400 - 35, 70, 70);
 		var choice1 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering"));
 		choice1.element = this.invSlots[this.reforgeIndex].content.element;
-		choice1.damLow -= 1;
-		choice1.damHigh -= 1;
+		choice1.damLow -= 10;
+		choice1.damHigh -= 10;
 		if(choice1 instanceof MeleeWeapon) {
 			if(choice1.attackSpeed === "normal") {
 				choice1.attackSpeed = "fast";
@@ -2078,7 +2182,7 @@ Player.prototype.gui = function() {
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice1.desc = choice1.getDesc();
-			choice1.displayDesc(335, 400);
+			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
 				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering");
 				this.guiOpen = "none";
@@ -2094,6 +2198,9 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice1.manaCost;
 				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
+					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
+				}
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
 						roomInstances[inRoom].content[i].used = true;
@@ -2105,7 +2212,7 @@ Player.prototype.gui = function() {
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice2.desc = choice2.getDesc();
-			choice2.displayDesc(535, 400);
+			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
 				this.guiOpen = "none";
 				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
@@ -2119,6 +2226,9 @@ Player.prototype.gui = function() {
 				}
 				else if(this.invSlots[this.reforgeIndex].content instanceof MagicWeapon) {
 					this.invSlots[this.reforgeIndex].content.manaCost = choice2.manaCost;
+				}
+				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
+					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
@@ -2201,8 +2311,11 @@ Player.prototype.addItem = function(item) {
 		}
 	}
 };
-Player.prototype.hurt = function(amount, killer) {
-	this.defLow = 0;//work in progress, this will change depending on armor
+Player.prototype.hurt = function(amount, killer, ignoreDef) {
+	if(amount !== 0) {
+		this.damOp = 1;
+	}
+	this.defLow = 0;
 	this.defHigh = 0;
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		if(this.invSlots[i].type === "equip" && this.invSlots[i].content.defLow !== undefined && this.invSlots[i].content.defHigh !== undefined) {
@@ -2211,7 +2324,12 @@ Player.prototype.hurt = function(amount, killer) {
 		}
 	}
 	var defense = Math.random() * (this.defHigh - this.defLow) + this.defLow;
-	var damage = amount - defense;
+	if(ignoreDef) {
+		var damage = amount;
+	}
+	else {
+		var damage = amount - defense;
+	}
 	if(damage < 0) {
 		damage = 0;
 	}
@@ -2244,7 +2362,7 @@ Player.prototype.reset = function() {
 	];
 	inRoom = 0;
 	numRooms = 0;
-	var permanentProperties = ["onScreen", "class"]; //properties that should not be reset
+	var permanentProperties = ["onScreen", "class", "maxGold"]; //properties that should not be reset
 	for(var i in this) {
 		var isPermanent = false;
 		permanentLoop: for(var j = 0; j < permanentProperties.length; j ++) {
@@ -2262,7 +2380,7 @@ Player.prototype.reset = function() {
 	switch(this["class"]) {
 		case "warrior":
 			this.addItem(new Sword());
-			//this.addItem(new Helmet());
+			this.addItem(new Helmet());
 			break;
 		case "archer":
 			this.addItem(new WoodBow());
@@ -2278,16 +2396,19 @@ Player.prototype.reset = function() {
 };
 Player.prototype.updatePower = function() {
 	this.power = 0;
-	this.power += (this.maxHealth - 10);
-	this.power += (this.maxMana - 10);
+	this.power += (this.maxHealth - 100);
+	this.power += (this.maxMana - 100);
 	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].content !== "empty") {
+		if(this.invSlots[i].content !== "empty" && this.invSlots[i].content.power !== undefined) {
 			this.power += this.invSlots[i].content.power;
 		}
 	}
 };
 var p = new Player();
 p.init();
+if(localStorage.getItem("scores") !== null) {
+	p.scores = JSON.parse(localStorage.getItem("scores"));
+}
 
 /** IN GAME STRUCTURES **/
 function Block(x, y, w, h) {
@@ -2976,7 +3097,6 @@ Chest.prototype.exist = function() {
 			c.lineTo(back.x, back.y);
 			c.stroke();
 		}
-		c.fillStyle = "rgb(139, 69, 19)";
 		//bottom of lid
 		if(this.r !== 0) {
 			var topB = point3d(this.x + p.worldX + 20 + (chestAnimationArray[this.r / -6][42].x / -2), this.y + p.worldY - 30 + (chestAnimationArray[this.r / -6][42].y / 2), 0.95);
@@ -2994,6 +3114,7 @@ Chest.prototype.exist = function() {
 		//front of lid
 		var corner = point3d(this.x + p.worldX + 20, this.y + p.worldY - 30, 1.05);
 		var center = point3d(this.x + p.worldX, this.y + p.worldY, 1.05);
+		c.fillStyle = "rgb(139, 69, 19)";
 		c.save();
 		c.translate(corner.x, corner.y);
 		if(this.r !== 0) {
@@ -3038,6 +3159,10 @@ Chest.prototype.exist = function() {
 	if(this.r <= -84 && !this.spawnedItem && this.opening) {
 		this.spawnedItem = true;
 		this.requestingItem = true;
+		if(p.onScreen === "how") {
+			roomInstances[inRoom].content.push(new WoodBow());
+			return;
+		}
 		var ownsABow = false;
 		for(var i = 0; i < p.invSlots.length; i ++) {
 			if(p.invSlots[i].content instanceof RangedWeapon) {
@@ -3236,7 +3361,7 @@ Stairs.prototype.exist = function(noGraphics) {
 	}
 	else {
 		for(var i = 0; i < this.steps.length; i ++) {
-			this.steps[i].exist();
+			this.steps[i].update();
 			if(!noGraphics) {
 				this.steps[i].display();
 			}
@@ -3474,14 +3599,14 @@ function Pillar(x, y, h) {
 	this.h = h;
 };
 Pillar.prototype.exist = function() {
-	//pillar
-	cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05);
 	//base
 	cube(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, 0.9, 1.1);
 	cube(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, 0.9, 1.1);
 	//top
 	cube(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12, 0.9, 1.1);
 	cube(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10, 0.9, 1.1);
+	//pillar
+	cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05, undefined, undefined, { noFrontExtended: true });
 	//base collisions
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	collisionRect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, {walls: [true, true, true, true], illegalHandling: "teleport"});
@@ -3645,12 +3770,12 @@ function TiltPlatform(x, y) {
 	this.velY = 0;
 };
 TiltPlatform.prototype.exist = function() {
-	var p1 = getRotated(-75, -10, Math.floor(this.tilt));
-	var p2 = getRotated(75, -10, Math.floor(this.tilt));
+	var p1 = Math.rotate(-75, -10, Math.floor(this.tilt));
+	var p2 = Math.rotate(75, -10, Math.floor(this.tilt));
 	this.p1 = p1;
 	this.p2 = p2;
 	//graphics
-	cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01);
+	cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01, { noFrontExtended: true });
 	if(Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
 		this.collides = function(x, y) {
 			var p1 = point3d(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, 1.1);
@@ -4324,7 +4449,7 @@ Banner.prototype.exist = function() {
 	c.lineTo(p4.x, p4.y);
 	c.lineTo(p5.x, p5.y);
 	c.fill();
-	cube(this.x + p.worldX - 50, this.y + p.worldY - 100, 100, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	cube(this.x + p.worldX - 50, this.y + p.worldY - 100, 100, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", { noFrontExtended: true });
 };
 function GlassWindow(x, y, color) {
 	this.x = x;
@@ -4411,6 +4536,7 @@ Roof.prototype.exist = function() {
 	}
 	if(this.type === "flat") {
 		cube(-100, this.y + p.worldY - 1100, 1000, 1000, 0.9, 1.1);
+		collisionRect(-100, this.y + p.worldY - 1100, 1000, 1000);
 	}
 	else if(this.type === "sloped") {
 		polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
@@ -4460,8 +4586,8 @@ Roof.prototype.exist = function() {
 		var array = [];
 		array.push({x: -100, y: -100});
 		array.push({x: -100, y: this.y + p.worldY});
-		for(var i = 0; i < this.points.length; i += 2) {
-			array.push({x: this.points[i].x + p.worldX, y: this.points[i].y + p.worldY});
+		for(var i = 0; i < this.points.length; i += (this.points.length / 36)) {
+			array.push({x: this.points[Math.floor(i)].x + p.worldX, y: this.points[Math.floor(i)].y + p.worldY});
 		}
 		array.push({x: 900, y: this.y + p.worldY});
 		array.push({x: 900, y: -100});
@@ -4684,6 +4810,27 @@ Gear.prototype.exist = function() {
 	c.fill();
 	this.rot += (this.dir === "right") ? 0.5 : -0.5;
 };
+function MovingWall(x, y, w, h, startZ) {
+	this.x = x;
+	this.y = y;
+	this.w = w;
+	this.h = h;
+	this.z = startZ || 0.9;
+	this.zDir = 0;
+};
+MovingWall.prototype.exist = function() {
+	if(this.z >= 1) {
+		collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h);
+	}
+	if(this.z > 0.9) {
+		var color = Math.map(this.z, 0.9, 1.1, 100, 110);
+		color = (color > 110) ? 110 : color;
+		cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, this.z, "rgb(" + color + ", " + color + ", " + color + ")", "rgb(150, 150, 150)");
+	}
+	this.z += this.zDir;
+	this.z = (this.z < 0.9) ? 0.9 : this.z;
+	this.z = (this.z > 1.1) ? 1.1 : this.z;
+};
 
 /** ROOM DATA **/
 var inRoom = 0;
@@ -4885,6 +5032,9 @@ Room.prototype.exist = function(index) {
 	}
 	c.globalAlpha = (p.screenOp < p.fallOp) ? p.fallOp : p.screenOp;
 	c.fillRect(0, 0, 800, 800);
+	c.fillStyle = "rgb(255, 0, 0)";
+	c.globalAlpha = (p.damOp > 0) ? p.damOp : 0;
+	c.fillRect(0, 0, 800, 800);
 };
 var rooms = [
 	{
@@ -4900,8 +5050,8 @@ var rooms = [
 						new Pillar(400, 500, 200),
 						new Pillar(600, 500, 200),
 						new Pillar(800, 500, 200),
-						new Block(-200, 500, 2000, 600),//floor
-						new Block(-600, -200, 700, 900), //left wall
+						new Block(-200, 500, 2000, 2000),//floor
+						new Block(-600, -200, 700, 2000), //left wall
 						new Block(-400, -1000, 2000, 1300), //ceiling
 						new Block(900, -200, 500, 1000), //right wall
 						new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
@@ -5035,7 +5185,7 @@ var rooms = [
 		}
 	}, //fountain room
 	{
-		name: "secret1",
+		name: "ambient6",
 		difficulty: 0,
 		extraDoors: 1,
 		add: function() {
@@ -5043,8 +5193,8 @@ var rooms = [
 				new Room(
 					"secret1",
 					[
-						new Chest(100, 0),
-						new Chest(800, 0),
+						// new Chest(100, 0),
+						// new Chest(800, 0),
 						new Block(-1000, -1000, 1000, 2000), //left wall
 						new Block(-100, 500, 1010, 500), //floor
 						new Block(900, -1000, 1000, 2000), //right wall,
@@ -5054,8 +5204,8 @@ var rooms = [
 						new Tree(450, 500),
 						new Block(-300, 0, 500, 100), //left roof,
 						new Block(700, 0, 500, 100), //right roof
-						new Block(-300, -1300, 500, 1100), //left roof,
-						new Block(700, -1300, 500, 1100), //right roo
+						new Block(-300, -1300, 500, 1302), //left roof
+						new Block(700, -1300, 500, 1302), //right roof
 					],
 					"?"
 				)
@@ -5064,7 +5214,7 @@ var rooms = [
 		}
 	}, //garden
 	{
-		name: "secret2",
+		name: "secret1",
 		difficulty: 0,
 		extraDoors: 1,
 		add: function() {
@@ -5118,7 +5268,7 @@ var rooms = [
 		}
 	}, //statue room
 	{
-		name: "secret3",
+		name: "secret2",
 		difficulty: 1,
 		extraDoors: 1,
 		add: function() {
@@ -5227,6 +5377,36 @@ var rooms = [
 			)
 		}
 	}, //bridge combat room
+	{
+		name: "combat4",
+		difficulty: 3,
+		extraDoors: 1.5,
+		add: function() {
+			roomInstances.push(
+				new Room(
+					"combat4",
+					[
+						new Block(-300, 0, 600, 1000), //center platform
+						new Pillar(-150, 0, 200),
+						new Pillar(150, 0, 200),
+						new Decoration(0, -200),
+						new Pillar(-400, 900, 850),
+						new Pillar(400, 900, 850),
+						new Block(-1500, 100, 1000, 1000), //left floor
+						new Block(500, 100, 1000, 1000), //right floor
+						new Block(-1700, -4000, 1000, 8000), //left wall
+						new Block(700, -4000, 1000, 8000), //left wall
+						new Door(0, 0, ["reward"], true, false, "toggle"),
+						new Door(-600, 100, ["ambient", "secret"]),
+						new Door(600, 100, ["ambient", "secret"]),
+						new RandomEnemy(0, 0)
+					],
+					"?",
+					200
+				)
+			);
+		}
+	}, //platform combat room
 	{
 		name: "parkour1",
 		difficulty: 3,
@@ -5368,30 +5548,30 @@ var rooms = [
 			);
 		}
 	}, //tilting platform + pulley room
-	{
-		name: "parkour5",
-		difficulty: 2,
-		extraDoors: 0.5,
-		add: function() {
-			roomInstances.push(
-				new Room(
-					"parkour5",
-					[
-						new Block(-1000, 0, 1100, 1000), //left floor
-						new Block(-1100, -4000, 1000, 8000), //left wall
-						new Block(1190, 0, 1000, 1000), //right floor
-						new Block(1390, -4000, 1000, 8000), //right wall
-						new Gear(400, 0, 250, "right"),
-						new Gear(890, 0, 250, "left"),
-						new Door(0, 0, ["reward"]),
-						new Door(1290, 0, ["reward"])
-					],
-					"?",
-					446
-				)
-			);
-		}
-	}, //gear room
+	// {
+	// 	name: "parkour5",
+	// 	difficulty: 2,
+	// 	extraDoors: 0.5,
+	// 	add: function() {
+	// 		roomInstances.push(
+	// 			new Room(
+	// 				"parkour5",
+	// 				[
+	// 					new Block(-1000, 0, 1100, 1000), //left floor
+	// 					new Block(-1100, -4000, 1000, 8000), //left wall
+	// 					new Block(1190, 0, 1000, 1000), //right floor
+	// 					new Block(1390, -4000, 1000, 8000), //right wall
+	// 					new Gear(400, 0, 250, "right"),
+	// 					new Gear(890, 0, 250, "left"),
+	// 					new Door(0, 0, ["reward"]),
+	// 					new Door(1290, 0, ["reward"])
+	// 				],
+	// 				"?",
+	// 				446
+	// 			)
+	// 		);
+	// 	}
+	// }, //gear room
 	{
 		name: "reward1",
 		difficulty: 0,
@@ -5548,12 +5728,12 @@ var rooms = [
 var items = [
 	Dagger, Sword, Spear, //melee weapons
 	WoodBow, MetalBow, MechBow, LongBow, //ranged weapons
-	EnergyStaff, ElementalStaff, PurityStaff, //magic weapons
-	WizardHat, MagicQuiver, //equipables
+	EnergyStaff, ElementalStaff, ChaosStaff, //magic weapons
+	WizardHat, MagicQuiver, Helmet, //equipables
 	Barricade, Map, //extras / bonuses
 	FireCrystal, WaterCrystal, EarthCrystal, AirCrystal //crystals
 ];
-var enemies = [Spider, Bat, Skeleton, SkeletonWarrior, SkeletonArcher, Wraith, /*Troll*/];
+var enemies = [Spider, Bat, SkeletonWarrior, SkeletonArcher, Wraith, Dragonling, Troll];
 var roomInstances = [
 	new Room(
 		"ambient1",
@@ -5562,8 +5742,8 @@ var roomInstances = [
 			new Pillar(400, 500, 200),
 			new Pillar(600, 500, 200),
 			new Pillar(800, 500, 200),
-			new Block(-200, 500, 2000, 600),//floor
-			new Block(-600, -200, 700, 900), //left wall
+			new Block(-200, 500, 2000, 2000),//floor
+			new Block(-600, -200, 700, 2000), //left wall
 			new Block(-400, -1000, 2000, 1300), //ceiling
 			new Block(900, -200, 500, 1000), //right wall
 			new Door(300,  500, ["ambient", "combat", "parkour", "secret"], false, false, "arch"),
@@ -5576,13 +5756,13 @@ var roomInstances = [
 if(hax) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat3" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "combat1" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	enemies = [Wraith];
+	// enemies = [SkeletonArcher];
 	// items = [MechBow];
 	for(var i = 0; i < roomInstances[0].content.length; i ++) {
 		if(roomInstances[0].content[i] instanceof Door) {
@@ -5674,6 +5854,30 @@ Item.prototype.displayDesc = function(x, y, dir) {
 			color: "rgb(150, 150, 150)"
 		});
 	}
+	//out-of-class warning info
+	if((this instanceof MeleeWeapon && !(this instanceof Dagger) && p.class !== "warrior") || (this instanceof RangedWeapon && p.class !== "archer") || (this instanceof MagicWeapon && p.class !== "mage")) {
+		if(this instanceof MeleeWeapon) {
+			this.desc.splice(1, 0, {
+				content: "Best used by warriors",
+				font: "10pt monospace",
+				color: "rgb(255, 255, 255)"
+			});
+		} else if(this instanceof RangedWeapon) {
+			this.desc.splice(1, 0, {
+				content: "Best used by archers",
+				font: "10pt monospace",
+				color: "rgb(255, 255, 255)"
+			});
+		}
+		else if(this instanceof MagicWeapon) {
+			this.desc.splice(1, 0, {
+				content: "Best used by mages",
+				font: "10pt monospace",
+				color: "rgb(255, 255, 255)"
+			});
+		}
+	}
+	//display description
 	var descHeight = this.desc.length * 12 + 10;
 	var idealY = y - (descHeight / 2);
 	var actualY = (idealY > 20) ? idealY : 20;
@@ -5720,7 +5924,7 @@ Item.prototype.displayDesc = function(x, y, dir) {
 function Weapon(modifier) {
 	Item.call(this);
 	this.equipable = false;
-	this.modifier = (modifier === undefined) ? "none" : modifier;
+	this.modifier = modifier || "none";
 	this.element = "none";
 	this.particles = [];
 };
@@ -5759,7 +5963,12 @@ function MeleeWeapon(modifier) {
 };
 inheritsFrom(MeleeWeapon, Weapon);
 MeleeWeapon.prototype.attack = function() {
-	p.attackingWith = this;
+	if(p.onScreen === "play") {
+		p.attackingWith = this;
+	}
+	else if(p.onScreen === "how") {
+		howChar.attackingWith = this;
+	}
 };
 function Dagger(modifier) {
 	MeleeWeapon.call(this, modifier);
@@ -6602,16 +6811,16 @@ ElementalStaff.prototype.getDesc = function() {
 		];
 	}
 };
-function PurityStaff(modifier) {
+function ChaosStaff(modifier) {
 	MagicWeapon.call(this, modifier);
-	this.manaCost = 60;
+	this.hpCost = 30;
 	this.damLow = 0;
 	this.damHigh = 0;
-	this.chargeType = "purity";
+	this.chargeType = "chaos";
 	this.power = 2;
 };
-inheritsFrom(PurityStaff, MagicWeapon);
-PurityStaff.prototype.display = function(type) {
+inheritsFrom(ChaosStaff, MagicWeapon);
+ChaosStaff.prototype.display = function(type) {
 	c.strokeStyle = "rgb(139, 69, 19)";
 	c.save();
 	c.lineWidth = 4;
@@ -6632,20 +6841,20 @@ PurityStaff.prototype.display = function(type) {
 	c.stroke();
 	c.restore();
 };
-PurityStaff.prototype.getDesc = function() {
+ChaosStaff.prototype.getDesc = function() {
 	return [
 		{
-			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Purity",
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Chaos",
 			font: "bolder 10pt Cursive",
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "Mana Cost: " + this.manaCost,
+			content: "Health Cost: " + this.hpCost,
 			font: "10pt monospace",
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "This staff can remove the evil magic from creatures. However, in the depths of the dungeon, nothing can stay free of corruption for long.",
+			content: "This volatile staff of anarchy causes rips in spacetime, creating unpredictable consequences at a high cost to the user.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		}
@@ -6653,9 +6862,10 @@ PurityStaff.prototype.getDesc = function() {
 };
 
 //equipables
-function Equipable() {
+function Equipable(modifier) {
 	Item.call(this);
-	this.equipable = true;
+	// this.equipable = true;
+	this.modifier = modifier || "none";
 };
 inheritsFrom(Equipable, Item);
 Equipable.prototype.init = function() {
@@ -6663,9 +6873,10 @@ Equipable.prototype.init = function() {
 };
 function WizardHat(modifier) {
 	Equipable.call(this, modifier);
-	this.defLow = 5;
-	this.defHigh = 10;
-	this.manaRegen = 15;
+	this.defLow = (this.modifier === "none") ? 5 : (this.modifier === "empowering" ? 0 : 10);
+	this.defHigh = (this.modifier === "none") ? 10 : (this.modifier === "empowering" ? 5 : 15);
+	this.manaRegen = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
+	this.power = 3;
 };
 inheritsFrom(WizardHat, Equipable);
 WizardHat.prototype.display = function() {
@@ -6681,7 +6892,7 @@ WizardHat.prototype.display = function() {
 WizardHat.prototype.getDesc = function() {
 	return [
 		{
-			content: "Wizard Hat",
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, Infinity) + " ") + "Wizard Hat",
 			color: "rgb(255, 255, 255)",
 			font: "bolder 10pt Cursive"
 		},
@@ -6704,9 +6915,10 @@ WizardHat.prototype.getDesc = function() {
 };
 function MagicQuiver(modifier) {
 	Equipable.call(this, modifier);
-	this.arrowEfficiency = 15;
-	this.defLow = 0;
-	this.defHigh = 5;
+	this.defLow = (this.modifier === "sturdy") ? 5 : 0;
+	this.defHigh = (this.modifier === "none") ? 5 : (this.modifier === "empowering" ? 0 : 10);
+	this.arrowEfficiency = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
+	this.power = 2;
 };
 inheritsFrom(MagicQuiver, Equipable);
 MagicQuiver.prototype.display = function() {
@@ -6726,12 +6938,12 @@ MagicQuiver.prototype.display = function() {
 MagicQuiver.prototype.getDesc = function() {
 	return [
 		{
-			content: "Magic Quiver",
+			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, Infinity) + " ") + "Magic Quiver",
 			color: "rgb(255, 255, 255)",
 			font: "bolder 10pt Cursive"
 		},
 		{
-			content: "Defense: " + this.defLow + "-" + this.defHigh,
+			content: "Defense: " + ((this.defHigh > 0) ? (this.defLow + "-" + this.defHigh) : this.defHigh),
 			color: "rgb(255, 255, 255)",
 			font: "10pt monospace"
 		},
@@ -6742,6 +6954,63 @@ MagicQuiver.prototype.getDesc = function() {
 		},
 		{
 			content: "For some reason, arrows placed inside this quiver are able to be shot multiple times.",
+			color: "rgb(150, 150, 150)",
+			font: "10pt Cursive"
+		}
+	];
+};
+function Helmet(modifier) {
+	Equipable.call(this, modifier);
+	this.defLow = (this.modifier === "none") ? 30 : (this.modifier === "empowering" ? 20 : 40);
+	this.defHigh = (this.modifier === "none") ? 50 : (this.modifier === "empowering" ? 40 : 60);
+	this.healthRegen = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
+	this.power = 3;
+};
+inheritsFrom(Helmet, Equipable);
+Helmet.prototype.display = function() {
+	c.save();
+	c.translate(0, -7);
+	c.scale(0.4, 0.4);
+	c.fillStyle = "rgb(170, 170, 170)";
+	c.fillRect(-40, -10, 80, 70);
+	c.fillStyle = "rgb(200, 200, 200)";
+	c.beginPath();
+	c.moveTo(-60, -40);
+	c.lineTo(-60, 80);
+	c.lineTo(-10, 90);
+	c.lineTo(-10, 40);
+	c.lineTo(-30, 30);
+	c.lineTo(-30, -10);
+	c.lineTo(0, 0);
+	c.lineTo(30, -10);
+	c.lineTo(30, 30);
+	c.lineTo(10, 40);
+	c.lineTo(10, 90);
+	c.lineTo(60, 80);
+	c.lineTo(60, -40);
+	c.lineTo(0, -50);
+	c.fill();
+	c.restore();
+};
+Helmet.prototype.getDesc = function() {
+	return [
+		{
+			content: "Helmet of Regeneration",
+			color: "rgb(255, 255, 255)",
+			font: "bolder 10pt Cursive"
+		},
+		{
+			content: "Defense: " + this.defLow + "-" + this.defHigh,
+			color: "rgb(255, 255, 255)",
+			font: "10pt monospace"
+		},
+		{
+			content: "Health Regen: " + this.healthRegen + "%",
+			color: "rgb(255, 255, 255)",
+			font: "10pt monospace"
+		},
+		{
+			content: "This helmet not only shields the user from harm, but also actively heals past wounds.",
 			color: "rgb(150, 150, 150)",
 			font: "10pt Cursive"
 		}
@@ -7459,13 +7728,45 @@ ShotArrow.prototype.exist = function() {
 };
 
 /** ENEMIES **/
-function RandomEnemy(x, y) {
+function RandomEnemy(x, y, notEnemy) {
 	this.x = x;
 	this.y = y;
+	this.notEnemy = notEnemy; // use this to specify any enemy BUT a certain enemy
 };
 RandomEnemy.prototype.generate = function() {
-	var enemyIndex = Math.floor(Math.random() * enemies.length);
-	roomInstances[inRoom].content.push(new enemies[enemyIndex](this.x, this.y - new enemies[enemyIndex]().bottomY));
+	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+		if(roomInstances[theRoom].content[i] instanceof Decoration) {
+			return; // wait until the decorations resolve before deciding which enemy
+		}
+	}
+	var possibleEnemies = deepClone(enemies);
+	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+		if(roomInstances[theRoom].content[i] instanceof Torch) {
+			for(var j = 0; j < possibleEnemies.length; j ++) {
+				if(possibleEnemies[j] === Dragonling) {
+					possibleEnemies.splice(j, 1);
+					break;
+				}
+			}
+			break;
+		}
+		else if(roomInstances[theRoom].content[i] instanceof Banner) {
+			for(var j = 0; j < possibleEnemies.length; j ++) {
+				if(possibleEnemies[j] === Troll) {
+					possibleEnemies.splice(j, 1);
+					break;
+				}
+			}
+		}
+	}
+	for(var i = 0; i < possibleEnemies.length; i ++) {
+		if(possibleEnemies[i] === this.notEnemy) {
+			possibleEnemies.splice(i, 1);
+			break;
+		}
+	}
+	var enemyIndex = Math.floor(Math.random() * possibleEnemies.length);
+	roomInstances[inRoom].content.push(new possibleEnemies[enemyIndex](this.x, this.y - new possibleEnemies[enemyIndex]().bottomY));
 };
 function Enemy(x, y) {
 	this.x = x;
@@ -7493,10 +7794,17 @@ Enemy.prototype.hurt = function(amount, ignoreDef) {
 	this.health -= amount;
 };
 Enemy.prototype.displayStats = function() {
+	if(this instanceof Dragonling) {
+		var topY = this.topY;
+		this.topY = -20;
+	}
 	//healthbar
 	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
 	this.attackRecharge --;
 	var middle = ((this.x + p.worldX + this.rightX) + (this.x + p.worldX + this.leftX)) / 2;
+	if(this instanceof Dragonling) {
+		middle = this.x + p.worldX;
+	}
 	c.fillStyle = "rgb(150, 150, 150)";
 	c.fillRect(middle - 30, this.y + p.worldY + this.topY - 15, 60, 10);
 	c.beginPath();
@@ -7543,6 +7851,9 @@ Enemy.prototype.displayStats = function() {
 	}
 	if(this.velY < -3) {
 		this.velY = -3;
+	}
+	if(this instanceof Dragonling) {
+		this.topY = topY;
 	}
 };
 Enemy.prototype.exist = function() {
@@ -7706,10 +8017,10 @@ Spider.prototype.update = function(dest) {
 	if(typeof dest === "string") {
 		if(this.timePurified < 0) {
 			if(this.x + p.worldX < p.x) {
-				this.x += 2;
+				this.velX = 2;
 			}
 			else {
-				this.x -= 2;
+				this.velX = -2;
 			}
 		}
 		else {
@@ -7755,6 +8066,7 @@ Spider.prototype.update = function(dest) {
 			}
 		}
 		this.legs += this.legDir;
+		this.x += this.velX;
 		this.y += this.velY;
 		this.velY += 0.1;
 		if(this.canJump && Math.abs(this.x + p.worldX - p.x) <= 130 && Math.abs(this.x + p.worldX - p.x) >= 120 && dest === "player") {
@@ -7764,10 +8076,10 @@ Spider.prototype.update = function(dest) {
 	}
 	else {
 		if(this.x < dest.x) {
-			this.x += 2;
+			this.velX = 2;
 		}
 		else {
-			this.x -= 2;
+			this.velX = -2;
 		}
 		this.y += this.velY;
 		this.velY += 0.1;
@@ -8151,7 +8463,7 @@ SkeletonWarrior.prototype.attack = function() {
 	this.attackArmDir = (this.attackArm > 360) ? -3 : this.attackArmDir;
 	this.attackArmDir = (this.attackArm < 270) ? 3 : this.attackArmDir;
 	if(this.x + p.worldX < p.x) {
-		var swordEnd = getRotated(10, -60, -this.attackArm);
+		var swordEnd = Math.rotate(10, -60, -this.attackArm);
 		swordEnd.x += this.x + p.worldX + 8;
 		swordEnd.y += this.y + p.worldY + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
@@ -8163,7 +8475,7 @@ SkeletonWarrior.prototype.attack = function() {
 		}
 	}
 	else {
-		var swordEnd = getRotated(-10, -60, this.attackArm);
+		var swordEnd = Math.rotate(-10, -60, this.attackArm);
 		swordEnd.x += this.x + p.worldX - 8;
 		swordEnd.y += this.y + p.worldY + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
@@ -8331,7 +8643,7 @@ SkeletonArcher.prototype.attack = function() {
 	this.timeSinceAttack ++;
 	if(this.timeSinceAttack > 60) {
 		if(this.x + p.worldX < p.x) {
-			var velocity = getRotated(50, 0, this.aimRot);
+			var velocity = Math.rotate(50, 0, this.aimRot);
 			velocity.x /= 5;
 			velocity.y /= 5;
 			var velY = velocity.y / 1.75;
@@ -8378,7 +8690,7 @@ SkeletonArcher.prototype.attack = function() {
 			}
 		}
 		else {
-			var velocity = getRotated(-50, 0, -this.aimRot);
+			var velocity = Math.rotate(-50, 0, -this.aimRot);
 			velocity.x /= 5;
 			velocity.y /= 5;
 			var velY = velocity.y / 1.75;
@@ -8559,6 +8871,9 @@ function MagicCharge(x, y, velX, velY, type, damage) {
 	this.type = type;
 	this.damage = damage;
 	this.particles = [];
+	if(this.type === "chaos") {
+		this.timeWarp = Math.random() < 0.5 ? true : false;
+	}
 };
 MagicCharge.prototype.exist = function() {
 	//graphics
@@ -8577,6 +8892,9 @@ MagicCharge.prototype.exist = function() {
 	else if(this.type === "energy") {
 		this.particles.push(new Particle("hsl(" + (frameCount % 360) + ", 100%, 50%)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
 	}
+	else if(this.type === "chaos") {
+		this.particles.push(new Particle("rgb(" + (Math.random() * 255) + ", " + (Math.random() * 0) + ", " + (Math.random() * 0) + ")", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
+	}
 	else if(this.type === "fire") {
 		this.particles.push(new Particle("rgb(255, 128, 0)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
 	}
@@ -8594,8 +8912,8 @@ MagicCharge.prototype.exist = function() {
 	this.y += this.velY;
 	//collision with enemies + objects
 	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
-		if(roomInstances[inRoom].content[i] instanceof Enemy && this.type !== "shadow") {
-			var enemy = roomInstances[inRoom].content[i];
+		if(roomInstances[inRoom].content[i] instanceof Enemy && this.type !== "shadow" && this.shotBy !== "enemy") {
+			var enemy = roomInstances[theRoom].content[i];
 			if(this.x + 10 > enemy.x + enemy.leftX && this.x - 10 < enemy.x + enemy.rightX && this.y + 10 > enemy.y + enemy.topY && this.y - 10 < enemy.y + enemy.bottomY) {
 				this.splicing = true;
 				enemy.hurt(this.damage);
@@ -8639,19 +8957,51 @@ MagicCharge.prototype.exist = function() {
 				else if(this.type === "purity") {
 					enemy.timePurified = (enemy.timePurified <= 0) ? 600 : 0;
 				}
+				else if(this.type === "chaos") {
+					if(!this.timeWarp) {
+						var hp = enemy.health;
+						console.log("BEFORE: ");
+						console.log(roomInstances[theRoom].content);
+						roomInstances[theRoom].content[i] = new RandomEnemy(enemy.x, enemy.y + enemy.bottomY, enemy.constructor);
+						roomInstances[theRoom].content[i].generate();
+						console.log("AFTER: ");
+						console.log(roomInstances[theRoom].content);
+						roomInstances[theRoom].content[i].health = hp;
+						if(roomInstances[theRoom].content[i].health > roomInstances[theRoom].content[i].maxHealth) {
+							roomInstances[theRoom].content[i].health = roomInstances[theRoom].content[i].maxHealth;
+						}
+						roomInstances[theRoom].content.splice(roomInstances[theRoom].content.length - 1, 1);
+						return;
+					}
+					else {
+						console.log("time warp");
+						fps = 30;
+						realTime = 0;
+					}
+				}
 			}
 		}
 		else if(roomInstances[inRoom].content[i] instanceof Bridge) {
 			var bridge = roomInstances[inRoom].content[i];
 			if(Math.distSq(this.x, this.y, bridge.x, bridge.y + 500) < 250000) {
 				this.splicing = true;
+				if(this.type === "chaos") {
+					if(this.timeWarp) {
+						fps = 30;
+						realTime = 0;
+					}
+					else {
+						p.x = this.x + p.worldX;
+						p.y = this.y + p.worldY - 46;
+					}
+				}
 			}
 		}
 	}
 	//collision with player
-	if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && this.type === "shadow") {
-		var damage = Math.round(Math.random()) + 4;
-		p.hurt(damage, "a wraith");
+	if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && (this.type === "shadow" || (this.type === "fire" && this.shotBy === "enemy"))) {
+		var damage = Math.round(Math.random() * 10) + 40;
+		p.hurt(damage, (this.type === "shadow") ? "a wraith" : "a dragonling");
 		this.splicing = true;
 	}
 };
@@ -8675,12 +9025,12 @@ function Troll(x, y) {
 	this.bottomY = 60;
 
 	//stats
-	this.health = 15;
-	this.maxHealth = 15;
-	this.defLow = 5;
-	this.defHigh = 7;
-	this.damLow = 5;
-	this.damHigh = 7;
+	this.health = 150;
+	this.maxHealth = 150;
+	this.defLow = 50;
+	this.defHigh = 70;
+	this.damLow = 50;
+	this.damHigh = 70;
 	this.complexAttack = true;
 	this.name = "a troll";
 };
@@ -8710,6 +9060,7 @@ Troll.prototype.display = function() {
 	}
 	//legs
 	{
+	c.fillStyle = "rgb(30, 128, 30)";
 	for(var scale = -1; scale <= 1; scale += 2) {
 		c.save();
 		if(scale === -1) {
@@ -8719,6 +9070,7 @@ Troll.prototype.display = function() {
 			c.translate(-3 * this.leg2, 7 * this.leg2);
 		}
 		c.scale(scale, 1);
+		c.translate(-5, 0);
 		circle(45, 30, 5);
 		circle(30, 50, 5);
 		circle(60, 30, 5);
@@ -8741,16 +9093,16 @@ Troll.prototype.display = function() {
 	this.leg1 += this.leg1Dir;
 	this.leg2 += this.leg2Dir;
 	if(this.currentAction === "move") {
-		this.leg1Dir = (this.leg1 > 2) ? -0.125 : this.leg1Dir;
-		this.leg1Dir = (this.leg1 < -2) ? 0.125 : this.leg1Dir;
-		this.leg2Dir = (this.leg2 > 2) ? -0.125 : this.leg2Dir;
-		this.leg2Dir = (this.leg2 < -2) ? 0.125 : this.leg2Dir;
+		this.leg1Dir = (this.leg1 > 2) ? -0.2 : this.leg1Dir;
+		this.leg1Dir = (this.leg1 < -2) ? 0.2 : this.leg1Dir;
+		this.leg2Dir = (this.leg2 > 2) ? -0.2 : this.leg2Dir;
+		this.leg2Dir = (this.leg2 < -2) ? 0.2 : this.leg2Dir;
 	}
 	else {
-		this.leg1Dir = (this.leg1 < 0) ? 0.125 : this.leg1Dir;
-		this.leg1Dir = (this.leg1 > 0) ? -0.125 : this.leg1Dir;
-		this.leg2Dir = (this.leg2 < 0) ? 0.125 : this.leg2Dir;
-		this.leg2Dir = (this.leg2 > 0) ? -0.125 : this.leg2Dir;
+		this.leg1Dir = (this.leg1 < 0) ? 0.2 : this.leg1Dir;
+		this.leg1Dir = (this.leg1 > 0) ? -0.2 : this.leg1Dir;
+		this.leg2Dir = (this.leg2 < 0) ? 0.2 : this.leg2Dir;
+		this.leg2Dir = (this.leg2 > 0) ? -0.2 : this.leg2Dir;
 	}
 	}
 	//head
@@ -8760,21 +9112,21 @@ Troll.prototype.display = function() {
 	{
 	c.save();
 	c.translate(this.x + p.worldX + 40, this.y + p.worldY - 10);
-	if(this.x + p.worldX < p.x && this.currentAction === "melee-attack") {
+	if(this.armAttacking === "right") {
 		c.rotate(this.attackArm / 180 * Math.PI);
 	}
 	else {
-		c.rotate(40 / 180 * Math.PI);
+		c.rotate(60 / 180 * Math.PI);
 	}
 	if(this.x + p.worldX < p.x && this.currentAction === "melee-attack") {
 		c.fillStyle = "rgb(139, 69, 19)";
 		c.beginPath();
 		c.moveTo(45, 0);
-		c.lineTo(50, -50);
-		c.lineTo(30, -50);
+		c.lineTo(50, -70);
+		c.lineTo(30, -70);
 		c.lineTo(35, 0);
 		c.fill();
-		circle(40, -50, 10);
+		circle(40, -70, 10);
 	}
 	c.fillStyle = "rgb(0, 128, 0)";
 	circle(0, -10, 5);
@@ -8789,21 +9141,21 @@ Troll.prototype.display = function() {
 	{
 	c.save();
 	c.translate(this.x + p.worldX - 40, this.y + p.worldY - 10);
-	if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
+	if(this.armAttacking === "left") {
 		c.rotate(-this.attackArm / 180 * Math.PI);
 	}
 	else {
-		c.rotate(-40 / 180 * Math.PI);
+		c.rotate(-60 / 180 * Math.PI);
 	}
 	if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
 		c.fillStyle = "rgb(139, 69, 19)";
 		c.beginPath();
 		c.moveTo(-45, 0);
-		c.lineTo(-50, -50);
-		c.lineTo(-30, -50);
+		c.lineTo(-50, -70);
+		c.lineTo(-30, -70);
 		c.lineTo(-35, 0);
 		c.fill();
-		circle(-40, -50, 10);
+		circle(-40, -70, 10);
 	}
 	c.fillStyle = "rgb(0, 128, 0)";
 	circle(0, -10, 5);
@@ -8814,42 +9166,165 @@ Troll.prototype.display = function() {
 	c.fillRect(-50, -15, 50, 30);
 	c.restore();
 	}
-	//attacking
-	{
-	this.attackArm += this.attackArmDir;
-	this.attackArmDir = (this.attackArm > 80) ? -2 : this.attackArmDir;
-	this.attackArmDir = (this.attackArm < 0) ? 2 : this.attackArmDir;
-	}
 };
 Troll.prototype.update = function() {
 	//movement
 	this.x += this.velX;
 	this.y += this.velY;
+	this.velY += 0.1;
+	this.attackArm += this.attackArmDir;
+	// this.attackRecharge ++;
 	if(this.currentAction === "move") {
 		if(this.x + p.worldX < p.x) {
-			this.x = (this.x + p.worldX < p.x - 100) ? this.x + 1 : this.x;
-			this.x = (this.x + p.worldX > p.x - 100) ? this.x - 1 : this.x;
+			this.velX = (this.x + p.worldX < p.x - 100) ? 1 : this.velX;
+			this.velX = (this.x + p.worldX > p.x - 100) ? -1 : this.velX;
 		}
 		else {
-			this.x = (this.x + p.worldX < p.x + 100) ? this.x + 1 : this.x;
-			this.x = (this.x + p.worldX > p.x + 100) ? this.x - 1 : this.x;
+			this.velX = (this.x + p.worldX < p.x + 100) ? 1 : this.velX;
+			this.velX = (this.x + p.worldX > p.x + 100) ? -1 : this.velX;
 		}
 		this.timeDoingAction ++;
 		if(this.timeDoingAction > 90) {
-			if(Math.abs(this.x + p.worldX - p.x) > 150 && false) {
+			if(Math.abs(this.x + p.worldX - p.x) > 150) {
 				this.currentAction = "ranged-attack";
 			}
 			else {
 				this.currentAction = "melee-attack";
 			}
 			this.timeDoingAction = 0;
+			this.attackArm = 55, this.attackArmDir = 0;
 		}
 	}
 	else if(this.currentAction === "ranged-attack") {
+		this.velX = 0;
 		this.walking = false;
 		if(this.x + p.worldX < p.x) {
 			this.armAttacking = "left";
 		}
+		else {
+			this.armAttacking = "right";
+		}
+		if(this.attackArmDir === 0) {
+			this.attackArmDir = -5;
+		}
+		if(this.attackArm < -45) {
+			if(this.armAttacking === "left") {
+				roomInstances[theRoom].content.push(new Rock(this.x - 40 - 35, this.y - 10 - 35, 3, -4));
+			}
+			else {
+				roomInstances[theRoom].content.push(new Rock(this.x + 40 + 35, this.y - 10 - 35, -3, -4));
+			}
+			this.attackArmDir = 5;
+		}
+		if(this.attackArm >= 60) {
+			this.attackArmDir = 0;
+			this.currentAction = "move";
+			this.timeDoingAction = 0;
+			this.attackArmDir = 0;
+		}
+	}
+	else if(this.currentAction === "melee-attack") {
+		this.velX = 0;
+		this.attackArmDir = (this.attackArm > 80) ? -2 : this.attackArmDir;
+		this.attackArmDir = (this.attackArm < 0) ? 2 : this.attackArmDir;
+		this.attackArmDir = (this.attackArmDir === 0) ? -2 : this.attackArmDir;
+		if(this.x + p.worldX < p.x) {
+			this.armAttacking = "right";
+		}
+		else {
+			this.armAttacking = "left";
+		}
+		this.timeDoingAction ++;
+		if(this.timeDoingAction > 90) {
+			this.timeDoingAction = 0;
+			this.currentAction = "move";
+			this.attackArm = 50, this.attackArmDir = 0;
+		}
+		for(var y = -70; y < 0; y += 10) {
+			var weaponPos = Math.rotate(40, y, this.attackArm);
+			if(this.armAttacking === "left") {
+				weaponPos.x = -weaponPos.x;
+			}
+			weaponPos.x += this.x + p.worldX + (this.armAttacking === "right" ? 40 : -40);
+			weaponPos.y += this.y + p.worldY - 10;
+			if(weaponPos.x > p.x - 5 && weaponPos.x < p.x + 5 && weaponPos.y > p.y - 7 && weaponPos.y < p.y + 46 && this.attackRecharge < 0) {
+				p.hurt(Math.floor(Math.random() * 10 + 40), "a troll");
+				this.attackRecharge = 45;
+			}
+			// c.fillStyle = "rgb(0, 255, 0)";
+			// c.fillRect(weaponPos.x, weaponPos.y, 2, 2);
+		}
+	}
+	collisionRect(this.x + p.worldX - 40, this.y + p.worldY - 20, 80, 60);
+};
+
+function Rock(x, y, velX, velY) {
+	this.x = x;
+	this.y = y;
+	this.velX = velX;
+	this.velY = velY;
+	this.hitSomething = false;
+	this.hitPlayer = false;
+	this.opacity = 1;
+	this.fragments = [];
+};
+Rock.prototype.exist = function() {
+	if(!this.hitSomething) {
+		this.x += this.velX;
+		this.y += this.velY;
+		this.velY += 0.1;
+		c.save();
+		c.globalAlpha = this.opacity;
+		c.fillStyle = "rgb(140, 140, 140)";
+		c.beginPath();
+		c.arc(this.x + p.worldX, this.y + p.worldY, 20, 0, 2 * Math.PI);
+		c.fill();
+		c.restore();
+	}
+	if(!this.hitPlayer && this.x + p.worldX + 20 > p.x - 5 && this.x + p.worldX - 20 < p.x + 5 && this.y + p.worldY + 20 > p.y - 7 && this.y + p.worldY - 20 < p.y + 46) {
+		p.hurt(Math.random() * 10 + 40, "a troll");
+		this.hitPlayer = true;
+	}
+	if(!this.hitSomething) {
+		for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+			if(roomInstances[theRoom].content[i] instanceof Block) {
+				var block = roomInstances[theRoom].content[i];
+				if(this.x + 20 > block.x && this.x - 20 < block.x + block.w && this.y + 20 > block.y && this.y - 20 < block.y + block.h) {
+					this.hitSomething = true;
+					for(var j = 0; j < 10; j ++) {
+						this.fragments.push({
+							x: this.x + (Math.random() * 10 - 5), y: this.y + (Math.random() * 10 - 5),
+							velX: Math.random() * 2 - 1, velY: Math.random() * 2 - 1,
+							opacity: 2
+						});
+					}
+				}
+			}
+		}
+	}
+	else {
+		c.save();
+		c.fillStyle = "rgb(140, 140, 140)";
+		for(var i = 0; i < this.fragments.length; i ++) {
+			c.globalAlpha = this.fragments[i].opacity;
+			c.beginPath();
+			c.arc(this.fragments[i].x + p.worldX, this.fragments[i].y + p.worldY, 5, 0, 2 * Math.PI);
+			c.fill();
+			this.fragments[i].x += this.fragments[i].velX;
+			this.fragments[i].y += this.fragments[i].velY;
+			this.fragments[i].velY += 0.1;
+			this.fragments[i].opacity -= 0.05;
+			if(this.fragments[i].opacity <= 0) {
+				this.splicing = true;
+			}
+			continue;
+			for(var j = 0; j < roomInstances[theRoom].content.length; j ++) {
+				if(roomInstances[theRoom].content[i] instanceof Block) {
+
+				}
+			}
+		}
+		c.restore();
 	}
 };
 
@@ -8860,12 +9335,22 @@ function Dragonling(x, y) {
 	this.velX = 0;
 	this.velY = 0;
 	this.pos = [];
+	for(var i = 0; i < 30; i ++) {
+		this.pos.push({ x: this.x, y: this.y });
+	}
 	this.rot = 0;
+	this.mouth = 20;
+	this.mouthDir = 0;
+	this.currentAction = "bite";
+	this.reload = 0;
 	//stats
-	this.damLow = 5 - 5;
-	this.damHigh = 6 - 6;
-	this.health = 15;
-	this.maxHealth = 15;
+	this.damLow = 50;
+	this.damHigh = 60;
+	this.defLow = 50;
+	this.defHigh = 60;
+	this.health = 150;
+	this.maxHealth = 150;
+	this.name = "a dragonling";
 	//hitbox
 	this.leftX = -5;
 	this.rightX = 5;
@@ -8874,26 +9359,88 @@ function Dragonling(x, y) {
 };
 inheritsFrom(Dragonling, Enemy);
 Dragonling.prototype.display = function() {
-	c.fillStyle = "rgb(0, 255, 0)";
+	//back wing
+	c.fillStyle  = "rgb(0, 235, 0)";
+	var p1 = {x: this.pos[25].x + p.worldX, y: this.pos[25].y + p.worldY};
+	var slope = Math.normalize(this.pos[11].x - this.pos[5].x, this.pos[11].y - this.pos[5].y);
+	var p2 = point3d((slope.x * 15) + this.pos[25].x + p.worldX, (slope.y * 15) + this.pos[25].y + p.worldY, 0.9);
+	var p3 = point3d((-slope.x * 15) + this.pos[25].x + p.worldX, (-slope.y * 15) + this.pos[25].y + p.worldY, 0.9);
+	var p4 = point3d(p1.x, p1.y, 0.8);
 	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY, 5, 0, 2 * Math.PI);
+	c.moveTo(p2.x, p2.y),
+	c.lineTo(p4.x, p4.y),
+	c.lineTo(p3.x, p3.y),
+	c.lineTo(p1.x, p1.y);
 	c.fill();
-	c.fillStyle = "rgb(255, 0, 0)";
+	//mouth
+	c.fillStyle = "rgb(0, 255, 0)";
 	c.save();
 	c.translate(this.x + p.worldX, this.y + p.worldY);
-	c.rotate(this.rot / 180 * Math.PI);
+	c.rotate(Math.rad(this.rot));
 	c.beginPath();
-	c.arc(0, -10, 5, 0, 2 * Math.PI);
+	c.moveTo(0, -10);
+	c.lineTo(20, -20);
+	c.lineTo(this.mouth, -50);
+	c.lineTo(0, 10);
+	c.lineTo(-this.mouth, -50);
+	c.lineTo(-20, -20);
 	c.fill();
 	c.restore();
+	//bite mouth
+	if((Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 5, p.y - 7) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x - 5, p.y - 7) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 5, p.y + 46) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x - 5, p.y + 46) <= 1600) && this.mouthDir === 0 && this.currentAction === "bite") {
+		this.mouthDir = -1;
+		this.currentAction = "shoot";
+	}
+	if(this.mouth < 0) {
+		this.mouthDir = 1;
+	}
+	if(this.mouth > 20 && this.mouthDir === 1) {
+		this.mouthDir = 0;
+	}
+	this.mouth += this.mouthDir;
+	//tail
+	c.strokeStyle = "rgb(0, 255, 0)";
+	c.lineWidth = 5;
+	c.save();
+	c.translate(p.worldX, p.worldY);
+	for(var i = 0; i < this.pos.length; i ++) {
+		c.beginPath();
+		if(i === this.pos.length - 1) {
+			c.moveTo(this.x, this.y);
+		}
+		else {
+			c.moveTo(this.pos[i + 1].x, this.pos[i + 1].y);
+		}
+		c.lineTo(this.pos[i].x, this.pos[i].y);
+		c.stroke();
+	}
+	c.restore();
+	//update tail position
+	this.pos.push({x: this.x, y: this.y});
+	if(this.pos.length > 30) {
+		this.pos.splice(0, 1);
+	}
+	//front wing
+	c.fillStyle = "rgb(20, 255, 20)";
+	var p2 = point3d((slope.x * 15) + this.pos[25].x + p.worldX, (slope.y * 15) + this.pos[25].y + p.worldY, 1.1);
+	var p3 = point3d((-slope.x * 15) + this.pos[25].x + p.worldX, (-slope.y * 15) + this.pos[25].y + p.worldY, 1.1);
+	var p4 = point3d(p1.x, p1.y, 1.2);
+	c.beginPath();
+	c.moveTo(p2.x, p2.y),
+	c.lineTo(p4.x, p4.y),
+	c.lineTo(p3.x, p3.y),
+	c.lineTo(p1.x, p1.y);
+	c.fill();
 };
 Dragonling.prototype.update = function() {
 	//move according to rotation
-	var theVel = getRotated(0, -10, this.rot);
+	var theVel = Math.rotate(0, -10, this.rot);
 	this.velX += theVel.x / 100;
 	this.velY += theVel.y / 100;
-	this.x += this.velX;
-	this.y += this.velY;
+	if(!this.frozen) {
+		this.x += this.velX;
+		this.y += this.velY;
+	}
 	//accelerate towards destination
 	var idealAngle = calcAngleDegrees(this.x - this.destX, this.y - this.destY) - 90;
 	var cw = Math.abs(this.rot - (idealAngle + 360));
@@ -8906,10 +9453,63 @@ Dragonling.prototype.update = function() {
 	else if(theClosest === ccw) {
 		this.rot += 360;
 	}
-	this.rot += (this.rot < idealAngle) ? 3 : -3;
+	this.rot += (this.rot < idealAngle) ? 2 : -2;
 	//update destination
-	this.destX = p.x - p.worldX;
-	this.destY = p.y - p.worldY;
+	if(this.currentAction === "bite") {
+		this.destX = p.x - p.worldX;
+		this.destY = p.y - p.worldY;
+	}
+	else if(this.currentAction === "shoot") {
+		if(this.velY > 0) {
+			this.destX = this.x + (this.velX > 0) ? 100 : -100;
+			this.destY = this.y - 50;
+		}
+		else {
+			this.destX = this.x;
+			this.destY = this.y;
+		}
+	}
+	//shoot fireballs
+	var idealAngle = calcAngleDegrees(this.x - (p.x - p.worldX), this.y - (p.y - p.worldY)) - 90;
+	if(this.reload > 120 && Math.abs(this.rot - idealAngle) <= 2 && Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x, p.y) >= 10000) {
+		roomInstances[theRoom].content.push(new MagicCharge(this.x, this.y, theVel.x, theVel.y, "fire", Math.random() * 10 + 40));
+		roomInstances[theRoom].content[roomInstances[theRoom].content.length - 1].shotBy = "enemy";
+		this.currentAction = "bite";
+		this.reload = 0;
+	}
+	this.reload ++;
+	//update hitbox
+	while(this.rot > 360) {
+		this.rot -= 360;
+	}
+	while(this.rot < 0) {
+		this.rot += 360;
+	}
+	// this.rot = 90;
+	if(this.rot >= 315 || this.rot < 45) {
+		this.leftX = -20;
+		this.rightX = 20;
+		this.topY = -40;
+		this.bottomY = 0;
+	}
+	else if(this.rot >= 45 && this.rot < 135) {
+		this.leftX = 0;
+		this.rightX = 40;
+		this.topY = -20;
+		this.bottomY = 20;
+	}
+	else if(this.rot >= 135 && this.rot < 225) {
+		this.leftX = -20;
+		this.rightX = 20;
+		this.topY = 0;
+		this.bottomY = 40;
+	}
+	else if(this.rot >= 225 && this.rot < 315) {
+		this.leftX = -40;
+		this.rightX = 0;
+		this.topY = -20;
+		this.bottomY = 20;
+	}
 };
 
 //hax
@@ -8918,12 +9518,10 @@ if(hax) {
 	// p.reset();
 	p.onScreen = "play";
 	for(var i = 0; i < items.length; i ++) {
-		p.addItem(new items[i]());
+		// p.addItem(new items[i]());
 	}
-	// p.addItem(new Map());
-	// p.addItem(new WoodBow());
-	// p.addItem(new Arrow(100));
-	// p.addItem(new MagicQuiver());
+	p.addItem(new ChaosStaff());
+	p.addItem(new Dagger());
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
@@ -8946,7 +9544,14 @@ howChar.init();
 var tutorialWorld = new Room(
 	"tutorial",
 	[
-		new Block(-4000, 400, 8000, 1000)
+		new Block(-4000, 400, 8000, 1000), //floor
+		new Block(-4000, -4000, 4400, 8000), //left wall
+		new MovingWall(400, -4000, 300, 4400),
+		new MovingWall(1100, -4000, 300, 4300, 1.1),
+		new Block(700, 300, 1000, 1000), //higher floor
+		new Chest(900, 300),
+		new Spider(1600, 200),
+		new Block(1700, -4000, 1000, 8000) //far right wall
 	],
 	"?"
 );
@@ -8959,349 +9564,10 @@ var fadeDest = "none";
 var btn1 = 0;
 var btn2 = 0;
 var btn3 = 0;
-function fancyText(x, y, txt) {
-	c.strokeStyle = "rgb(255, 255, 255)";
-	c.lineWidth = 1;
-	if(txt === "play") {
-		c.save();
-		c.beginPath();
-		c.translate(x - 47.5, y);
-		c.moveTo(10, 0);
-		c.lineTo(5, 0);
-		c.lineTo(5, -20);
-		c.lineTo(0, -20);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(5, -20);
-		c.lineTo(20, -15);
-		c.lineTo(5, -10);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x - 22.5, y);
-		c.beginPath();
-		c.moveTo(0, -20);
-		c.lineTo(5, -20);
-		c.lineTo(5, 0);
-		c.lineTo(0, 0);
-		c.lineTo(20, 0);
-		c.lineTo(20, -5);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 2.5, y);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(10, -20);
-		c.lineTo(20, 0);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 27.5, y);
-		c.beginPath();
-		c.moveTo(5, 0);
-		c.lineTo(15, 0);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(10, 0);
-		c.lineTo(10, -10);
-		c.lineTo(0, -20);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(10, -10);
-		c.lineTo(20, -20);
-		c.stroke();
-		c.restore();
-	}
-	else if(txt === "how") {
-		c.save();
-		c.translate(x - 35, y);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(5, 0);
-		c.moveTo(2.5, 0);
-		c.lineTo(2.5, -20);
-		c.moveTo(0, -20);
-		c.lineTo(5, -20);
-		c.moveTo(2.5, -12.5);
-		c.lineTo(17.5, -7.5);
-		c.moveTo(15, 0);
-		c.lineTo(20, 0);
-		c.moveTo(17.5, 0);
-		c.lineTo(17.5, -20);
-		c.moveTo(15, -20);
-		c.lineTo(20, -20);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x - 10, y);
-		c.beginPath();
-		c.moveTo(0, -10);
-		c.lineTo(10, -20);
-		c.lineTo(20, -10);
-		c.lineTo(10, 0);
-		c.lineTo(0, -10);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 15, y);
-		c.beginPath();
-		c.moveTo(5, -20);
-		c.lineTo(0, -20);
-		c.lineTo(5, 0);
-		c.lineTo(10, -10);
-		c.lineTo(15, 0);
-		c.lineTo(20, -20);
-		c.lineTo(15, -20);
-		c.stroke();
-		c.restore();
-	}
-	else if(txt === "scores") {
-		c.save();//675, 495
-		c.translate(x - 72.5, y);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(20, -6);
-		c.lineTo(0, -14);
-		c.lineTo(20, -20);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x - 47.5, y);
-		c.moveTo(0, 0);
-		c.lineTo(20, 0);
-		c.lineTo(20, -5);
-		c.moveTo(5, 0);
-		c.lineTo(5, -20);
-		c.moveTo(0, -20);
-		c.lineTo(20, -20);
-		c.lineTo(20, -15);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x - 22.5, y);
-		c.beginPath();
-		c.moveTo(0, -10);
-		c.lineTo(10, -20);
-		c.lineTo(20, -10);
-		c.lineTo(10, 0);
-		c.lineTo(0, -10);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 2.5, y);
-		c.beginPath();
-		c.moveTo(10, 0);
-		c.lineTo(5, 0);
-		c.lineTo(5, -20);
-		c.lineTo(0, -20);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(5, -20);
-		c.lineTo(20, -15);
-		c.lineTo(5, -10);
-		c.lineTo(20, 0);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 27.5, y);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(20, 0);
-		c.lineTo(20, -5);
-		c.moveTo(5, 0);
-		c.lineTo(5, -20);
-		c.moveTo(0, -20);
-		c.lineTo(20, -20);
-		c.lineTo(20, -15);
-		c.moveTo(5, -10);
-		c.lineTo(20, -10);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 52.5, y);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(20, -6);
-		c.lineTo(0, -14);
-		c.lineTo(20, -20);
-		c.stroke();
-		c.restore();
-	}
-	else if(txt === "home") {
-		// c.fillStyle = "rgb(255, 0, 0)";
-		// c.fillRect(x - 22.5, y, 20, 5);
-		// c.fillRect(x + 2.5, y, 20, 5);
-		// c.fillRect(x - 47.5, y, 20, 5);
-		// c.fillRect(x + 27.5, y, 20, 5);
-
-		c.save();
-		c.translate(x - 47.5, y);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(5, 0);
-		c.moveTo(2.5, 0);
-		c.lineTo(2.5, -20);
-		c.moveTo(0, -20);
-		c.lineTo(5, -20);
-		c.moveTo(2.5, -10);
-		c.lineTo(17.5, -10);
-		c.moveTo(17.5, -20);
-		c.lineTo(17.5, 0);
-		c.moveTo(15, -20);
-		c.lineTo(20, -20);
-		c.moveTo(15, 0);
-		c.lineTo(20, 0);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x - 22.5, y);
-		c.beginPath();
-		c.moveTo(0, -10);
-		c.lineTo(10, -20);
-		c.lineTo(20, -10);
-		c.lineTo(10, 0);
-		c.lineTo(0, -10);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 2.5, y);
-		c.beginPath();
-		c.moveTo(5, 0);
-		c.lineTo(0, 0);
-		c.lineTo(5, -20);
-		c.lineTo(10, -10);
-		c.lineTo(15, -20);
-		c.lineTo(20, 0);
-		c.lineTo(15, 0);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 27.5, y);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(20, 0);
-		c.lineTo(20, -5);
-		c.moveTo(5, 0);
-		c.lineTo(5, -20);
-		c.moveTo(0, -20);
-		c.lineTo(20, -20);
-		c.lineTo(20, -15);
-		c.moveTo(5, -10);
-		c.lineTo(20, -10);
-		c.stroke();
-		c.restore();
-	}
-	else if(txt === "retry") {
-
-		c.save();
-		c.translate(x - 60, y);
-		c.beginPath();
-		c.moveTo(10, 0);
-		c.lineTo(5, 0);
-		c.lineTo(5, -20);
-		c.lineTo(0, -20);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(5, -20);
-		c.lineTo(20, -15);
-		c.lineTo(5, -10);
-		c.lineTo(20, 0);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x - 35, y);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(20, 0);
-		c.lineTo(20, -5);
-		c.moveTo(5, 0);
-		c.lineTo(5, -20);
-		c.moveTo(0, -20);
-		c.lineTo(20, -20);
-		c.lineTo(20, -15);
-		c.moveTo(5, -10);
-		c.lineTo(20, -10);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x - 10, y);
-		c.beginPath();
-		c.moveTo(7.5, 0);
-		c.lineTo(12.5, 0);
-		c.moveTo(10, 0);
-		c.lineTo(10, -17.5);
-		c.moveTo(0, -17.5);
-		c.lineTo(20, -17.5);
-		c.moveTo(20, -20);
-		c.lineTo(20, -15);
-		c.moveTo(0, -20);
-		c.lineTo(0, -15);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 15, y);
-		c.beginPath();
-		c.moveTo(10, 0);
-		c.lineTo(5, 0);
-		c.lineTo(5, -20);
-		c.lineTo(0, -20);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(5, -20);
-		c.lineTo(20, -15);
-		c.lineTo(5, -10);
-		c.lineTo(20, 0);
-		c.stroke();
-		c.restore();
-
-		c.save();
-		c.translate(x + 40, y);
-		c.beginPath();
-		c.moveTo(7.5, 0);
-		c.lineTo(12.5, 0);
-		c.moveTo(10, 0);
-		c.lineTo(10, -10);
-		c.lineTo(20, -20);
-		c.moveTo(10, -10);
-		c.lineTo(0, -20);
-		c.moveTo(0, -15);
-		c.lineTo(0, -20);
-		c.lineTo(5, -20);
-		c.moveTo(20, -15);
-		c.lineTo(20, -20);
-		c.lineTo(15, -20);
-		c.stroke();
-		c.restore();
-
-		// c.fillStyle = "rgb(255, 0, 0)";
-		// c.fillRect(x - 10, y - 5, 20, 5);
-		// c.fillRect(x - 35, y - 5, 20, 5);
-		// c.fillRect(x + 15, y - 5, 20, 5);
-		// c.fillRect(x - 60, y - 5, 20, 5);
-		// c.fillRect(x + 40, y - 5, 20, 5);
-	}
-};
 /** FRAMES **/
 function doByTime() {
 	if(hax) {
-		p.health = p.maxHealth;
+		// p.health = p.maxHealth;
 	}
 	cursorHand = false;
 	frameCount ++;
@@ -9403,7 +9669,8 @@ function doByTime() {
 									roomInstances[door.dest].content[newIndex].y = roomInstances[door.dest].content[exitDoorIndex].y - roomInstances[door.dest].content[newIndex].bottomY;
 									roomInstances[door.dest].content[newIndex].opacity = 0;
 									roomInstances[door.dest].content[newIndex].fadingIn = true;
-									roomInstances[door.dest].content[newIndex].seesPlayer = true;
+									roomInstances[door.dest].content[newIndex].seesPlayer = false;
+									roomInstances[door.dest].content[newIndex].health = enemy.health;
 									roomInstances[i].content.splice(j, 1);
 									continue enemyLoop;
 								}
@@ -9448,7 +9715,11 @@ function doByTime() {
 		c.arc(125, 440, 85, 0, 2 * Math.PI);
 		c.fill();
 		//left door text
-		fancyText(125, 495, "how");
+		c.lineWidth = 1;
+		c.strokeStyle = "rgb(255, 255, 255)";
+		c.font = "100 20px Germania One";
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.fillText("H o w", 125, 492.5);
 		c.fillStyle = "rgb(20, 20, 20)";
 		if(btn2 > 0) {
 			c.beginPath();
@@ -9466,7 +9737,9 @@ function doByTime() {
 		c.arc(400, 380, 80, 0, 2 * Math.PI);
 		c.fill();
 		//middle door text
-		fancyText(400, 455, "play");
+		c.font = "100 20px Germania One";
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.fillText("P l a y", 400, 452.5);
 		if(btn1 > 0) {
 			c.beginPath();
 			c.moveTo(400 - btn1, 465);
@@ -9479,12 +9752,24 @@ function doByTime() {
 		}
 		//right door
 		c.fillStyle = "rgb(20, 20, 20)";
-		c.fillRect(590, 420, 170, 160);
+		c.fillRect(590, 440, 170, 140);
 		c.beginPath();
-		c.arc(675, 420, 85, 0, 2 * Math.PI);
+		c.arc(675, 440, 85, 0, 2 * Math.PI);
 		c.fill();
+		c.font = "100 20px Germania One";
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.fillText("S c o r e s", 675, 492.5);
+		if(btn3 > 0) {
+			c.beginPath();
+			c.moveTo(675 - btn3, 505);
+			c.lineTo(675 + btn3, 505);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(675 - btn3, 505 - 40);
+			c.lineTo(675 + btn3, 505 - 40);
+			c.stroke();
+		}
 		//right door text
-		fancyText(675, 495, "scores");
 		loadBoxFronts();
 		if(Math.dist(mouseX, mouseY, 400, 380) <= 80 || (mouseX > 320 && mouseX < 480 && mouseY > 380 && mouseY < 580)) {
 			cursorHand = true;
@@ -9492,10 +9777,7 @@ function doByTime() {
 				btn1 += 5;
 			}
 			if(mouseIsPressed) {
-				roomInstances = [tutorialWorld];
-				inRoom = 0;
-				theRoom = 0;
-				howChar.tutorialTime = 0;
+				inRoom = 0, theRoom = 0;
 				fading = "out";
 				fadeDest = "class-select";
 			}
@@ -9503,18 +9785,57 @@ function doByTime() {
 		else if(btn1 > 0) {
 			btn1 -= 5;
 		}
-		if(Math.dist(mouseX, mouseY, 125, 440) <= 80 || (mouseX > 40 && mouseX < 40 + 170 && mouseY > 380 && mouseY < 580)) {
+		if(Math.dist(mouseX, mouseY, 125, 440) <= 85 || (mouseX > 40 && mouseX < 40 + 170 && mouseY > 380 && mouseY < 580)) {
 			cursorHand = true;
 			if(btn2 < 40) {
 				btn2 += 5;
 			}
 			if(mouseIsPressed) {
+				howChar.reset(), p.reset();
+				for(var i = 0; i < howChar.invSlots.length; i ++) {
+					howChar.invSlots[i].content = "empty";
+					p.invSlots[i].content = "empty";
+				}
+				roomInstances = [new Room(
+					"tutorial",
+					[
+						new Block(-4000, 400, 8000, 1000), //floor
+						new Block(-4000, -4000, 4400, 8000), //left wall
+						new MovingWall(400, -4000, 300, 4400),
+						new MovingWall(1100, -4000, 300, 4300, 1.1),
+						new Block(700, 300, 1000, 1000), //higher floor
+						new Chest(900, 300),
+						new Spider(1600, 200),
+						new Block(1700, -4000, 1000, 8000) //far right wall
+					],
+					"?"
+				)];
+				howChar.txt = "arrow keys to move, up to jump";
+				inRoom = 0, theRoom = 0;
 				fading = "out";
 				fadeDest = "how";
+				if(p.invSlots[0].content === "empty") {
+					p.addItem(new Sword());
+				}
+				p.invSlots[3].content = new EnergyStaff();
+				p.invSlots[17].content = new Arrow(Infinity);
 			}
 		}
 		else if(btn2 > 0) {
 			btn2 -= 5;
+		}
+		if(Math.dist(mouseX, mouseY, 675, 440) <= 85 || (mouseX > 590 && mouseX < 590 + 170 && mouseY > 380 && mouseY < 580)) {
+			cursorHand = true;
+			if(btn3 < 40) {
+				btn3 += 5;
+			}
+			if(mouseIsPressed) {
+				fading = "out";
+				fadeDest = "scores";
+			}
+		}
+		else if(btn3 > 0) {
+			btn3 -= 5;
 		}
 	}
 	else if(p.onScreen === "class-select") {
@@ -9619,7 +9940,11 @@ function doByTime() {
 		c.beginPath();
 		c.arc(175, 570, 75, 0, 2 * Math.PI);
 		c.fill();
-		fancyText(175, 620, "home");
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.strokeStyle = "rgb(255, 255, 255)";
+		c.font = "100 20px Germania One";
+		c.fillText("H o m e", 175, 617.5);
+		c.lineWidth = 1;
 		if(btn1 > 0) {
 			c.beginPath();
 			c.moveTo(175 - btn1, 590);
@@ -9649,7 +9974,10 @@ function doByTime() {
 		c.beginPath();
 		c.arc(625, 570, 75, 0, 2 * Math.PI);
 		c.fill();
-		fancyText(625, 620, "retry");
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.strokeStyle = "rgb(255, 255, 255)";
+		c.fillText("R e t r y", 625, 617.5);
+		c.lineWidth = 1;
 		if(btn2 > 0) {
 			c.beginPath();
 			c.moveTo(626 - btn2, 590);
@@ -9662,7 +9990,7 @@ function doByTime() {
 		}
 		if((mouseX > 550 && mouseX < 700 && mouseY > 570 && mouseY < 670) || Math.dist(625, 570, mouseX, mouseY) <= 75) {
 			cursorHand = true;
-			if(btn2 < 62) {
+			if(btn2 < 50) {
 				btn2 += 5;
 			}
 			if(mouseIsPressed) {
@@ -9675,13 +10003,207 @@ function doByTime() {
 		}
 	}
 	else if(p.onScreen === "how") {
-		p.worldX = howChar.worldX, p.worldY = howChar.worldY;
+		p.damOp -= 0.05;
+		// howChar.invSlots = deepClone(p.invSlots);
+		howChar.invSlots = p.invSlots;
+		inRoom = 0;
+		p.worldX = howChar.worldX, p.worldY = howChar.worldY, p.x = howChar.x, p.y = howChar.y, p.canJump = howChar.canJump;
 		theRoom = 0;
-		keys = [], mouseIsPressed = false, mouseX = -100, mouseY = -100;
+		// keys = [], mouseIsPressed = false, mouseX = -100, mouseY = -100;
 		howChar.update();
-		tutorialWorld.exist();
+		roomInstances[0].exist();
+
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.font = "100 20px Germania One";
+		c.textAlign = "center";
+		c.globalAlpha = 1;
+		if(!howChar.txt.includes("\n")) {
+			c.fillText(howChar.txt, 400, 600);
+		}
+		else {
+			for(var i = 0; i < howChar.txt.length; i ++) {
+				if(howChar.txt.substr(i, 1) === "\n") {
+					c.fillText(howChar.txt.substr(0, i), 400, 600);
+					c.fillText(howChar.txt.substr(i + 1, Infinity), 400, 640);
+					break;
+				}
+			}
+		}
+		if(howChar.txt === "press A to use the item you are holding") {
+			if(howChar.invSlots[howChar.activeSlot].content instanceof Sword) {
+				c.fillText("(like swinging a sword)", 400, 640);
+			}
+			else if(howChar.invSlots[howChar.activeSlot].content instanceof WoodBow) {
+				c.fillText("(like shooting a bow)", 400, 640);
+			}
+			else  if(howChar.invSlots[howChar.activeSlot].content instanceof EnergyStaff) {
+				c.fillText("(like using a staff)", 400, 640);
+			}
+		}
+
+		if(howChar.worldX < -350 && howChar.txt === "arrow keys to move, up to jump") {
+			for(var i = 0; i < roomInstances[0].content.length; i ++) {
+				if(roomInstances[0].content[i] instanceof MovingWall && roomInstances[0].content[i].x <= 400) {
+					roomInstances[0].content[i].zDir = 0.01;
+					break;
+				}
+			}
+			howChar.txt = "press S to interact with objects\n(for example: opening a chest)";
+		}
+		if(roomInstances[0].content[5].r <= -84 && howChar.txt === "press S to interact with objects\n(for example: opening a chest)") {
+			howChar.txt = "press D to view your items";
+		}
+		if(keys[65] && howChar.invSlots[howChar.activeSlot].content !== "empty" && howChar.txt === "press A to use the item you are holding") {
+			howChar.txt = "press the number keys (1, 2, 3) to switch between items";
+		}
+		if((keys[49] || keys[50] || keys[51]) && howChar.txt === "press the number keys (1, 2, 3) to switch between items") {
+			howChar.txt = "you can aim ranged weapons";
+			howChar.txtTime = 0;
+		}
+		howChar.txtTime ++;
+		if(howChar.txtTime > 60) {
+			if(howChar.txt === "you can aim ranged weapons" && (howChar.invSlots[howChar.activeSlot].content instanceof RangedWeapon || howChar.invSlots[howChar.activeSlot].content instanceof MagicWeapon)) {
+				howChar.txt = "hold down the A key";
+			}
+			else if(howChar.txt === "and then press up or down to aim" && (keys[38] || keys[40])) {
+				howChar.txt = "then you can release A to shoot";
+			}
+			else if(howChar.txt === "that's all you need to know. good luck!") {
+				// howChar.reset();
+				// roomInstances = [tutorialWorld];
+				// howChar.worldX = p.worldX + 100, howChar.worldY = p.worldY;
+				howChar.txt = "that's all you need to know. good luck!";
+				fading = "out";
+				fadeDest = "home";
+			}
+		}
+		if(keys[65] && howChar.txt === "hold down the A key") {
+			howChar.txt = "and then press up or down to aim";
+			howChar.txtTime = 0;
+		}
+		if(!keys[65] && howChar.txt === "then you can release A to shoot") {
+			howChar.txt = "almost done. try fighting this monster for practice";
+			roomInstances[0].content[3].zDir = -0.01;
+		}
+		if(howChar.txt !== "almost done. try fighting this monster for practice") {
+			for(var i = 0; i < roomInstances[0].content.length; i ++) {
+				if(roomInstances[0].content[i] instanceof Spider) {
+					roomInstances[0].content[i].x = 1600;
+				}
+			}
+		}
+		else {
+			var noEnemy = true;
+			for(var i = 0; i < roomInstances[0].content.length; i ++) {
+				if(roomInstances[0].content[i] instanceof Spider) {
+					noEnemy = false;
+					break;
+				}
+			}
+			if(noEnemy) {
+				howChar.txt = "that's all you need to know. good luck!";
+				howChar.txtTime = 0;
+			}
+		}
+
 		howChar.display();
 		howChar.gui();
+
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.font = "100 20px Germania One";
+		c.textAlign = "center";
+		if(howChar.guiOpen === "inventory" && howChar.txt === "press D to view your items") {
+			if(p.invSlots[2].content === "empty") {
+				c.fillText("click an item to equip / unequip it", 400, 600);
+				c.fillText("(try equipping this staff)", 400, 640);
+			}
+			else {
+				c.fillText("now press D again to exit", 400, 600);
+			}
+		}
+		if(howChar.guiOpen === "none" && howChar.invSlots[2].content !== "empty" && howChar.txt === "press D to view your items") {
+			howChar.txt = "press A to use the item you are holding";
+		}
+	}
+	else if(p.onScreen === "scores") {
+		//title
+		c.textAlign = "center";
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.font = "100 40px Germania One";
+		c.fillText("Your Best Games", 400, 130);
+		//content
+		p.scores.sort( function(a, b) { return a.coins - b.coins; } );
+		for(var i = 0; i < Math.min(p.scores.length, 5); i ++) {
+			var y = (i * 150 + 200);
+			c.fillStyle = "rgb(110, 110, 110)";
+			c.fillRect(200, y, 400, 100);
+			c.fillStyle = "rgb(150, 150, 150)";
+			c.font = "bolder 40px Arial Black";
+			c.textAlign = "center";
+			c.fillText((i + 1) + "", 230, y + 67);
+			c.font = "20px monospace";
+			c.textAlign = "left";
+			c.fillText("Coins: " + p.scores[i].coins, 270, y + 25);
+			c.fillText("Monsters Killed: " + p.scores[i].kills, 270, y + 55);
+			c.fillText("Rooms Explored: " + p.scores[i].rooms, 270, y + 85);
+			if(p.scores[i].class === "warrior") {
+				c.save();
+				c.translate(550, y + 50);
+				new Sword().display("item");
+				c.restore();
+			}
+			else if(p.scores[i].class === "archer") {
+				c.save();
+				c.translate(550, y + 50);
+				new WoodBow().display("item");
+				c.restore();
+			}
+			else if(p.scores[i].class === "mage") {
+				c.save();
+				c.translate(550, y + 50);
+				new EnergyStaff().display("item");
+				c.restore();
+			}
+		}
+		if(p.scores.length === 0) {
+			c.fillStyle = "rgb(150, 150, 150)";
+			c.font = "bolder 80px monospace";
+			c.fillText("-", 400, 400);
+			c.font = "20px monospace";
+			c.fillText("no games played yet", 400, 450);
+		}
+		//home button
+		c.lineWidth = 1;
+		c.strokeStyle = "rgb(255, 255, 255)";
+		c.font = "100 20px Germania One";
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.textAlign = "center";
+		c.fillText("H o m e", 70, 70);
+		c.fillStyle = "rgb(20, 20, 20)";
+		if(btn1 > 0) {
+			c.lineWidth = 1;
+			c.beginPath();
+			c.moveTo(70 + btn1, 82.5);
+			c.lineTo(70 - btn1, 82.5);
+			c.stroke();
+			c.beginPath();
+			c.moveTo(70 + btn1, 82.5 - 40);
+			c.lineTo(70 - btn1, 82.5 - 40);
+			c.stroke();
+		}
+		if(mouseX > 30 && mouseX < 100 && mouseY > 30 && mouseY < 100) {
+			cursorHand = true;
+			if(btn1 < 40) {
+				btn1 += 5;
+			}
+			if(mouseIsPressed) {
+				fading = "out";
+				fadeDest = "home";
+			}
+		}
+		else if(btn1 > 0) {
+			btn1 -= 5;
+		}
 	}
 	if(p.onScreen !== "play" || p.dead || true) {
 		if(fading === "out") {
@@ -9708,13 +10230,25 @@ function doByTime() {
 	}
 	pMouseIsPressed = mouseIsPressed;
 	if(cursorHand) {
-		canvas.style.cursor = "pointer";
+		document.getElementById("body").style.cursor = "pointer";
 	}
 	else {
-		canvas.style.cursor = "auto";
-	}
-	if(!frozen) {
-		window.setTimeout(doByTime, 1000 / fps);
+		document.getElementById("body").style.cursor = "auto";
 	}
 };
-window.setTimeout(doByTime, 1000 / fps);
+var realTime = 0;
+function time() {
+	// used for accurate time when in-game time is slowed down (using chaos staff)
+	realTime ++;
+	if(fps < 60 && realTime % 300 === 0) {
+		fps *= 2;
+	}
+	if(fps === 60) {
+		doByTime();
+	}
+	else if(realTime % 4 === 0) {
+		console.log("time slow");
+		doByTime();
+	}
+};
+window.setInterval(time, 1000 / 60);
