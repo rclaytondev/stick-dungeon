@@ -13,12 +13,5 @@ It's really simple, but here are the steps anyway
 * Download the project
 * Move it somewhere besides 'downloads'
 * Launch 'stickDungeon.html'
-# In-game Controls
-It says it on the ingame 'how to play page' but here they are:
-* Arrow keys to move, up to jump
-* A to use the item you're holding (ex: attacking if you're holding a weapon)
-* S to interact with a object in front of you (ex: going through doors, opening chests)
-* D to view your items
-  * Click an equipped item to unequip it
-  * Click an unequipped item to equip it
- * Number keys (1, 2, 3) to switch between equipped items
+
+That will give you the latest version (probably unstable). You can also play it online at [happyryan2.github.io](happyryan2.github.io)
