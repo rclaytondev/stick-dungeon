@@ -1539,12 +1539,14 @@ Player.prototype.update = function() {
 		if(this.op <= 0 && fading !== "out") {
 			fading = "out";
 			fadeDest = "dead";
+			console.log(this.scores);
 			this.scores.push({
 				coins: this.gold,
 				rooms: this.roomsExplored,
 				kills: this.enemiesKilled,
 				class: this.class
 			});
+			console.log(this.scores);
 			var scores = JSON.stringify(this.scores);
 			localStorage.setItem("scores", scores);
 		}
@@ -1696,6 +1698,16 @@ Player.prototype.gui = function() {
 					}
 				}
 			}
+		}
+		if(this.onScreen === "how") {
+			console.log("how to play");
+			c.fillStyle = "rgb(255, 255, 255)";
+			c.strokeStyle = "rgb(255, 255, 255)";
+			c.lineWidth = 5;
+			c.beginPath();
+			c.moveTo(20, 110);
+			c.lineTo(20, 150);
+			c.stroke();
 		}
 	}
 	else if(this.guiOpen === "crystal-infusion") {
@@ -5762,7 +5774,7 @@ if(hax) {
 			continue;
 		}
 	}
-	// enemies = [SkeletonArcher];
+	enemies = [Wraith];
 	// items = [MechBow];
 	for(var i = 0; i < roomInstances[0].content.length; i ++) {
 		if(roomInstances[0].content[i] instanceof Door) {
@@ -10133,7 +10145,7 @@ function doByTime() {
 		c.fillText("Your Best Games", 400, 130);
 		//content
 		p.scores.sort( function(a, b) { return a.coins - b.coins; } );
-		for(var i = 0; i < Math.min(p.scores.length, 5); i ++) {
+		for(var i = 0; i < Math.min(p.scores.length, 3); i ++) {
 			var y = (i * 150 + 200);
 			c.fillStyle = "rgb(110, 110, 110)";
 			c.fillRect(200, y, 400, 100);
