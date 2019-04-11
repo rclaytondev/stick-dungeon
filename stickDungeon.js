@@ -629,7 +629,7 @@ function collisionLine(x1, y1, x2, y2, settings) {
 	settings.extraBouncy = settings.extraBouncy || false;
 	var points = findPointsLinear(x1, y1, x2, y2);
 	for(var i = 0; i < points.length; i ++) {
-		collisionRect(points[i].x, points[i].y, Math.abs(p.velX) + 3, Math.abs(p.velY), { illegalHandling: settings.illegalHandling, walls: settings.walls, extraBouncy: settings.extraBouncy, moving: settings.moving });
+		collisionRect(points[i].x, points[i].y, 3, 3, { illegalHandling: settings.illegalHandling, walls: settings.walls, extraBouncy: settings.extraBouncy, moving: settings.moving });
 	}
 };
 function calcAngleDegrees(x, y) {
@@ -3258,6 +3258,7 @@ function FallBlock(x, y) {
 	this.x = x;
 	this.y = y;
 	this.velY = 0;
+	this.origY = y;
 	this.falling = false;
 	this.timeShaking = 0;
 	this.steppedOn = false;
@@ -3340,6 +3341,12 @@ FallBlock.prototype.exist = function() {
 	if(this.falling) {
 		this.velY += 0.1;
 		this.y += this.velY;
+	}
+	if(p.screenOp > 0.9) {
+		this.y = this.origY;
+		this.velY = 0;
+		this.falling = false;
+		this.allDone = false;
 	}
 };
 var partOfAStair;
@@ -3945,6 +3952,8 @@ Bridge.prototype.exist = function() {
 				y: this.lowArch[i].y * 1.1
 			});
 		}
+		lowB.push({x: 75 * 0.9, y: -20});
+		lowF.push({x: 75 * 1.1, y: -20});
 		this.lowB = lowB;
 		this.lowF = lowF;
 		//generate 3d arches - small left arch
@@ -3988,12 +3997,12 @@ Bridge.prototype.exist = function() {
 	var lowB = point3d(this.x + p.worldX, this.y + p.worldY + 200, 0.9);
 	var lowF = point3d(this.x + p.worldX, this.y + p.worldY + 200, 1.1);
 	c.fillStyle = "rgb(150, 150, 150)";
-	for(var i = 2; i < this.lowArch.length; i += 2) {
+	for(var i = this.lowArch.length / 18; i < this.lowArch.length; i += this.lowArch.length / 18) {
 		c.beginPath();
-		c.moveTo(lowB.x + this.lowB[i].x, lowB.y + this.lowB[i].y);
-		c.lineTo(lowF.x + this.lowF[i].x, lowF.y + this.lowF[i].y);
-		c.lineTo(lowF.x + this.lowF[i - 2].x, lowF.y + this.lowF[i - 2].y);
-		c.lineTo(lowB.x + this.lowB[i - 2].x, lowB.y + this.lowB[i - 2].y);
+		c.moveTo(lowB.x + this.lowB[Math.floor(i)].x, lowB.y + this.lowB[Math.floor(i)].y);
+		c.lineTo(lowF.x + this.lowF[Math.floor(i)].x, lowF.y + this.lowF[Math.floor(i)].y);
+		c.lineTo(lowF.x + this.lowF[Math.floor(i - this.lowArch.length / 18)].x, lowF.y + this.lowF[Math.floor(i - this.lowArch.length / 18)].y);
+		c.lineTo(lowB.x + this.lowB[Math.floor(i - this.lowArch.length / 18)].x, lowB.y + this.lowB[Math.floor(i - this.lowArch.length / 18)].y);
 		c.fill();
 	}
 	c.beginPath();
@@ -4032,12 +4041,12 @@ Bridge.prototype.exist = function() {
 		var lowB = point3d(this.x + p.worldX + x, this.y + p.worldY + 250, 0.9);
 		var lowF = point3d(this.x + p.worldX + x, this.y + p.worldY + 250, 1.1);
 		c.fillStyle = "rgb(150, 150, 150)";
-		for(var j = 2; j < this.smallB.length; j += 2) {
+		for(var j = this.smallB.length / 18; j < this.smallB.length; j += this.smallB.length / 18) {
 			c.beginPath();
-			c.moveTo(lowB.x + this.smallB[j].x, lowB.y + this.smallB[j].y);
-			c.lineTo(lowB.x + this.smallB[j - 2].x, lowB.y + this.smallB[j - 2].y);
-			c.lineTo(lowF.x + this.smallF[j - 2].x, lowF.y + this.smallF[j - 2].y);
-			c.lineTo(lowF.x + this.smallF[j].x, lowF.y + this.smallF[j].y);
+			c.moveTo(lowB.x + this.smallB[Math.floor(j)].x, lowB.y + this.smallB[Math.floor(j)].y);
+			c.lineTo(lowB.x + this.smallB[Math.floor(j - this.smallB.length / 18)].x, lowB.y + this.smallB[Math.floor(j - this.smallB.length / 18)].y);
+			c.lineTo(lowF.x + this.smallF[Math.floor(j - this.smallB.length / 18)].x, lowF.y + this.smallF[Math.floor(j - this.smallB.length / 18)].y);
+			c.lineTo(lowF.x + this.smallF[Math.floor(j)].x, lowF.y + this.smallF[Math.floor(j)].y);
 			c.fill();
 		}
 		//straight arch section
@@ -4082,7 +4091,7 @@ Bridge.prototype.exist = function() {
 	c.lineTo(lowF.x - 80, 800);
 	c.stroke();
 	//hitbox
-	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 500 || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000) {
+	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000 || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000) {
 		p.y --;
 		p.canJump = true;
 		p.velY = (p.velY > 3) ? 3 : p.velY;
@@ -4533,6 +4542,7 @@ function Roof(x, y, w) {
 Roof.prototype.exist = function() {
 	if(this.type === null) {
 		var chooser = Math.random();
+		chooser = 1;
 		if(chooser < 0.25) {
 			this.type = "none";
 		}
@@ -4584,7 +4594,10 @@ Roof.prototype.exist = function() {
 				x: 900,
 				y: -100
 			}
-		])
+		]);
+		collisionLine(this.x + p.worldX - this.w, this.y + p.worldY, this.x + p.worldX - (this.w / 3), this.y + p.worldY - 100);
+		collisionLine(this.x + p.worldX + this.w, this.y + p.worldY, this.x + p.worldX + (this.w / 3), this.y + p.worldY - 100);
+		collisionRect(this.x + p.worldX - this.w, this.y + p.worldY - 200, 2 * this.w, 100);
 	}
 	else if(this.type === "curved") {
 		if(this.points === undefined) {
@@ -4604,6 +4617,9 @@ Roof.prototype.exist = function() {
 		array.push({x: 900, y: this.y + p.worldY});
 		array.push({x: 900, y: -100});
 		polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, array);
+		for(var i = 1; i < array.length; i ++) {
+			collisionLine(array[i].x, array[i].y, array[i - 1].x, array[i - 1].y);
+		}
 	}
 };
 function Fountain(x, y) {
@@ -4903,7 +4919,7 @@ Room.prototype.exist = function(index) {
 			c.globalAlpha = (this.content[i].opacity < 0) ? 0 : this.content[i].opacity;
 			c.translate(this.content[i].x + p.worldX, this.content[i].y + p.worldY);
 			c.beginPath();
-			c.rect(this.content[chestIndex].x - 20 - (this.content[i].x), this.content[chestIndex].y - 1000 - (this.content[i].y), 40, 1000);
+			c.rect(this.content[chestIndex].x - 50 - (this.content[i].x), this.content[chestIndex].y - 1000 - (this.content[i].y), 100, 1000);
 			c.clip();
 			this.content[i].display("item");
 			c.restore();
@@ -5330,7 +5346,7 @@ var rooms = [
 						new Door(450, 0, ["ambient"], false),
 						new Decoration(300, -50), new Decoration(-300, -50),
 						new Decoration(150, -50), new Decoration(-150, -50),
-						new RandomEnemy(50, 0)
+						new RandomEnemy(0, 0)
 					],
 					"?"
 				)
@@ -5380,7 +5396,7 @@ var rooms = [
 						new Bridge(500, -200),
 						new Door(1000, 0, ["reward"]),
 						new Door(0, 0, ["reward"]),
-						new RandomEnemy(400, -200)
+						new RandomEnemy(500, -200)
 					],
 					"?",
 					undefined,
@@ -5768,14 +5784,14 @@ var roomInstances = [
 if(hax) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat1" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "ambient4" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
 	enemies = [Wraith];
-	// items = [MechBow];
+	items = [Helmet];
 	for(var i = 0; i < roomInstances[0].content.length; i ++) {
 		if(roomInstances[0].content[i] instanceof Door) {
 			// roomInstances[0].content[i].dest = ["reward"];
@@ -5800,7 +5816,9 @@ Item.prototype.init = function() {
 		}
 	}
 	this.initialized = true;
+	console.log("velY is " + this.velY);
 	this.velY = -4;
+	console.log("velY is " + this.velY);
 	this.opacity = 1;
 };
 Item.prototype.animate = function() {
@@ -6876,13 +6894,10 @@ ChaosStaff.prototype.getDesc = function() {
 //equipables
 function Equipable(modifier) {
 	Item.call(this);
-	// this.equipable = true;
+	this.equipable = true;
 	this.modifier = modifier || "none";
 };
 inheritsFrom(Equipable, Item);
-Equipable.prototype.init = function() {
-	return;
-};
 function WizardHat(modifier) {
 	Equipable.call(this, modifier);
 	this.defLow = (this.modifier === "none") ? 5 : (this.modifier === "empowering" ? 0 : 10);
@@ -6973,8 +6988,8 @@ MagicQuiver.prototype.getDesc = function() {
 };
 function Helmet(modifier) {
 	Equipable.call(this, modifier);
-	this.defLow = (this.modifier === "none") ? 30 : (this.modifier === "empowering" ? 20 : 40);
-	this.defHigh = (this.modifier === "none") ? 50 : (this.modifier === "empowering" ? 40 : 60);
+	this.defLow = (this.modifier === "none") ? 20 : (this.modifier === "empowering" ? 10 : 30);
+	this.defHigh = (this.modifier === "none") ? 30 : (this.modifier === "empowering" ? 20 : 40);
 	this.healthRegen = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
 	this.power = 3;
 };
@@ -9532,7 +9547,7 @@ if(hax) {
 	for(var i = 0; i < items.length; i ++) {
 		// p.addItem(new items[i]());
 	}
-	p.addItem(new ChaosStaff());
+	p.addItem(new EnergyStaff());
 	p.addItem(new Dagger());
 }
 /** MENUS & UI **/
