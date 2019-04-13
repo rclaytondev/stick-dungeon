@@ -14,4 +14,4 @@ It's really simple, but here are the steps anyway
 * Move it somewhere besides 'downloads'
 * Launch 'stickDungeon.html'
 
-That will give you the latest version (probably unstable). You can also play it online at [happyryan2.github.io](happyryan2.github.io)
+That will give you the latest version (probably unstable). You can also play it online at http://happyryan2.github.io/stick-dungeon
