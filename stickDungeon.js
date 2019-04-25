@@ -675,6 +675,9 @@ function Player() {
 	this.damOp = 0;
 	this.manaRegen = 18; //1 mana / 18 frames
 	this.healthRegen = 18; // health / 18 frames
+	this.exp = 0;
+	this.visualExp = 0;
+	this.level = 0;
 	//movement
 	this.canJump = false;
 	this.velX = 0;
@@ -1065,6 +1068,21 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.fillText("Gold: " + this.gold, 662, 102.5);
 		this.visualGold += ((this.gold / this.maxGold) - this.visualGold) / 10;
+		//experience bar
+		c.fillStyle = "rgb(150, 150, 150)";
+		c.fillRect(550, 125, 225, 25);
+		c.beginPath();
+		c.arc(550, 137.5, 12, 0, 2 * Math.PI);
+		c.arc(775, 137.5, 12, 0, 2 * Math.PI);
+		c.fill();
+		c.fillStyle = "rgb(0, 170, 0)";
+		c.fillRect(550, 100, this.visualExp * 225, 25);
+		c.beginPath();
+		c.arc(550, 137.5, 12, 0, 2 * Math.PI);
+		c.arc(550 + (this.visualGold * 225), 137.5, 12, 0, 2 * Math.PI);
+		c.fill();
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillText("Experience: " + this.exp, 662, 137.5);
 	}
 };
 Player.prototype.update = function() {
@@ -4885,6 +4903,9 @@ Room.prototype.exist = function(index) {
 	var boulderIndexes = [];
 	var chargeIndexes = [];
 	p.canUseEarth = true;
+	if(hax) {
+		p.health = p.maxHealth;
+	}
 	//hax
 	for(var i = 0; i < this.content.length; i ++) {
 		if(this.content[i] instanceof Enemy) {
@@ -5784,13 +5805,13 @@ var roomInstances = [
 if(hax) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "ambient4" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "combat2" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	enemies = [Wraith];
+	enemies = [SkeletonWarrior];
 	items = [Helmet];
 	for(var i = 0; i < roomInstances[0].content.length; i ++) {
 		if(roomInstances[0].content[i] instanceof Door) {
@@ -7924,6 +7945,25 @@ Enemy.prototype.exist = function() {
 	}
 	else {
 		this.purity += (this.purity > 0) ? -5 : 0;
+	}
+	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+		if(!(roomInstances[theRoom].content[i] instanceof Enemy)) {
+			continue;
+		}
+		var enemy = roomInstances[theRoom].content[i];
+		if(this.y + this.bottomY > enemy.y + enemy.topY && this.y + this.topY < enemy.y + enemy.bottomY && this.x + this.rightX >= enemy.x + enemy.leftX && this.x + this.rightX <= enemy.x + enemy.leftX + 3 && this.velX > 0 && !(enemy.x === this.x && enemy.y === this.y)) {
+			this.velX = -3;
+			enemy.velX = 3;
+			this.x = enemy.x + enemy.leftX - this.rightX;
+		}
+		if(this.y + this.bottomY > enemy.y + enemy.topY && this.y + this.topY < enemy.y + enemy.bottomY && this.x + this.leftX <= enemy.x + enemy.rightX && this.x + this.leftX >= enemy.x + enemy.rightX - 3 && this.velX < 0 && !(enemy.x === this.x && enemy.y === this.y)) {
+			this.velX = 3;
+			enemy.velX = -3;
+			this.x = enemy.x + enemy.rightX - this.leftX;
+		}
+		if(this.x + this.rightX > enemy.x + enemy.leftX && this.x + this.leftX < enemy.x + enemy.rightX && this.y + this.bottomY > enemy.y + enemy.topY && this.y + this.bottomY < enemy.y + enemy.topY + 10) {
+			this.velY = -4;
+		}
 	}
 };
 
