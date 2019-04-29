@@ -6,7 +6,7 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = false;
+const hax = true;
 const showHitboxes = false;
 var frozen = false;
 var hitboxes = [];
@@ -4123,6 +4123,11 @@ Bridge.prototype.exist = function() {
 					roomInstances[theRoom].content[i].dest = {x: roomInstances[theRoom].content[i].x + (Math.random() * 200 - 100), y: roomInstances[theRoom].content[i].y + (Math.random() * 200 - 100)};
 					roomInstances[theRoom].content[i].velY = 0;
 				}
+			}
+		}
+		else if(roomInstances[theRoom].content[i] instanceof Rock) {
+			if(Math.dist(this.x, this.y, roomInstances[theRoom].content[i].x, roomInstances[theRoom].content[i].y) <= 520) {
+				roomInstances[theRoom].content[i].shatter();
 			}
 		}
 	}
@@ -9335,6 +9340,16 @@ function Rock(x, y, velX, velY) {
 	this.opacity = 1;
 	this.fragments = [];
 };
+Rock.prototype.shatter = function() {
+	this.hitSomething = true;
+	for(var j = 0; i < 0; j < 10; j ++) {
+		this.fragments.push({
+			x: this.x + (Math.random() * 10 - 5), y: this.y + (Math.random() * 10 - 5),
+			velX: Math.random() * 2 - 1, velY: Math.random() * 2 - 1,
+			opacity: 2
+		});
+	}
+};
 Rock.prototype.exist = function() {
 	if(!this.hitSomething) {
 		this.x += this.velX;
@@ -9357,14 +9372,7 @@ Rock.prototype.exist = function() {
 			if(roomInstances[theRoom].content[i] instanceof Block) {
 				var block = roomInstances[theRoom].content[i];
 				if(this.x + 20 > block.x && this.x - 20 < block.x + block.w && this.y + 20 > block.y && this.y - 20 < block.y + block.h) {
-					this.hitSomething = true;
-					for(var j = 0; j < 10; j ++) {
-						this.fragments.push({
-							x: this.x + (Math.random() * 10 - 5), y: this.y + (Math.random() * 10 - 5),
-							velX: Math.random() * 2 - 1, velY: Math.random() * 2 - 1,
-							opacity: 2
-						});
-					}
+					this.shatter();
 				}
 			}
 		}
