@@ -1069,20 +1069,20 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.fillText("Gold: " + this.gold, 662, 102.5);
 		this.visualGold += ((this.gold / this.maxGold) - this.visualGold) / 10;
 		//experience bar
-		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(550, 125, 225, 25);
-		c.beginPath();
-		c.arc(550, 137.5, 12, 0, 2 * Math.PI);
-		c.arc(775, 137.5, 12, 0, 2 * Math.PI);
-		c.fill();
-		c.fillStyle = "rgb(0, 170, 0)";
-		c.fillRect(550, 100, this.visualExp * 225, 25);
-		c.beginPath();
-		c.arc(550, 137.5, 12, 0, 2 * Math.PI);
-		c.arc(550 + (this.visualGold * 225), 137.5, 12, 0, 2 * Math.PI);
-		c.fill();
-		c.fillStyle = "rgb(100, 100, 100)";
-		c.fillText("Experience: " + this.exp, 662, 137.5);
+// 		c.fillStyle = "rgb(150, 150, 150)";
+// 		c.fillRect(550, 125, 225, 25);
+// 		c.beginPath();
+// 		c.arc(550, 137.5, 12, 0, 2 * Math.PI);
+// 		c.arc(775, 137.5, 12, 0, 2 * Math.PI);
+// 		c.fill();
+// 		c.fillStyle = "rgb(0, 170, 0)";
+// 		c.fillRect(550, 100, this.visualExp * 225, 25);
+// 		c.beginPath();
+// 		c.arc(550, 137.5, 12, 0, 2 * Math.PI);
+// 		c.arc(550 + (this.visualGold * 225), 137.5, 12, 0, 2 * Math.PI);
+// 		c.fill();
+// 		c.fillStyle = "rgb(100, 100, 100)";
+// 		c.fillText("Experience: " + this.exp, 662, 137.5);
 	}
 };
 Player.prototype.update = function() {
