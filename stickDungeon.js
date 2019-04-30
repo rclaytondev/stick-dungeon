@@ -6,7 +6,7 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = true;
+const hax = false;
 const showHitboxes = false;
 var frozen = false;
 var hitboxes = [];
@@ -1245,6 +1245,13 @@ Player.prototype.update = function() {
 				}
 			}
 			this.aiming = true;
+		}
+		else if(this.invSlots[this.activeSlot].content instanceof Equipable) {
+			for(var i = 0; i < this.invSlots.length; i ++) {
+				if(this.invSlots[i].content === "empty" && this.invSlots[i].type === "equipable") {
+					// this.invSlots[i].
+				}
+			}
 		}
 		else if(this.invSlots[this.activeSlot].content instanceof Mace) {
 			this.attacking = true;
@@ -4126,7 +4133,7 @@ Bridge.prototype.exist = function() {
 			}
 		}
 		else if(roomInstances[theRoom].content[i] instanceof Rock) {
-			if(Math.dist(this.x, this.y, roomInstances[theRoom].content[i].x, roomInstances[theRoom].content[i].y) <= 520) {
+			if(Math.dist(this.x, this.y + 500, roomInstances[theRoom].content[i].x, roomInstances[theRoom].content[i].y) <= 520 && !roomInstances[theRoom].content[i].hitSomething) {
 				roomInstances[theRoom].content[i].shatter();
 			}
 		}
@@ -5810,13 +5817,13 @@ var roomInstances = [
 if(hax) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat2" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "combat3" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	enemies = [SkeletonWarrior];
+	enemies = [Troll];
 	items = [Helmet];
 	for(var i = 0; i < roomInstances[0].content.length; i ++) {
 		if(roomInstances[0].content[i] instanceof Door) {
@@ -9342,7 +9349,7 @@ function Rock(x, y, velX, velY) {
 };
 Rock.prototype.shatter = function() {
 	this.hitSomething = true;
-	for(var j = 0; i < 0; j < 10; j ++) {
+	for(var j = 0; j < 10; j ++) {
 		this.fragments.push({
 			x: this.x + (Math.random() * 10 - 5), y: this.y + (Math.random() * 10 - 5),
 			velX: Math.random() * 2 - 1, velY: Math.random() * 2 - 1,
