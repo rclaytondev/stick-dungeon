@@ -2,10 +2,10 @@
 <html>
 	<head>
 		<title>Stickman Dungeon</title>
-		<link rel="icon" href="torch.png">
+		<!-- <link rel="icon" href="torch.png"> -->
 	</head>
-	<body style="overflow:hidden;" onkeydown="keys[event.which] = true;" onkeyup="keys[event.which] = false;" onmousemove="getMousePos(event);" onmousedown="mouseIsPressed = true;" onmouseup="mouseIsPressed = false;">
+	<body id="body" style="overflow:hidden;" onkeydown="keys[event.which] = true;" onkeyup="keys[event.which] = false;" onmousemove="getMousePos(event);" onmousedown="mouseIsPressed = true;" onmouseup="mouseIsPressed = false;">
 		<canvas id="theCanvas" style="position:absolute;" width="800px" height="800px"></canvas>
-		<script src="stickmanDungeon.js"></script>
+		<script src="stickDungeon.js"></script>
 	</body>
 </html>

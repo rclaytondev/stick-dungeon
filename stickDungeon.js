@@ -306,36 +306,43 @@ function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
 	var p2 = point3d(x1, y1, endDepth);
 	var p3 = point3d(x2, y2, endDepth);
 	var p4 = point3d(x2, y2, startDepth);
-	thingsToBeRendered.push(new RenderingPoly(
-		col,
-		[p1, p2, p3, p4],
-		[
-			{
-				x: x1,
-				y: y1,
-				z: startDepth
-			},
-			{
-				x: x1,
-				y: y1,
-				z: endDepth
-			},
-			{
-				x: x2,
-				y: y2,
-				z: endDepth
-			},
-			{
-				x: x2,
-				y: y2,
-				z: startDepth
-			}
-		]
-	));
+	c.fillStyle = col;
+	c.beginPath();
+	c.moveTo(p1.x, p1.y);
+	c.lineTo(p2.x, p2.y);
+	c.lineTo(p3.x, p3.y);
+	c.lineTo(p4.x, p4.y);
+	c.fill();
+	// thingsToBeRendered.push(new RenderingPoly(
+	// 	col,
+	// 	[p1, p2, p3, p4],
+	// 	[
+	// 		{
+	// 			x: x1,
+	// 			y: y1,
+	// 			z: startDepth
+	// 		},
+	// 		{
+	// 			x: x1,
+	// 			y: y1,
+	// 			z: endDepth
+	// 		},
+	// 		{
+	// 			x: x2,
+	// 			y: y2,
+	// 			z: endDepth
+	// 		},
+	// 		{
+	// 			x: x2,
+	// 			y: y2,
+	// 			z: startDepth
+	// 		}
+	// 	]
+	// ));
 };
 function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 	/*
-	Draws a rect. prism from ('x', 'y', 'startDepth') to ('x' + 'w', 'y' + 'h', 'endDepth'). Front color is 'frontCol', side color is 'sideCol'.
+	Draws a rect. prism from ('x', 'y', 'startDepth') to ('x' + 'w', 'y' + 'h', 'endDepth').
 	*/
 	frontCol = frontCol || "rgb(110, 110, 110)";
 	sideCol = sideCol || "rgb(150, 150, 150)";
@@ -353,246 +360,251 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 	/* Calculate front face coordinates */
 	var topLeftF = point3d(x, y, endDepth);
 	var bottomRightF = point3d(x + w, y + h, endDepth);
-	if(settings.noFrontExtended) {
-		/* Top face */
-		c.fillStyle = settings.sideColors.top;
-		c.beginPath();
-		c.moveTo(topLeftF.x, topLeftF.y);
-		c.lineTo(bottomRightF.x, topLeftF.y);
-		c.lineTo(bottomRightB.x, topLeftB.y);
-		c.lineTo(topLeftB.x, topLeftB.y);
-		c.fill();
-		/* Bottom face */
-		c.fillStyle = settings.sideColors.bottom;
-		c.beginPath();
-		c.moveTo(topLeftF.x, bottomRightF.y);
-		c.lineTo(bottomRightF.x, bottomRightF.y);
-		c.lineTo(bottomRightB.x, bottomRightB.y);
-		c.lineTo(topLeftB.x, bottomRightB.y);
-		c.fill();
-		/* Left face */
-		c.fillStyle = settings.sideColors.left;
-		c.beginPath();
-		c.moveTo(topLeftF.x, topLeftF.y);
-		c.lineTo(topLeftF.x, bottomRightF.y);
-		c.lineTo(topLeftB.x, bottomRightB.y);
-		c.lineTo(topLeftB.x, topLeftB.y);
-		c.fill();
-		/* Right face */
-		c.fillStyle = settings.sideColors.right;
-		c.beginPath();
-		c.moveTo(bottomRightF.x, topLeftF.y);
-		c.lineTo(bottomRightF.x, bottomRightF.y);
-		c.lineTo(bottomRightB.x, bottomRightB.y);
-		c.lineTo(bottomRightB.x, topLeftB.y);
-		c.fill();
+	/* Top face */
+	c.fillStyle = settings.sideColors.top;
+	c.beginPath();
+	c.moveTo(topLeftF.x, topLeftF.y);
+	c.lineTo(bottomRightF.x, topLeftF.y);
+	c.lineTo(bottomRightB.x, topLeftB.y);
+	c.lineTo(topLeftB.x, topLeftB.y);
+	c.fill();
+	/* Bottom face */
+	c.fillStyle = settings.sideColors.bottom;
+	c.beginPath();
+	c.moveTo(topLeftF.x, bottomRightF.y);
+	c.lineTo(bottomRightF.x, bottomRightF.y);
+	c.lineTo(bottomRightB.x, bottomRightB.y);
+	c.lineTo(topLeftB.x, bottomRightB.y);
+	c.fill();
+	/* Left face */
+	c.fillStyle = settings.sideColors.left;
+	c.beginPath();
+	c.moveTo(topLeftF.x, topLeftF.y);
+	c.lineTo(topLeftF.x, bottomRightF.y);
+	c.lineTo(topLeftB.x, bottomRightB.y);
+	c.lineTo(topLeftB.x, topLeftB.y);
+	c.fill();
+	/* Right face */
+	c.fillStyle = settings.sideColors.right;
+	c.beginPath();
+	c.moveTo(bottomRightF.x, topLeftF.y);
+	c.lineTo(bottomRightF.x, bottomRightF.y);
+	c.lineTo(bottomRightB.x, bottomRightB.y);
+	c.lineTo(bottomRightB.x, topLeftB.y);
+	c.fill();
+	if(!settings.noFrontExtended) {
 		/* Front face */
-		c.fillStyle = frontCol;
-		c.fillRect(topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y);
+		boxFronts.push({
+			type: "rect",
+			col: frontCol,
+			loc: [topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y]
+		});
 	}
 	else {
-		/* Top face */
-		thingsToBeRendered.push(new RenderingPoly(
-			settings.sideColors.top,
-			[
-				topLeftF,
-				{
-					x: bottomRightF.x,
-					y: topLeftF.y
-				},
-				{
-					x: bottomRightB.x,
-					y: topLeftB.y
-				},
-				topLeftB
-			],
-			[
-				{
-					x: x,
-					y: y,
-					z: endDepth
-				},
-				{
-					x: x + w,
-					y: y,
-					z: endDepth
-				},
-				{
-					x: x + w,
-					y: y,
-					z: startDepth
-				},
-				{
-					x: x,
-					y: y,
-					z: startDepth
-				}
-			]
-		));
-		/* Bottom face */
-		thingsToBeRendered.push(new RenderingPoly(
-			settings.sideColors.bottom,
-			[
-				{
-					x: topLeftF.x,
-					y: bottomRightF.y
-				},
-				bottomRightF,
-				bottomRightB,
-				{
-					x: topLeftB.x,
-					y: bottomRightB.y
-				}
-			],
-			[
-				{
-					x: x,
-					y: y + h,
-					z: endDepth
-				},
-				{
-					x: x + w,
-					y: y + h,
-					z: endDepth
-				},
-				{
-					x: x + w,
-					y: y + h,
-					z: startDepth
-				},
-				{
-					x: x,
-					y: y + h,
-					z: startDepth
-				}
-			]
-		));
-		/* Left face */
-		thingsToBeRendered.push(new RenderingPoly(
-			settings.sideColors.left,
-			[
-				topLeftF,
-				{
-					x: topLeftF.x,
-					y: bottomRightF.y
-				},
-				{
-					x: topLeftB.x,
-					y: bottomRightB.y
-				},
-				topLeftB
-			],
-			[
-				{
-					x: x,
-					y: y,
-					z: endDepth
-				},
-				{
-					x: x,
-					y: y + h,
-					z: endDepth
-				},
-				{
-					x: x,
-					y: y + h,
-					z: startDepth
-				},
-				{
-					x: x,
-					y: y,
-					z: startDepth
-				}
-			]
-		));
-		/* Right face */
-		thingsToBeRendered.push(new RenderingPoly(
-			settings.sideColors.right,
-			[
-				{
-					x: bottomRightF.x,
-					y: topLeftF.y,
-				},
-				{
-					x: bottomRightF.x,
-					y: bottomRightF.y
-				},
-				{
-					x: bottomRightB.x,
-					y: bottomRightB.y
-				},
-				{
-					x: bottomRightB.x,
-					y: topLeftB.y
-				}
-			],
-			[
-				{
-					x: x + w,
-					y: y,
-					z: endDepth
-				},
-				{
-					x: x + w,
-					y: y + h,
-					z: endDepth
-				},
-				{
-					x: x + w,
-					y: y + h,
-					z: startDepth
-				},
-				{
-					x: x + w,
-					y: y + h,
-					z: startDepth
-				}
-			]
-		));
-		/* Front face */
-		thingsToBeRendered.push(new RenderingPoly(
-			frontCol,
-			[
-				{
-					x: topLeftF.x,
-					y: topLeftF.y
-				},
-				{
-					x: bottomRightF.x,
-					y: topLeftF.y
-				},
-				{
-					x: bottomRightF.x,
-					y: bottomRightF.y
-				},
-				{
-					x: topLeftF.x,
-					y: bottomRightF.y
-				}
-			],
-			[
-				{
-					x: x,
-					y: y,
-					z: endDepth
-				},
-				{
-					x: x + w,
-					y: y,
-					z: endDepth
-				},
-				{
-					x: x + w,
-					y: y + h,
-					z: endDepth
-				},
-				{
-					x: x,
-					y: y + h,
-					z: endDepth
-				}
-			]
-		));
+		c.fillStyle = frontCol;
+		c.fillRect(topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y);
+		// /* Top face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	settings.sideColors.top,
+		// 	[
+		// 		topLeftF,
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: topLeftF.y
+		// 		},
+		// 		{
+		// 			x: bottomRightB.x,
+		// 			y: topLeftB.y
+		// 		},
+		// 		topLeftB
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
+		// /* Bottom face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	settings.sideColors.bottom,
+		// 	[
+		// 		{
+		// 			x: topLeftF.x,
+		// 			y: bottomRightF.y
+		// 		},
+		// 		bottomRightF,
+		// 		bottomRightB,
+		// 		{
+		// 			x: topLeftB.x,
+		// 			y: bottomRightB.y
+		// 		}
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
+		// /* Left face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	settings.sideColors.left,
+		// 	[
+		// 		topLeftF,
+		// 		{
+		// 			x: topLeftF.x,
+		// 			y: bottomRightF.y
+		// 		},
+		// 		{
+		// 			x: topLeftB.x,
+		// 			y: bottomRightB.y
+		// 		},
+		// 		topLeftB
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
+		// /* Right face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	settings.sideColors.right,
+		// 	[
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: topLeftF.y,
+		// 		},
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: bottomRightF.y
+		// 		},
+		// 		{
+		// 			x: bottomRightB.x,
+		// 			y: bottomRightB.y
+		// 		},
+		// 		{
+		// 			x: bottomRightB.x,
+		// 			y: topLeftB.y
+		// 		}
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x + w,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
+		// /* Front face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	frontCol,
+		// 	[
+		// 		{
+		// 			x: topLeftF.x,
+		// 			y: topLeftF.y
+		// 		},
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: topLeftF.y
+		// 		},
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: bottomRightF.y
+		// 		},
+		// 		{
+		// 			x: topLeftF.x,
+		// 			y: bottomRightF.y
+		// 		}
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		}
+		// 	]
+		// ));
 	}
 };
 function polygon3d(frontCol, sideCol, startDepth, endDepth, points, settings) {
@@ -616,49 +628,55 @@ function polygon3d(frontCol, sideCol, startDepth, endDepth, points, settings) {
 	c.fillStyle = sideCol;
 	for(var i = 0; i < frontVertices.length; i ++) {
 		var next = (i === frontVertices.length - 1) ? 0 : i + 1;
-		thingsToBeRendered.push(new RenderingPoly(
-			sideCol,
-			[
-				{
-					x: frontVertices[i].x,
-					y: frontVertices[i].y
-				},
-				{
-					x: frontVertices[next].x,
-					y: frontVertices[next].y
-				},
-				{
-					x: backVertices[next].x,
-					y: backVertices[next].y
-				},
-				{
-					x: backVertices[i].x,
-					y: backVertices[i].y
-				}
-			],
-			[
-				{
-					x: points[i].x,
-					y: points[i].y,
-					z: endDepth
-				},
-				{
-					x: points[next].x,
-					y: points[next].y,
-					z: endDepth
-				},
-				{
-					x: points[next].x,
-					y: points[next].y,
-					z: startDepth
-				},
-				{
-					x: points[i].x,
-					y: points[i].y,
-					z: startDepth
-				}
-			]
-		));
+		c.beginPath();
+		c.moveTo(frontVertices[i].x, frontVertices[i].y);
+		c.lineTo(frontVertices[next].x, frontVertices[next].y);
+		c.lineTo(backVertices[next].x, backVertices[next].y);
+		c.lineTo(backVertices[i].x, backVertices[i].y);
+		c.fill();
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	sideCol,
+		// 	[
+		// 		{
+		// 			x: frontVertices[i].x,
+		// 			y: frontVertices[i].y
+		// 		},
+		// 		{
+		// 			x: frontVertices[next].x,
+		// 			y: frontVertices[next].y
+		// 		},
+		// 		{
+		// 			x: backVertices[next].x,
+		// 			y: backVertices[next].y
+		// 		},
+		// 		{
+		// 			x: backVertices[i].x,
+		// 			y: backVertices[i].y
+		// 		}
+		// 	],
+		// 	[
+		// 		{
+		// 			x: points[i].x,
+		// 			y: points[i].y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: points[next].x,
+		// 			y: points[next].y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: points[next].x,
+		// 			y: points[next].y,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: points[i].x,
+		// 			y: points[i].y,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
 	}
 	/* front face */
 	c.fillStyle = frontCol;
@@ -671,19 +689,12 @@ function polygon3d(frontCol, sideCol, startDepth, endDepth, points, settings) {
 			c.lineTo(frontVertices[i].x, frontVertices[i].y);
 		}
 	}
-	var arr = [];
-	for(var i = 0; i < points.length; i ++) {
-		arr.push({
-			x: points[i].x,
-			y: points[i].y,
-			z: endDepth
-		});
-	}
-	thingsToBeRendered.push(new RenderingPoly(
-		frontCol,
-		frontVertices,
-		arr
-	));
+	c.fill();
+	// thingsToBeRendered.push(new RenderingPoly(
+	// 	frontCol,
+	// 	frontVertices,
+	// 	arr
+	// ));
 };
 var boxFronts = [];//for 3d-ish rendering
 var extraGraphics = [];
@@ -718,6 +729,7 @@ function circularPointsTopHalf(x, y, r) {
 	return circularPoints;
 };
 function collisionLine(x1, y1, x2, y2, settings) {
+	// console.trace();
 	/*
 	Places a line of CollisionRects between ('x1', 'y1') and ('x2', 'y2').
 	*/
@@ -738,6 +750,7 @@ function collisionLine(x1, y1, x2, y2, settings) {
 	/* Generate a list of points to place collisions at */
 	var points = findPointsLinear(x1, y1, x2, y2);
 	/* Place collisions at all those points */
+	// console.log("Number of points in line: " + points.length);
 	for(var i = 0; i < points.length; i ++) {
 		collisionRect(points[i].x, points[i].y, 3, 3, { illegalHandling: settings.illegalHandling, walls: settings.walls, extraBouncy: settings.extraBouncy, moving: settings.moving });
 	}
@@ -796,9 +809,9 @@ function Player() {
 	this.damOp = 0;
 	this.manaRegen = 18; //1 mana / 18 frames
 	this.healthRegen = 18; // health / 18 frames
-	this.exp = 0;
-	this.visualExp = 0;
-	this.level = 0;
+	// this.exp = 0;
+	// this.visualExp = 0;
+	// this.level = 0;
 	/* Movement */
 	this.canJump = false;
 	this.velX = 0;
@@ -886,12 +899,8 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	if(!noSideScroll) {
 		this.sideScroll();
 	}
-	if(this.op <= 0) {
-		this.op = 0;
-	}
-	if(this.op >= 1) {
-		this.op = 1;
-	}
+	this.op = (this.op < 0) ? 0 : this.op;
+	this.op = (this.op > 1) ? 1 : this.op;
 	c.lineWidth = 5;
 	c.lineCap = "round";
 	/* head */
@@ -1173,7 +1182,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 };
 Player.prototype.displayHealthBar = function(x, y, txt, num, max, col, percentFull) {
 	/*
-	Displays a health bar w/ top left at ('x', 'y') and color 'col'. Labeled as 'txt: num / max' and is 'percentFull' full.
+	Displays a health bar w/ top left at ('x', 'y') and color 'col'. Labeled as 'txt: num / max'.
 	*/
 	/* Health Bar (gray background) */
 	c.fillStyle = "rgb(150, 150, 150)";
@@ -1772,7 +1781,7 @@ Player.prototype.gui = function() {
 		/* Weapon Particles */
 		if(invSlot.content instanceof Weapon) {
 			c.save();
-			c.translate(10000000, 10000000);
+			c.translate(invSlot.x - p.worldX, invSlot.y - p.worldY);
 			invSlot.content.displayParticles();
 			c.restore();
 		}
@@ -1897,7 +1906,6 @@ Player.prototype.gui = function() {
 		c.fill();
 		var hoverIndex = null;
 		for(var i = 0; i < this.invSlots.length; i ++) {
-			/* */
 			c.fillStyle = "rgb(150, 150, 150)";
 			c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 			c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
@@ -2532,7 +2540,7 @@ if(localStorage.getItem("scores") !== null) {
 	p.scores = JSON.parse(localStorage.getItem("scores"));
 }
 
-/** GENERAL DATA STRUCTURES **/
+/** COLLISIONS **/
 var collisions = [];
 function CollisionRect(x, y, w, h, settings) {
 	/*
@@ -2627,8 +2635,9 @@ CollisionRect.prototype.collide = function() {
 	}
 	/* Collide with other objects */
 	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-		if(roomInstances[theRoom].content[i] instanceof Enemy) {
-			var enemy = roomInstances[theRoom].content[i];
+		var thing = roomInstances[theRoom].content[i];
+		if(thing instanceof Enemy) {
+			var enemy = thing;
 			if(enemy.x + p.worldX + enemy.rightX > this.x && enemy.x + p.worldX + enemy.leftX < this.x + this.w) {
 				if(enemy.y + p.worldY + enemy.bottomY >= this.y && enemy.y + p.worldY + enemy.bottomY <= this.y + enemy.velY + 1) {
 					enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
@@ -2683,10 +2692,10 @@ CollisionRect.prototype.collide = function() {
 				}
 			}
 		}
-		else if(roomInstances[theRoom].content[i] instanceof MagicCharge && roomInstances[theRoom].content[i].x + p.worldX + 20 > this.x && roomInstances[theRoom].content[i].x + p.worldX - 20 < this.x + this.w && roomInstances[theRoom].content[i].y + p.worldY + 20 > this.y && roomInstances[theRoom].content[i].y + p.worldY - 20 < this.y + this.h && !roomInstances[theRoom].content[i].splicing) {
-			roomInstances[theRoom].content[i].splicing = true;
-			if(roomInstances[theRoom].content[i].type === "chaos" && !p.aiming) {
-				var charge = roomInstances[theRoom].content[i];
+		else if(thing instanceof MagicCharge && thing.x + p.worldX + 20 > this.x && thing.x + p.worldX - 20 < this.x + this.w && thing.y + p.worldY + 20 > this.y && thing.y + p.worldY - 20 < this.y + this.h && !thing.splicing) {
+			thing.splicing = true;
+			if(thing.type === "chaos" && !p.aiming) {
+				var charge = thing;
 				p.x = charge.x + p.worldX;
 				p.y = charge.y + p.worldY;
 				for(var j = 0; j < collisions.length; j ++) {
@@ -2706,385 +2715,48 @@ CollisionRect.prototype.collide = function() {
 			}
 			continue;
 		}
-		else if(roomInstances[theRoom].content[i] instanceof SpikeBall) {
-			this.x -= p.worldX, this.y -= p.worldY;
-			var spikeball = roomInstances[theRoom].content[i];
-			if(spikeball.x + 20 > this.x && spikeball.x + -20 < this.x + this.w) {
-				if(spikeball.y + 20 >= this.y && spikeball.y + 20 <= this.y + spikeball.velY + 1) {
-					spikeball.velY = (spikeball.velY > 0) ? -1 : spikeball.velY;
-					spikeball.y = this.y - Math.abs(20);
-				}
-				if(spikeball.y + -20 <= this.y + this.h && spikeball.y + -20 >= this.y + this.h + spikeball.velY - 1) {
-					spikeball.velY = 3;
-					spikeball.y = this.y + this.h + Math.abs(-20);
-				}
-			}
-			if(spikeball.y + 20 > this.y && spikeball.y + -20 < this.y + this.h) {
-				if(spikeball.x + 20 >= this.x && spikeball.x + 20 <= this.x + spikeball.velX + 1) {
-					if(illegalHandling === "teleport") {
-						spikeball.y = this.y - Math.abs(20);
-						spikeball.velY = (spikeball.velY > 0) ? 0 : spikeball.velY;
-						spikeball.canJump = true;
-					}
-					else {
-						spikeball.velX = (spikeball.velX > 0) ? -3 : spikeball.velX;
-						spikeball.x = this.x - Math.abs(20);
-					}
-				}
-				if(spikeball.x + -20 <= this.x + this.w && spikeball.x + -20 >= this.x + this.w + spikeball.velX - 1) {
-					if(illegalHandling === "teleport") {
-						spikeball.y = this.y - Math.abs(-20);
-						spikeball.velY = (spikeball.velY > 0) ? 0 : spikeball.velY;
-						spikeball.canJump = true;
-					}
-					else {
-						spikeball.velX = (spikeball.velX < 0) ? 3 : spikeball.velX;
-						spikeball.x = this.x + this.w + Math.abs(-20);
-					}
-				}
-			}
-			this.x += p.worldX, this.y += p.worldY;
+		else if(thing instanceof ShotArrow && this.isPointInside(thing.x + p.worldX, thing.y + p.worldY, thing.w, thing.h)) {
+			thing.hitSomething = true;
 		}
 	}
 };
-var thingsToBeRendered = [];
-function RenderingOrderObject(type, location, boundingBox, color, front, back, inPlane) {
-	this.type = type; // either "polygon", "rect" or "object"
-	this.location = location; // either a list of points if type is "polygon" or a reference to an object if type is "object"
-	this.boundingBox = boundingBox; // an object containing x, y, w, h of the object's bounding box.
-	if(this.type === "rect") {
-		this.boundingBox = this.location;
-	}
-	this.color = color; // only used for types "polygon" and "rect"
-	this.front = Math.max(front, back);
-	this.back = Math.min(front, back);
-	this.inPlane = inPlane || null; // either "xy", "xz", "yz", or null if it is diagonal to one of those three planes
+CollisionRect.prototype.isPointInside = function(x, y) {
+	return (x > this.x && x < this.x + this.w && y > this.y && y < this.y + this.h);
 };
-RenderingOrderObject.prototype.display = function() {
-	if(this.type === "polygon") {
-		c.fillStyle = this.color;
-		c.beginPath();
-		c.moveTo(this.location[0].x, this.location[0].y);
-		for(var i = 1; i < this.location.length; i ++) {
-			c.lineTo(this.location[i].x, this.location[i].y);
-		}
-		c.fill();
-	}
-	else if(this.type === "rect") {
-		c.fillStyle = this.color;
-		c.fillRect(this.location.x, this.location.y, this.location.w, this.location.h);
-	}
-	else if(this.type === "object") {
-		this.location.display();
-	}
+CollisionRect.prototype.isRectInside = function(x, y, w, h) {
+	return (x + w > this.x && x < this.x + this.w && y + h > this.y && y < this.y + this.h);
 };
-function RenderingObject(dest, loc2D, loc3D) {
-	this.dest = dest; // an object whose 'display()' method will be called when this object is rendered
-	if(!Array.isArray(loc2D)) {
-		// loc2D can be a list of points or a bounding box
-		this.loc2D = [
-			{
-				x: loc2D.x,
-				y: loc2D.y
-			},
-			{
-				x: loc2D.x + loc2D.w,
-				y: loc2D.y
-			},
-			{
-				x: loc2D.x + loc2D.w,
-				y: loc2D.y + loc2D.h
-			},
-			{
-				x: loc2D.x,
-				y: loc2D.y + loc2D.h
-			}
-		];
-	}
-	else {
-		this.loc2D = loc2D;
-	}
-	if(!Array.isArray(loc3D)) {
-		// loc3D can be a list of points or a bounding box
-		this.loc3D = [
-			{
-				x: loc3D.x,
-				y: loc3D.y,
-				z: loc3D.z
-			},
-			{
-				x: loc3D.x + loc3D.w,
-				y: loc3D.y,
-				z: loc3D.z
-			},
-			{
-				x: loc3D.x + loc3D.w,
-				y: loc3D.y + loc3D.h,
-				z: loc3D.z
-			},
-			{
-				x: loc3D.x,
-				y: loc3D.y + loc3D.h,
-				z: loc3D.z
-			}
-		];
-	}
-	else {
-		this.loc3D = loc3D;
-	}
-};
-RenderingObject.prototype.getFront = function() {
-	/* All 3d points should have the same z-value */
-	return this.loc3D[0].z;
-};
-RenderingObject.prototype.getBack = function() {
-	return this.loc3D[0].z;
-};
-RenderingObject.prototype.getPlane = function() {
-	return "xy";
-};
-RenderingObject.prototype.display = function () {
-	this.dest.display();
-};
-function RenderingPoly(color, loc2D, loc3D) {
-	this.color = color;
-	this.loc2D = loc2D;
-	this.loc3D = loc3D;
-	this.inPlane = null;
-};
-RenderingPoly.prototype.getFront = function() {
-	var highest = -Infinity;
-	for(var i = 0; i < this.loc3D.length; i ++) {
-		if(this.loc3D[i].z > highest) {
-			highest = this.loc3D[i].z;
-		}
-	}
-	return highest;
-};
-RenderingPoly.prototype.getBack = function() {
-	var lowest = Infinity;
-	for(var i = 0; i < this.loc3D.length; i ++) {
-		if(this.loc3D[i].z < lowest) {
-			lowest = this.loc3D[i].z;
-		}
-	}
-	return lowest;
-};
-RenderingPoly.prototype.getPlane = function() {
-	if(this.inPlane != null) {
-		return this.inPlane;
-	}
-	var allSameX = true;
-	for(var i = 0; i < this.loc3D.length - 1; i ++) {
-		if(this.loc3D[i].x != this.loc3D[i + 1].x) {
-			allSameX = false;
-			break;
-		}
-	}
-	if(allSameX) {
-		this.inPlane = "yz";
-		return "yz";
-	}
-	var allSameY = true;
-	for(var i = 0; i < this.loc3D.length - 1; i ++) {
-		if(this.loc3D[i].y != this.loc3D[i + 1].y) {
-			allSameY = false;
-			break;
-		}
-	}
-	if(allSameY) {
-		this.inPlane = "xz";
-		return "xz";
-	}
-	var allSameZ = true;
-	for(var i = 0; i < this.loc3D.length - 1; i ++) {
-		if(this.loc3D[i].z != this.loc3D[i + 1].z) {
-			allSameZ = false;
-			break;
-		}
-	}
-	if(allSameZ) {
-		this.inPlane = "yz";
-		return "xy";
-	}
-	return null;
-};
-RenderingPoly.prototype.display = function() {
-	c.fillStyle = this.color;
-	c.beginPath();
-	for(var i = 0; i < this.loc2D.length; i ++) {
-		if(i === 0) {
-			c.moveTo(this.loc2D[i].x, this.loc2D[i].y);
-		}
-		else {
-			c.lineTo(this.loc2D[i].x, this.loc2D[i].y);
-		}
-	}
-	c.fill();
-};
-function sortPolygons() {
-	function averageVertexLocation(obj) {
-		var sum = {x: 0, y : 0};
-		for(var i = 0; i < obj.loc3D.length; i ++) {
-			sum.x += obj.loc3D[i].x;
-			sum.y += obj.loc3D[i].y;
-		}
-		return {x: sum.x / obj.loc3D.length, y: sum.y / obj.loc3D.y};
-	};
-	function closestInXYPlane(a, b) {
-		var aLoc = averageVertexLocation(a);
-		var bLoc = averageVertexLocation(b);
-		var aDist = Math.distSq(aLoc.x, aLoc.y, 400, 400);
-		var bDist = Math.distSq(bLoc.x, bLoc.y, 400, 400);
-		return bDist - aDist;
-	};
+function CollisionCircle(x, y, r) {
 	/*
-	Negative = B in front
-	Positive = A in front
-	Zero = doesn't matter
+	('x', 'y') is center, not top-left corner. Radius is 'r'
 	*/
-	function compare(a, b) {
-		const buffer = 3;
-		/* Return if one is entirely in front of the other */
-		if(a.getFront() <= b.getBack() - (buffer * 0.01)) {
-			console.log("A is entirely behind B");
-			return 1; // A is behind B
-		}
-		else if(b.getFront() <= a.getBack() - (buffer * 0.01)) {
-			console.log("B is entirely behind A");
-			return -1; // B is behind A
-		}
-		/* If the relationship is more complex than that, decide based on which planes they are in */
-		var aPlane = a.getPlane();
-		var bPlane = b.getPlane();
-		/*
-		Cases to check for:
-		 - xy and xy [yes]
-		 - xy and yz [yes]
-		 - xy and xz [yes]
-		 - yz and xy [no]
-		 - yz and yz [yes]
-		 - yz and xz [yes]
-		 - xz and xy [no]
-		 - xz and yz [no]
-		 - xz and xz [yes]
-		*/
-		if(aPlane == null || bPlane == null) {
-			return closestInXYPlane(a, b);
-		}
-		if(aPlane == "xy") {
-			if(bPlane == "xy") {
-				return a.getFront() - b.getFront();
-			}
-			else if(bPlane == "yz") {
-				if(b.loc3D[0].x > 400) {
-					for(var i = 0; i < a.loc3D.length; i ++) {
-						if(a.loc3D[i].x < b.loc3D[0].x + buffer) {
-							return 1; /* B is behind A */
-						}
-					}
-					return -1;
-				}
-				else {
-					for(var i = 0; i < a.loc3D.length; i ++) {
-						if(a.loc3D[i].x > b.loc3D[0].x - buffer) {
-							return 1; /* B is behind A */
-						}
-					}
-					return -1;
-				}
-			}
-			else if(bPlane == "xz") {
-				if(b.loc3D[0].y > 400) {
-					for(var i = 0; i < a.loc3D.length; i ++) {
-						if(a.loc3D[i].y < b.loc3D[0].y) {
-							return 1; /* B is behind A */
-						}
-					}
-					return -1;
-				}
-				else {
-					for(var i = 0; i < a.loc3D.length; i ++) {
-						if(a.loc3D[i].y > b.loc3D[0].y) {
-							return 1; /* B is behind A */
-						}
-					}
-					return -1;
+	this.x = x;
+	this.y = y;
+	this.r = r;
+};
+CollisionCircle.prototype.collide = function() {
+	var rSquared = this.r * this.r;
+	/* Collide with player if in the same room */
+	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY) <  rSquared || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY) < rSquared) {
+		p.y --;
+		p.canJump = true;
+		p.velY = (p.velY > 3) ? 3 : p.velY;
+	}
+	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+		var thing = roomInstances[theRoom].content[i];
+		if(thing instanceof Enemy) {
+			while(Math.distSq(this.x, this.y, thing.x + thing.leftX, thing.y + thing.bottomY) < rSquared || Math.distSq(this.x, this.y, thing.x + thing.rightX, thing.y + thing.bottomY) < rSquared) {
+				thing.y --;
+				thing.velY = (thing.velY > 3) ? 3 : thing.velY;
+				if(thing instanceof Bat && thing.timePurified > 0) {
+					thing.dest = {x: thing.x + (Math.random() * 200 - 100), y: thing.y + (Math.random() * 200 - 100)};
+					thing.velY = 0;
 				}
 			}
 		}
-		else if(aPlane == "yz") {
-			if(bPlane == "yz") {
-				if((a.loc3D[0].x < 400) !== (b.loc3D[0].x < 400)) {
-					/* Order is unimportant if they are on opposite sides of the screen center */
-					return 0;
-				}
-				else {
-					/* If on the same side, the one closest to the middle should be drawn after */
-					return Math.abs(b.loc3D[0].x - 400) - Math.abs(a.loc3D[0].x - 400);
-				}
-			}
-			else if(bPlane == "xz") {
-				var lowestA = Infinity;
-				var highestA = -Infinity;
-				for(var i = 0; i < a.loc3D.length; i ++) {
-					if(a.loc3D[i].y < lowestA) {
-						lowestA = a.loc3D[i].y;
-					}
-					else if(a.loc3D[i].y > highestA) {
-						highestA = a.loc3D[i].y;
-					}
-				}
-				var lowestB = Infinity;
-				var highestB = Infinity;
-				for(var i = 0; i < b.loc3D.length; i ++) {
-					if(b.loc3D[i].y < lowestB) {
-						lowestB = b.loc3D[i].y;
-					}
-					else if(b.loc3D[i].y > highestB) {
-						highestB = b.loc3D[i].y;
-					}
-				}
-				if(highestA > 400 && highestA < lowestB) {
-					return 1;
-				}
-				if(lowestA < 400 && lowestA > highestA) {
-					return 1;
-				}
-				return -1;
-			}
-		}
-		else if(aPlane == "xz") {
-			if(bPlane == "xz") {
-				if((a.loc3D[0].y < 400) !== (b.loc3D[0].y < 400)) {
-					/* Order is unimportant if they are on opposite sides of the screen center */
-					return 0;
-				}
-				else {
-					/* If on the same side, the one closest to the middle should be drawn after */
-					return Math.abs(b.loc3D[0].y - 400) - Math.abs(a.loc3D[0].y - 400);
-				}
-			}
-		}
-		return compare(b, a) * -1;
-	};
-	console.log("------------------");
-	thingsToBeRendered.sort(compare);
+	}
 };
 
-/*
-GENERAL OBJECT STANDARDS
- - No object should draw graphics instantly
- - If objects have simple 3d graphics, send a request (RenderingOrderObject) for each polygon
- - If objects have complex 2d graphics, send a request (RenderingOrderObject) for itself
- - Object methods:
- 	- exist(): Do some things:
-		- Call update()
-		- Request 3d graphics in the form of polygons
-		- Request 2d graphics in the form of requests for themself
-	- display(): for simple 2d graphics ^ to be called by RenderingOrderObject [optional]
-	- update(): to update their own state
-*/
 /** IN GAME STRUCTURES **/
 function Block(x, y, w, h) {
 	this.x = x;
@@ -3096,8 +2768,11 @@ Block.prototype.update = function() {
 	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, {walls: [true, true, true, true], illegalHandling: tempVars.partOfAStair ? "teleport" : "collide"} );
 };
 Block.prototype.exist = function() {
-	cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
+	this.display();
 	this.update();
+};
+Block.prototype.display = function() {
+	cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
 };
 function loadBoxFronts() {
 	for(var i = 0; i < boxFronts.length; i ++) {
@@ -3239,28 +2914,25 @@ Door.prototype.getInfo = function() {
 	return "x";
 };
 Door.prototype.exist = function() {
-	/* Request graphics */
-	var loc = point3d(this.x + p.worldX, this.y + p.worldY);
-	thingsToBeRendered.push(new RenderingObject(
-		this,
-		{
-			x: loc.x - 30,
-			y: loc.y - 60,
-			w: 60,
-			h: 60
-		},
-		{
-			x: this.x + p.worldX - 30,
-			y: this.y + p.worldY - 60,
-			w: 60,
-			h: 60,
-			z: 0.9
-		}
-	));
-	if(this.type === "lintel") {
-		cube(this.x + p.worldX - 30, this.y + p.worldY - 90, 60, 90, 0.9, 0.9, "rgb(20, 20, 20)", "rgb(20, 20, 20)", { noFrontExtended: true });
-		cube(this.x + p.worldX - 45, this.y + p.worldY - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)", {noFrontExtended: true} );
-	}
+	/* Display graphics */
+	this.display();
+	// var loc = point3d(this.x + p.worldX, this.y + p.worldY);
+	// thingsToBeRendered.push(new RenderingObject(
+	// 	this,
+	// 	{
+	// 		x: loc.x - 30,
+	// 		y: loc.y - 60,
+	// 		w: 60,
+	// 		h: 60
+	// 	},
+	// 	{
+	// 		x: this.x + p.worldX - 30,
+	// 		y: this.y + p.worldY - 60,
+	// 		w: 60,
+	// 		h: 60,
+	// 		z: 0.9
+	// 	}
+	// ));
 	/* Update */
 	this.update();
 };
@@ -3323,6 +2995,10 @@ Door.prototype.display = function() {
 		c.restore();
 
 	}
+	if(this.type === "lintel") {
+		cube(this.x + p.worldX - 30, this.y + p.worldY - 90, 60, 90, 0.9, 0.9, "rgb(20, 20, 20)", "rgb(20, 20, 20)", { noFrontExtended: true });
+		cube(this.x + p.worldX - 45, this.y + p.worldY - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)", {noFrontExtended: true} );
+	}
 	/* Symbols for maps */
 	var symbol = this.getInfo();
 	var center = point3d(this.x + p.worldX, this.y + p.worldY - 40, 0.9);
@@ -3364,7 +3040,7 @@ Door.prototype.update = function() {
 			p.roomsExplored ++;
 			p.numHeals ++;
 			/* Calculate distance to nearest unexplored door */
-			calcPaths();
+			calculatePaths();
 			p.terminateProb = 0;
 			for(var i = 0; i < roomInstances.length; i ++) {
 				for(var j = 0; j < roomInstances[i].content.length; j ++) {
@@ -3518,12 +3194,6 @@ Door.prototype.update = function() {
 					}
 				}
 			}
-			/* Schedule enemies to move through door */
-			for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-				if(roomInstances[theRoom].content[i] instanceof Enemy && roomInstances[theRoom].content[i].seesPlayer) {
-					roomInstances[theRoom].hasEnemy = true;
-				}
-			}
 		}
 		else {
 			var previousRoom = inRoom;
@@ -3543,16 +3213,10 @@ Door.prototype.update = function() {
 			p.enteringDoor = false;
 			p.exitingDoor = true;
 			p.op = 0.95;
-			/* Schedule enemies to move through the door */
-			for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-				if(roomInstances[theRoom].content[i] instanceof Enemy && roomInstances[theRoom].content[i].seesPlayer) {
-					roomInstances[theRoom].hasEnemy = true;
-				}
-			}
 		}
 		p.screenOp = 0.95;
 		this.entering = false;
-		calcPaths();
+		calculatePaths();
 	}
 };
 function calculated() {
@@ -3563,7 +3227,7 @@ function calculated() {
 	}
 	return true;
 };
-function calcPaths() {
+function calculatePaths() {
 	for(var i = 0; i < roomInstances.length; i ++) {
 		roomInstances[i].pathScore = null;
 	}
@@ -3594,8 +3258,8 @@ function Torch(x, y) {
 Torch.prototype.exist = function() {
 	this.update();
 	/* Request graphics */
-	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97, null, null, { noFrontExtended: true });
 	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
 		this.lit = true;
 	}
@@ -3644,23 +3308,24 @@ function Tree(x, y) {
 };
 Tree.prototype.exist = function() {
 	cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
-	var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
-	thingsToBeRendered.push(new RenderingObject(
-		this,
-		{
-			x: loc.x - 150,
-			y: loc.y - 230,
-			w: 300,
-			h: 230
-		},
-		{
-			x: this.x + p.worldX - 150,
-			y: this.y + p.worldY - 230,
-			w: 300,
-			h: 230,
-			z: 0.95
-		}
-	));
+	// var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
+	this.display();
+	// thingsToBeRendered.push(new RenderingObject(
+	// 	this,
+	// 	{
+	// 		x: loc.x - 150,
+	// 		y: loc.y - 230,
+	// 		w: 300,
+	// 		h: 230
+	// 	},
+	// 	{
+	// 		x: this.x + p.worldX - 150,
+	// 		y: this.y + p.worldY - 230,
+	// 		w: 300,
+	// 		h: 230,
+	// 		z: 0.95
+	// 	}
+	// ));
 };
 Tree.prototype.update = function() {
 	var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
@@ -3829,7 +3494,7 @@ Chest.prototype.update = function() {
 			}
 		}
 		else {
-			var chooser = Math.random() + 1;
+			var chooser = Math.random();
 			if(chooser <= 0.5) {
 				roomInstances[inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
 			}
@@ -3879,178 +3544,61 @@ FallBlock.prototype.exist = function() {
 	var topLeftB = point3d(this.x + p.worldX - 20, this.y + p.worldY, 0.9);
 	var topRightB = point3d(this.x + p.worldX + 20, this.y + p.worldY, 0.9);
 	var bottomB = point3d(this.x + p.worldX, this.y + p.worldY + 60, 0.9);
+	c.fillStyle = "rgb(150, 150, 150)";
 	var shakeX = Math.random() * (this.timeShaking * 2) - this.timeShaking;
 	var shakeY = Math.random() * (this.timeShaking * 2) - this.timeShaking;
+	c.save();
+	c.translate(shakeX, shakeY);
 	/* Top face */
-	thingsToBeRendered.push(new RenderingPoly(
-		"rgb(150, 150, 150)",
-		[
-			{
-				x: topLeftF.x + shakeX,
-				y: topLeftF.y + shakeY
-			},
-			{
-				x: topLeftB.x + shakeX,
-				y: topLeftB.y + shakeY
-			},
-			{
-				x: topRightB.x + shakeX,
-				y: topRightB.y + shakeY
-			},
-			{
-				x: topRightF.x + shakeX,
-				y: topRightF.y + shakeY
-			}
-		],
-		[
-			{
-				x: this.x + p.worldX - 20 + shakeX,
-				y: this.y + p.worldY + shakeY,
-				z: 1.1
-			},
-			{
-				x: this.x + p.worldX - 20 + shakeX,
-				y: this.y + p.worldY + shakeY,
-				z: 0.9
-			},
-			{
-				x: this.x + p.worldX + 20 + shakeX,
-				y: this.y + p.worldY + shakeY,
-				z: 0.9
-			},
-			{
-				x: this.x + p.worldX + 20 + shakeX,
-				y: this.y + p.worldY + shakeY,
-				z: 1.1
-			}
-		]
-	));
+	c.beginPath();
+	c.moveTo(topLeftF.x, topLeftF.y);
+	c.lineTo(topLeftB.x, topLeftB.y);
+	c.lineTo(topRightB.x, topRightB.y);
+	c.lineTo(topRightF.x, topRightF.y);
+	c.fill();
 	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
-	/* Left face */
-	thingsToBeRendered.push(new RenderingPoly(
-		"rgb(150, 150, 150)",
-		[
-			{
-				x: topLeftF.x + shakeX,
-				y: topLeftF.y + shakeY
-			},
-			{
-				x: topLeftB.x + shakeX,
-				y: topLeftB.y + shakeY
-			},
-			{
-				x: bottomB.x + shakeX,
-				y: bottomB.y + shakeY
-			},
-			{
-				x: bottomF.x + shakeX,
-				y: bottomF.y + shakeY
-			}
-		],
-		[
-			{
-				x: this.x + p.worldX - 20 + shakeX,
-				y: this.x + p.worldY + shakeY,
-				z: 1.1
-			},
-			{
-				x: this.x + p.worldX - 20 + shakeX,
-				y: this.y + p.worldX - 20 + shakeY,
-				z: 0.9
-			},
-			{
-				x: this.x + p.worldX + shakeX,
-				y: this.y + p.worldY + 60 + shakeY,
-				z: 0.9
-			},
-			{
-				x: this.x + p.worldX + shakeX,
-				y: this.y + p.worldY + 60 + shakeY,
-				z: 1.1
-			}
-		]
-	));
+	/* left face */
+	c.beginPath();
+	c.moveTo(topLeftF.x, topLeftF.y);
+	c.lineTo(topLeftB.x, topLeftB.y);
+	c.lineTo(bottomB.x, bottomB.y);
+	c.lineTo(bottomF.x, bottomF.y);
+	c.fill();
 	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
-	/* Right face */
-	thingsToBeRendered.push(new RenderingPoly(
-		"rgb(150, 150, 150)",
-		[
-			{
-				x: topRightF.x + shakeX,
-				y: topRightF.y + shakeY
-			},
-			{
-				x: topRightB.x + shakeX,
-				y: topRightB.y + shakeY
-			},
-			{
-				x: bottomB.x + shakeX,
-				y: bottomB.y + shakeY
-			},
-			{
-				x: bottomF.x + shakeX,
-				y: bottomF.y + shakeY
-			}
-		],
-		[
-			{
-				x: this.x + p.worldX + 20 + shakeX,
-				y: this.y + p.worldY + shakeY,
-				z: 1.1
-			},
-			{
-				x: this.x + p.worldX + 20 + shakeX,
-				y: this.y + p.worldY + shakeY,
-				z: 0.9
-			},
-			{
-				x: this.x + p.worldX + shakeX,
-				y: this.y + p.worldY + 60 + shakeY,
-				z: 0.9
-			},
-			{
-				x: this.x + p.worldX + shakeX,
-				y: this.y + p.worldY + 60 + shakeY,
-				z: 1.1
-			}
-		]
-	));
+	/* right face */
+	c.beginPath();
+	c.moveTo(topRightF.x, topRightF.y);
+	c.lineTo(topRightB.x, topRightB.y);
+	c.lineTo(bottomB.x, bottomB.y);
+	c.lineTo(bottomF.x, bottomF.y);
+	c.fill();
 	collisionLine(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
-	/* Front face */
-	thingsToBeRendered.push(new RenderingPoly(
-		"rgb(110, 110, 110)",
-		[
+	/* front face */
+	// c.fillStyle = "rgb(110, 110, 110)";
+	// c.beginPath();
+	// c.moveTo(topLeftF.x, topLeftF.y);
+	// c.lineTo(topRightF.x, topRightF.y);
+	// c.lineTo(bottomF.x, bottomF.y);
+	// c.fill();
+	boxFronts.push({
+		type: "polygon",
+		col: "rgb(110, 110, 110)",
+		loc: [
 			{
-				x: topLeftF.x + shakeX,
-				y: topLeftF.y + shakeY,
+				x: + topLeftF.x + shakeX,
+				y: + topLeftF.y + shakeY,
 			},
 			{
-				x: topRightF.x + shakeX,
-				y: topRightF.y + shakeY
+				x: + topRightF.x + shakeX,
+				y: + topRightF.y + shakeY
 			},
 			{
-				x: bottomF.x + shakeX,
-				y: bottomF.y + shakeY
-			}
-		],
-		[
-			{
-				x: this.x + p.worldX - 20 + shakeX,
-				y: this.y + p.worldY + shakeY,
-				z: 1.1
-			},
-			{
-				x: this.x + p.worldX + 20 + shakeX,
-				y: this.y + p.worldY + shakeY,
-				z: 1.1
-			},
-			{
-				x: this.x + p.worldX + shakeX,
-				y: this.y + p.worldY + 60 + shakeY,
-				z: 1.1
+				x: + bottomF.x + shakeX,
+				y: + bottomF.y + shakeY
 			}
 		]
-	));
+	});
+	c.restore();
 	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 100 >= this.y + p.worldY && p.canJump && !this.allDone) {
 		this.steppedOn = true;
 	}
@@ -4114,22 +3662,7 @@ function Altar(x, y, type) {
 };
 Altar.prototype.exist = function() {
 	this.update();
-	thingsToBeRendered.push(new RenderingObject(
-		this,
-		{
-			x: this.x + p.worldX - 20,
-			y: this.y + p.worldY - 20,
-			w: 40,
-			h: 40,
-		},
-		{
-			x: this.x + p.worldX - 20,
-			y: this.y + p.worldY - 20,
-			w: 40,
-			h: 40,
-			z: 1
-		},
-	));
+	this.display();
 };
 Altar.prototype.update = function() {
 	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 46 > this.y + p.worldY - 20 && p.y - 5 < this.y + p.worldY + 20) {
@@ -4222,9 +3755,6 @@ Forge.prototype.exist = function() {
 		p.guiOpen = "reforge-item";
 	}
 };
-Forge.prototype.display = function() {
-
-};
 function Pulley(x1, w1, x2, w2, y, maxHeight) {
 	this.x1 = x1;
 	this.y1 = y;
@@ -4240,10 +3770,10 @@ Pulley.prototype.exist = function() {
 	/* Graphics & Hitbox */
 	function platform(x, y, w) {
 		new Platform(x, y, w).exist();
-		cube(x + p.worldX, -100, 3, y + 100 + p.worldY, 0.9, 0.9, "rgb(150, 150, 150)", "rgb(150, 150, 150)");
-		cube(x + p.worldX, -100, 3, y + 100 + p.worldY, 1.1, 1.1, "rgb(150, 150, 150)", "rgb(150, 150, 150)");
-		cube(x + w + p.worldX, -100, 3, y + 100 + p.worldY, 0.9, 0.9, "rgb(150, 150, 150)", "rgb(150, 150, 150)");
-		cube(x + w + p.worldX, -100, 3, y + 100 + p.worldY, 1.1, 1.1, "rgb(150, 150, 150)", "rgb(150, 150, 150)");
+		cube(x + p.worldX, -100, 3, y + 100 + p.worldY, 0.9, 0.9, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
+		cube(x + p.worldX, -100, 3, y + 100 + p.worldY, 1.1, 1.1, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
+		cube(x + w + p.worldX, -100, 3, y + 100 + p.worldY, 0.9, 0.9, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
+		cube(x + w + p.worldX, -100, 3, y + 100 + p.worldY, 1.1, 1.1, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
 	};
 	platform(this.x1, this.y1, this.w1);
 	platform(this.x2, this.y2, this.w2);
@@ -4321,13 +3851,13 @@ function Pillar(x, y, h) {
 };
 Pillar.prototype.exist = function() {
 	/* Base */
-	cube(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, 0.9, 1.1, "rgb(255, 0, 0)", "rgb(255, 128, 0)");
-	cube(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, 0.9, 1.1, "rgb(255, 0, 0)", "rgb(255, 128, 0)");
+	cube(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, 0.9, 1.1);
+	cube(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, 0.9, 1.1);
 	/* Top */
 	cube(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12, 0.9, 1.1);
 	cube(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10, 0.9, 1.1);
 	/* Pillar */
-	cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05, undefined, undefined);
+	cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05, null, null, { noFrontExtended: true });
 	/* Base collisions */
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	collisionRect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, {walls: [true, true, true, true], illegalHandling: "teleport"});
@@ -4496,7 +4026,7 @@ TiltPlatform.prototype.exist = function() {
 	this.p1 = p1;
 	this.p2 = p2;
 	//graphics
-	cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01, { noFrontExtended: true });
+	cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01, null, null, { noFrontExtended: true });
 	if(Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
 		this.collides = function(x, y) {
 			var p1 = point3d(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, 1.1);
@@ -4518,28 +4048,6 @@ TiltPlatform.prototype.exist = function() {
 		while(this.collides(this.origX + p.worldX + 5, topR)) {
 			topR ++;
 		}
-		boxFronts[boxFronts.length - 1] = {
-		type: "polygon",
-		col: "rgb(110, 110, 110)",
-		loc: [
-			{
-				x: boxFronts[boxFronts.length - 1].loc[0],
-				y: topL
-			},
-			{
-				x: boxFronts[boxFronts.length - 1].loc[0] + boxFronts[boxFronts.length - 1].loc[2],
-				y: topR
-			},
-			{
-				x: boxFronts[boxFronts.length - 1].loc[0] + boxFronts[boxFronts.length - 1].loc[2],
-				y: 800
-			},
-			{
-				x: boxFronts[boxFronts.length - 1].loc[0],
-				y: 800
-			}
-		]
-	};
 	}
 	polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
 		{
@@ -4562,7 +4070,7 @@ TiltPlatform.prototype.exist = function() {
 	//hitbox
 	collisionLine(p1.x + this.x + p.worldX, p1.y + this.y + p.worldY, p2.x + this.x + p.worldX, p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	if(p.x > p1.x + this.x + p.worldX && p.x < -p1.x + this.x + p.worldX && !p.canJump && p.onGroundBefore && p.velY >= 0 && Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
-		while(!p.canJump) {
+		while(!p.canJump && false) {
 			p.y ++;
 			collisionLine(p1.x + this.x + p.worldX, p1.y + this.y + p.worldY, p2.x + this.x + p.worldX, p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
 		}
@@ -4793,23 +4301,24 @@ Bridge.prototype.exist = function() {
 	c.lineTo(lowF.x - 80, 800);
 	c.stroke();
 	//hitbox
-	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000 || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000) {
-		p.y --;
-		p.canJump = true;
-		p.velY = (p.velY > 3) ? 3 : p.velY;
-	}
-	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-		if(roomInstances[theRoom].content[i] instanceof Enemy) {
-			while(Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].leftX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000 || Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].rightX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000) {
-				roomInstances[theRoom].content[i].y --;
-				roomInstances[theRoom].content[i].velY = (roomInstances[theRoom].content[i].velY > 3) ? 3 : roomInstances[theRoom].content[i].velY;
-				if(roomInstances[theRoom].content[i] instanceof Bat && roomInstances[theRoom].content[i].timePurified > 0) {
-					roomInstances[theRoom].content[i].dest = {x: roomInstances[theRoom].content[i].x + (Math.random() * 200 - 100), y: roomInstances[theRoom].content[i].y + (Math.random() * 200 - 100)};
-					roomInstances[theRoom].content[i].velY = 0;
-				}
-			}
-		}
-	}
+	collisions.push(new CollisionCircle(this.x, this.y + 500, 500));
+	// while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000 || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000) {
+	// 	p.y --;
+	// 	p.canJump = true;
+	// 	p.velY = (p.velY > 3) ? 3 : p.velY;
+	// }
+	// for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+	// 	if(roomInstances[theRoom].content[i] instanceof Enemy) {
+	// 		while(Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].leftX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000 || Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].rightX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000) {
+	// 			roomInstances[theRoom].content[i].y --;
+	// 			roomInstances[theRoom].content[i].velY = (roomInstances[theRoom].content[i].velY > 3) ? 3 : roomInstances[theRoom].content[i].velY;
+	// 			if(roomInstances[theRoom].content[i] instanceof Bat && roomInstances[theRoom].content[i].timePurified > 0) {
+	// 				roomInstances[theRoom].content[i].dest = {x: roomInstances[theRoom].content[i].x + (Math.random() * 200 - 100), y: roomInstances[theRoom].content[i].y + (Math.random() * 200 - 100)};
+	// 				roomInstances[theRoom].content[i].velY = 0;
+	// 			}
+	// 		}
+	// 	}
+	// }
 };
 function BookShelf(x, y) {
 	this.x = x;
@@ -4924,7 +4433,7 @@ Chandelier.prototype.exist = function() {
 				c.stroke();
 			}
 			else {
-				cube(p.worldX + this.points[indexes[i].index].x - 5, p.worldY + this.points[indexes[i].index].y - 10, 10, 10, this.points[indexes[i].index].z - 0.01, this.points[indexes[i].index].z + 0.01, null, null, true);
+				cube(p.worldX + this.points[indexes[i].index].x - 5, p.worldY + this.points[indexes[i].index].y - 10, 10, 10, this.points[indexes[i].index].z - 0.01, this.points[indexes[i].index].z + 0.01, null, null);
 				this.particles.push(new Particle("rgb(255, 128, 0)", this.points[indexes[i].index].x, this.points[indexes[i].index].y - 10, Math.random() * 2 - 1, Math.random() * -2, 5));
 				this.particles[this.particles.length - 1].z = this.points[indexes[i].index].z;
 			}
@@ -5191,11 +4700,11 @@ GlassWindow.prototype.exist = function() {
 	c.fillStyle = "rgb(100, 100, 100)";
 	c.fillRect(0, 0, 800, 800);
 	//background
-	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
 	//cross patterns
 	if(this.color === "red") {
 		c.strokeStyle = "rgb(200, 50, 0)";
@@ -5244,7 +4753,9 @@ function Roof(x, y, w) {
 Roof.prototype.exist = function() {
 	if(this.type === null) {
 		var chooser = Math.random();
-		chooser = 1;
+		if(hax) {
+			chooser = 1;
+		}
 		if(chooser < 0.25) {
 			this.type = "none";
 		}
@@ -5324,7 +4835,6 @@ Roof.prototype.exist = function() {
 		polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, array);
 		while(Math.distSq(p.x + p.worldX, this.y - (this.y - (p.y + p.worldY - 7)) / 2, this.x, this.y) > (this.w / 2) * (this.w / 2) && p.y - 7 < this.y) {
 			p.y ++;
-			console.log("MOVING THE PLAYER DOWN");
 		}
 	}
 };
@@ -5574,13 +5084,16 @@ function Room(type, content, id, minWorldY, background) {
 	this.type = type;
 	this.content = content;
 	this.id = id;
-	this.hasEnemy = false;
 	this.pathScore = null;
 	this.background = background || null;
 	this.minWorldY = minWorldY;
 	this.colorScheme = null;
 };
 Room.prototype.exist = function(index) {
+	c.globalAlpha = 1;
+	c.fillStyle = "rgb(100, 100, 100)";
+	c.resetTransform();
+	c.fillRect(0, 0, 800, 800);
 	if(this.background === null) {
 		this.background = (Math.random() < 0.5) ? "plain" : "bricks";
 	}
@@ -5588,13 +5101,10 @@ Room.prototype.exist = function(index) {
 	extraGraphics = [];
 	hitboxes = [];
 	collisions = [];
-	thingsToBeRendered = [];
+	var chestIndexes = [];
 	var boulderIndexes = [];
 	var chargeIndexes = [];
 	p.canUseEarth = true;
-	if(hax) {
-		p.health = p.maxHealth;
-	}
 	//hax
 	for(var i = 0; i < this.content.length; i ++) {
 		if(this.content[i] instanceof Enemy) {
@@ -5606,6 +5116,14 @@ Room.prototype.exist = function(index) {
 	for(var i = 0; i < this.content.length; i ++) {
 		if(this.content[i] instanceof Door) {
 			this.content[i].exist(index);
+		}
+		else if(this.content[i] instanceof Chest) {
+			if(this.content[i].y + p.worldY > 400) {
+				chestIndexes.push(i);
+			}
+			else {
+				this.content[i].exist();
+			}
 		}
 		else if(this.content[i] instanceof Item) {
 			if(!this.content[i].initialized) {
@@ -5623,22 +5141,23 @@ Room.prototype.exist = function(index) {
 			c.beginPath();
 			c.rect(this.content[chestIndex].x - 50 - (this.content[i].x), this.content[chestIndex].y - 1000 - (this.content[i].y), 100, 1000);
 			c.clip();
-			thingsToBeRendered.push(new RenderingObject(
-				this.content[i],
-				{
-					x: this.content[i].x + p.worldX - 25,
-					y: this.content[i].y + p.worldY - 25,
-					w: 50,
-					h: 50
-				},
-				{
-					x: this.content[i].x + p.worldX - 25,
-					y: this.content[i].y + p.worldY - 25,
-					w: 50,
-					h: 50,
-					z: 1
-				}
-			));
+			this.content[i].display("item");
+			// thingsToBeRendered.push(new RenderingObject(
+			// 	this.content[i],
+			// 	{
+			// 		x: this.content[i].x + p.worldX - 25,
+			// 		y: this.content[i].y + p.worldY - 25,
+			// 		w: 50,
+			// 		h: 50
+			// 	},
+			// 	{
+			// 		x: this.content[i].x + p.worldX - 25,
+			// 		y: this.content[i].y + p.worldY - 25,
+			// 		w: 50,
+			// 		h: 50,
+			// 		z: 1
+			// 	}
+			// ));
 			c.restore();
 			this.content[i].animate();
 			if(this.content[i].opacity <= 0) {
@@ -5730,13 +5249,33 @@ Room.prototype.exist = function(index) {
 			p.canUseEarth = false;
 		}
 	}
-	/* Graphics */
-	sortPolygons();
-	for(var i = 0; i < thingsToBeRendered.length; i ++) {
-		thingsToBeRendered[i].display();
+	/* load chest fronts after everything else */
+	for(var i = 0; i < chestIndexes.length; i ++) {
+		if(this.content[chestIndexes[i]].y + p.worldY > 400) {
+			this.content[chestIndexes[i]].exist();
+			if(this.content[chestIndexes[i]].splicing) {
+				for(var j = 0; j < this.content[chargeIndexes[i]].particles.length; j ++) {
+					this.content.push(Object.create(this.content[chargeIndexes[i]].particles[j]));
+				}
+				this.content.splice(i, 1);
+				continue;
+			}
+		}
+	}
+	/* load block fronts after everything else */
+	loadBoxFronts();
+	/* load magic charges */
+	for(var i = 0; i < chargeIndexes.length; i ++) {
+		this.content[chargeIndexes[i]].exist();
+	}
+	//load boulders
+	for(var i = 0; i < boulderIndexes.length; i ++) {
+		this.content[boulderIndexes[i]].exist();
 	}
 	/* Collisions */
-	if(inRoom === theRoom) {
+	// console.log("Room #" + index);
+	// console.log(collisions);
+	if(inRoom === index) {
 		p.canJump = false;
 	}
 	for(var i = 0; i < collisions.length; i ++) {
@@ -5766,6 +5305,35 @@ Room.prototype.exist = function(index) {
 	c.fillStyle = "rgb(255, 0, 0)";
 	c.globalAlpha = (p.damOp > 0) ? p.damOp : 0;
 	c.fillRect(0, 0, 800, 800);
+};
+Room.prototype.displayBackground = function() {
+	if(this.background === "bricks") {
+		c.save();
+		c.translate((p.worldX * 0.9) % 100, (p.worldY * 0.9) % 100);
+		c.strokeStyle = "rgb(110, 110, 110)";
+		c.lineWidth = 4;
+		for(var y = -100; y < 900; y += 50) {
+			c.beginPath();
+			c.moveTo(-100, y);
+			c.lineTo(900, y);
+			c.stroke();
+			for(var x = (y % 100 === 0) ? -100 : -50; x < 900; x += 100) {
+				c.beginPath();
+				c.moveTo(x, y);
+				c.lineTo(x, y + 50);
+				c.stroke();
+			}
+		}
+		c.restore();
+	}
+};
+Room.prototype.containsEnemies = function() {
+	for(var i = 0; i < this.content.length; i ++) {
+		if(this.content[i] instanceof Enemy) {
+			return true;
+		}
+	}
+	return false;
 };
 var rooms = [
 	{
@@ -6488,19 +6056,20 @@ var roomInstances = [
 if(hax) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat1" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "combat2" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	for(var i = 0; i < roomInstances[0].content.length; i ++) {
-		if(roomInstances[0].content[i] instanceof Door) {
-			roomInstances[0].content[i].dest = ["reward"];
-		}
-	}
+	enemies = [Skeleton, Wraith];
+	items = [Helmet];
+	// for(var i = 0; i < roomInstances[0].content.length; i ++) {
+	// 	if(roomInstances[0].content[i] instanceof Door) {
+	// 		roomInstances[0].content[i].dest = ["reward"];
+	// 	}
+	// }
 	// enemies = [SkeletonWarrior];
-	items = [Barricade];
 	for(var i = 0; i < roomInstances[0].content.length; i ++) {
 		if(roomInstances[0].content[i] instanceof Door) {
 			// roomInstances[0].content[i].dest = ["reward"];
@@ -6525,9 +6094,7 @@ Item.prototype.init = function() {
 		}
 	}
 	this.initialized = true;
-	console.log("velY is " + this.velY);
 	this.velY = -4;
-	console.log("velY is " + this.velY);
 	this.opacity = 1;
 };
 Item.prototype.animate = function() {
@@ -6669,23 +6236,25 @@ function Weapon(modifier) {
 };
 inheritsFrom(Weapon, Item);
 Weapon.prototype.displayParticles = function() {
+	if(this.element === null || this.element === "none") {
+		return;
+	}
 	for(var i = 0; i < 5; i ++) {
+		var color = "rgb(255, 255, 255)"; // default color
 		if(this.element === "fire") {
-			this.particles.push(new Particle("rgb(255, 128, 0)", Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
-			this.particles[this.particles.length - 1].opacity = 0.25;
+			color = "rgb(255, 128, 0)";
 		}
 		else if(this.element === "water") {
-			this.particles.push(new Particle("rgb(0, 255, 255)", Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
-			this.particles[this.particles.length - 1].opacity = 0.25;
+			color = "rgb(0, 255, 255)";
 		}
 		else if(this.element === "earth") {
-			this.particles.push(new Particle("rgb(0, 255, 0)", Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
-			this.particles[this.particles.length - 1].opacity = 0.25;
+			color = "rgb(0, 255, 0)";
 		}
 		else if(this.element === "air") {
-			this.particles.push(new Particle("rgb(255, 255, 255)", Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
-			this.particles[this.particles.length - 1].opacity = 0.25;
+			color = "rgb(255, 255, 255)";
 		}
+		this.particles.push(new Particle(color, Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
+		this.particles[this.particles.length - 1].opacity = 0.25;
 	}
 	for(var i = 0; i < this.particles.length; i ++) {
 		this.particles[i].exist();
@@ -7743,7 +7312,7 @@ Helmet.prototype.display = function() {
 Helmet.prototype.getDesc = function() {
 	return [
 		{
-			content: ((this.modifier === "none") ? "" : (this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, Infinity + " "))) + "Helmet of Regeneration",
+			content: ((this.modifier === "none") ? "" : (this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, Infinity + " "))) + " Helmet of Regeneration",
 			color: "rgb(255, 255, 255)",
 			font: "bolder 10pt Cursive"
 		},
@@ -8083,22 +7652,22 @@ function WindBurst(x, y, dir, noDisplay) {
 	this.opacity = 1;
 };
 WindBurst.prototype.exist = function() {
-	thingsToBeRendered.push(new RenderingObject(
-		this,
-		{
-			x: (this.dir == "right") ? this.x + p.worldX : this.x + p.worldX - 49,
-			y: this.y + p.worldY - 34,
-			w: 49,
-			h: 34
-		},
-		{
-			x: (this.dir == "right") ? this.x + p.worldX : this.x + p.worldX - 49,
-			y: this.y + p.worldY - 34,
-			w: 49,
-			h: 34,
-			z: 1
-		}
-	));
+	// thingsToBeRendered.push(new RenderingObject(
+	// 	this,
+	// 	{
+	// 		x: (this.dir == "right") ? this.x + p.worldX : this.x + p.worldX - 49,
+	// 		y: this.y + p.worldY - 34,
+	// 		w: 49,
+	// 		h: 34
+	// 	},
+	// 	{
+	// 		x: (this.dir == "right") ? this.x + p.worldX : this.x + p.worldX - 49,
+	// 		y: this.y + p.worldY - 34,
+	// 		w: 49,
+	// 		h: 34,
+	// 		z: 1
+	// 	}
+	// ));
 	this.display();
 	this.update();
 };
@@ -8474,18 +8043,6 @@ ShotArrow.prototype.exist = function() {
 					this.hitSomething = true;
 				}
 			}
-			else if(roomInstances[inRoom].content[i] instanceof Block) {
-				var block = roomInstances[inRoom].content[i];
-				if(this.x > block.x && this.x < block.x + block.w && this.y > block.y && this.y < block.y + block.h) {
-					this.hitSomething = true;
-				}
-			}
-			else if(roomInstances[inRoom].content[i] instanceof Bridge) {
-				var bridge = roomInstances[inRoom].content[i];
-				if(Math.distSq(this.x, this.y, bridge.x, bridge.y + 500) <= 250000) {
-					this.hitSomething = true;
-				}
-			}
 		}
 		if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && this.shotBy === "enemy") {
 			p.hurt(this.damage, this.name);
@@ -8630,26 +8187,44 @@ Enemy.prototype.displayStats = function() {
 	}
 };
 Enemy.prototype.exist = function() {
-	thingsToBeRendered.push(new RenderingObject(
-		this,
-		{
-			x: this.x + p.worldX + this.leftX,
-			y: this.y + p.worldY + this.topY,
-			w: this.rightX - this.leftX,
-			h: this.bottomY - this.topY
-		},
-		{
-			x: this.x + p.worldX + this.leftX,
-			y: this.y + p.worldY + this.topY,
-			w: this.rightX - this.leftX,
-			h: this.bottomY - this.topY,
-			z: 1
-		}
-	));
+	this.display();
+	// thingsToBeRendered.push(new RenderingObject(
+	// 	this,
+	// 	{
+	// 		x: this.x + p.worldX + this.leftX,
+	// 		y: this.y + p.worldY + this.topY,
+	// 		w: this.rightX - this.leftX,
+	// 		h: this.bottomY - this.topY
+	// 	},
+	// 	{
+	// 		x: this.x + p.worldX + this.leftX,
+	// 		y: this.y + p.worldY + this.topY,
+	// 		w: this.rightX - this.leftX,
+	// 		h: this.bottomY - this.topY,
+	// 		z: 1
+	// 	}
+	// ));
 	this.timeFrozen --;
 	this.timePurified --;
 	if(!this.fadingIn && (this.timeFrozen < 0 || this instanceof Wraith)) {
-		this.update("player");
+		if(inRoom === theRoom) {
+			this.update("player");
+		}
+		else {
+			calculatePaths();
+			for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+				if(roomInstances[theRoom].content[i] instanceof Door) {
+					var door = roomInstances[theRoom].content[i];
+					if(typeof door.dest === "number" && roomInstances[door.dest].pathScore < roomInstances[theRoom].pathScore) {
+						var nextRoom = roomInstances[door.dest];
+						this.update({
+							x: door.x,
+							y: door.y
+						});
+					}
+				}
+			}
+		}
 	}
 	if(this.timeFrozen > 0 && !(this instanceof Wraith)) {
 		this.velY += 0.1;
@@ -8686,6 +8261,7 @@ Enemy.prototype.exist = function() {
 	else {
 		this.purity += (this.purity > 0) ? -5 : 0;
 	}
+	/* Collisions with other enemies */
 	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
 		if(!(roomInstances[theRoom].content[i] instanceof Enemy)) {
 			continue;
@@ -8822,7 +8398,8 @@ Spider.prototype.display = function() {
 	c.fill();
 };
 Spider.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	console.log("dest is: " + dest);
+	if(dest === "player") {
 		if(this.timePurified < 0) {
 			if(this.x + p.worldX < p.x) {
 				this.velX = 2;
@@ -8953,7 +8530,7 @@ Bat.prototype.display = function() {
 	c.restore();
 };
 Bat.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		this.wings += this.wingDir;
 		if(this.wings > 5) {
 			this.wingDir = -5;
@@ -9089,7 +8666,7 @@ Skeleton.prototype.display = function() {
 	}
 };
 Skeleton.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		//movement
 		this.x += this.velX;
 		this.y += this.velY;
@@ -9234,7 +8811,7 @@ SkeletonWarrior.prototype.display = function() {
 	}
 };
 SkeletonWarrior.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		//movement
 		this.x += this.velX;
 		this.y += this.velY;
@@ -9402,7 +8979,7 @@ SkeletonArcher.prototype.display = function() {
 	}
 };
 SkeletonArcher.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		this.legs += this.legDir;
 		if(this.x + p.worldX < p.x) {
 			//moving towards p.x - 200
@@ -9625,7 +9202,7 @@ Wraith.prototype.display = function() {
 	}
 };
 Wraith.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		//movement
 		if(Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) <= 100) {
 			var idealX = (this.x + p.worldX < p.x) ? p.x - p.worldX - 150 : p.x - p.worldX + 150;
@@ -10308,13 +9885,13 @@ Dragonling.prototype.update = function() {
 
 //hax
 if(hax) {
-	p.class = "archer";
+	// p.class = "mage";
 	// p.reset();
 	p.onScreen = "play";
 	for(var i = 0; i < items.length; i ++) {
 		// p.addItem(new items[i]());
 	}
-	roomInstances = [new Room("parkour", [new Pillar(500, 600, 150), new Platform(600, 450, 200)], 0, -Infinity, "bricks")];
+	// roomInstances = [new Room("parkour", [new Pillar(500, 600, 150), new Platform(600, 450, 200)], 0, -Infinity, "bricks")];
 	// p.addItem(new EnergyStaff());
 	// p.addItem(new Dagger("light"));
 	p.addItem(new WoodBow());
@@ -10364,7 +9941,7 @@ var btn3 = 0;
 /** FRAMES **/
 function doByTime() {
 	if(hax) {
-		// p.health = p.maxHealth;
+		p.health = p.maxHealth;
 	}
 	cursorHand = false;
 	frameCount ++;
@@ -10373,39 +9950,70 @@ function doByTime() {
 	c.fillRect(0, 0, 800, 800);
 
 	if(p.onScreen === "play") {
-		if(roomInstances[inRoom].background === "bricks") {
-			var transX = (p.worldX * 0.9) % 100;
-			var transY = (p.worldY * 0.9) % 100;
-			c.save();
-			c.translate(transX, transY);
-			c.strokeStyle = "rgb(110, 110, 110)";
-			c.lineWidth = 4;
-			for(var y = -100; y < 900; y += 50) {
-				c.beginPath();
-				c.moveTo(-100, y);
-				c.lineTo(900, y);
-				c.stroke();
-				for(var x = (y % 100 === 0) ? -100 : -50; x < 900; x += 100) {
-					c.beginPath();
-					c.moveTo(x, y);
-					c.lineTo(x, y + 50);
-					c.stroke();
+		//load enemies in other rooms
+		var unseenEnemy = false;
+		for(var i = 0; i < roomInstances.length; i ++) {
+			if(roomInstances[i].containsEnemies() && i !== inRoom) {
+				unseenEnemy = true;
+				break;
+			}
+		}
+		if(unseenEnemy) {
+			outerLoop: for(var i = 0; i < roomInstances.length; i ++) {
+				theRoom = i;
+				if(i !== inRoom && roomInstances[i].containsEnemies()) {
+					roomInstances[i].exist(i);
+				}
+				for(var j = 0; j < roomInstances[i].content.length; j ++) {
+					if(roomInstances[i].content[j] instanceof Enemy) {
+						var enemy = roomInstances[i].content[j];
+						for(var k = 0; k < roomInstances[i].content.length; k ++) {
+							if(roomInstances[i].content[k] instanceof Door) {
+								var door = roomInstances[i].content[k];
+								if(typeof door.dest !== "number") {
+									continue;
+								}
+								var nextRoom = roomInstances[door.dest];
+								if(enemy.x + enemy.rightX > door.x - 30 && enemy.x + enemy.leftX < door.x + 30 && enemy.y + enemy.bottomY > door.y - 60 && enemy.y + enemy.topY < door.y + 3 && roomInstances[door.dest].pathScore < roomInstances[i].pathScore) {
+									for(var l = 0; l < nextRoom.content.length; l ++) {
+										if(nextRoom.content[l] instanceof Door) {
+											var exitDoor = nextRoom.content[l];
+											if(exitDoor.dest !== i) {
+												continue;
+											}
+											var movedEnemy = new (enemy.constructor)();
+											movedEnemy.x = exitDoor.x;
+											movedEnemy.y = exitDoor.y - movedEnemy.bottomY;
+											movedEnemy.opacity = 0;
+											movedEnemy.fadingIn = true;
+											movedEnemy.seesPlayer = false;
+											movedEnemy.health = enemy.health;
+											roomInstances[i].content.splice(j, 1);
+											nextRoom.content.push(movedEnemy);
+											break outerLoop;
+										}
+									}
+								}
+							}
+						}
+					}
 				}
 			}
-			c.restore();
 		}
 		p.update();
+
+		roomInstances[inRoom].displayBackground();
 
 		for(var i = 0; i < roomInstances.length; i ++) {
 			if(roomInstances[i].id === "?") {
 				roomInstances[i].id = numRooms;
 				numRooms ++;
 			}
-			if(inRoom === roomInstances[i].id) {
+			if(inRoom === roomInstances[i].id && (!unseenEnemy || true)) {
 				theRoom = i;
 				roomInstances[i].exist(i);
 			}
-			if(roomInstances[i].hasEnemy) {
+			if(roomInstances[i].containsEnemies() && false) {
 				for(var j = 0; j < roomInstances[i].content.length; j ++) {
 					if(roomInstances[i].content[j] instanceof Enemy) {
 						for(var k = 0; k < roomInstances[i].content.length; k ++) {
@@ -10420,73 +10028,6 @@ function doByTime() {
 
 		p.display();
 		p.gui();
-
-		//load enemies in other rooms
-		var unseenEnemy = false;
-		for(var i = 0; i < roomInstances.length; i ++) {
-			for(var j = 0; j < roomInstances[i].content.length; j ++) {
-				if(roomInstances[i].content[j] instanceof Enemy && i !== inRoom) {
-					unseenEnemy = true;
-					break;
-				}
-			}
-		}
-		if(unseenEnemy) {
-			for(var i = 0; i < roomInstances.length; i ++) {
-				theRoom = i;
-				enemyLoop: for(var j = 0; j < roomInstances[i].content.length; j ++) {
-					if(roomInstances[i].content[j] instanceof Enemy) { // roomInstances[i].content[j] is the enemy
-						var doorLoc = null;
-						doorLoop: for(var k = 0; k < roomInstances[i].content.length; k ++) { // roomInstances[i].content[k] is the door
-							if(typeof roomInstances[i].content[k].dest !== "object" && !roomInstances[i].content[k].barricaded) {
-								if(roomInstances[i].content[k] instanceof Door && roomInstances[roomInstances[i].content[k].dest].pathScore < roomInstances[i].pathScore) {
-									doorLoc = {x: roomInstances[i].content[k].x, y: roomInstances[i].content[k].y};
-									break doorLoop;
-								}
-							}
-						}
-						if(doorLoc === null) {
-							continue enemyLoop;
-						}
-						doorLoop: for(var k = 0; k < roomInstances[i].content.length; k ++) {
-							if(roomInstances[i].content[k] instanceof Door && typeof roomInstances[i].content[k].dest !== "object") {
-								var door = roomInstances[i].content[k];
-								var enemy = roomInstances[i].content[j];
-								if(enemy.x + enemy.rightX > door.x - 30 && enemy.x + enemy.leftX < door.x + 30 && enemy.y + enemy.bottomY > door.y - 60 && enemy.y + enemy.topY < door.y + 3 && roomInstances[door.dest].pathScore < roomInstances[i].pathScore) {
-									roomInstances[door.dest].content.push(new enemy.constructor());
-									var newIndex = roomInstances[door.dest].content.length - 1;
-									var exitDoorIndex = null;
-									for(var l = 0; l < roomInstances[door.dest].content.length; l ++) {
-										if(roomInstances[door.dest].content[l] instanceof Door && roomInstances[door.dest].content[l].dest === i) {
-											exitDoorIndex = l;
-											break;
-										}
-									}
-									roomInstances[door.dest].content[newIndex].x = roomInstances[door.dest].content[exitDoorIndex].x;
-									roomInstances[door.dest].content[newIndex].y = roomInstances[door.dest].content[exitDoorIndex].y - roomInstances[door.dest].content[newIndex].bottomY;
-									roomInstances[door.dest].content[newIndex].opacity = 0;
-									roomInstances[door.dest].content[newIndex].fadingIn = true;
-									roomInstances[door.dest].content[newIndex].seesPlayer = false;
-									roomInstances[door.dest].content[newIndex].health = enemy.health;
-									roomInstances[i].content.splice(j, 1);
-									continue enemyLoop;
-								}
-							}
-						}
-						roomInstances[i].content[j].update(doorLoc);
-						// roomInstances[i].content[j].display();
-					}
-					else if(roomInstances[i].content[j] instanceof Block || roomInstances[i].content[j] instanceof Platform || roomInstances[i].content[j] instanceof Stairs || roomInstances[i].content[j] instanceof Pulley) {
-						if(roomInstances[i].content[j] instanceof Block || roomInstances[i].content[j] instanceof Platform) {
-							roomInstances[i].content[j].update();
-						}
-						else if(roomInstances[i].content[j] instanceof Stairs) {
-							roomInstances[i].content[j].exist(true);
-						}
-					}
-				}
-			}
-		}
 		//move player into lower room when falling
 		if(p.y + 46 > 900) {
 			p.fallDir = 0.05;
@@ -10496,7 +10037,7 @@ function doByTime() {
 		boxFronts = [];
 		p.worldX = 0;
 		p.worldY = 0;
-		new Block(-100, 600, 1000, 200).exist();
+		new Block(-100, 600, 1000, 200).display();
 		//title
 		c.fillStyle = "rgb(0, 0, 0)";
 		c.font = "80px Cursive";
@@ -10639,10 +10180,10 @@ function doByTime() {
 		keys = [];
 		boxFronts = [];
 		//ground
-		new Block(-100, 600, 1000, 200).exist();
-		new Block(100, platHeight1, 150, 200).exist();
-		new Block(325, platHeight2, 150, 200).exist();
-		new Block(550, platHeight3, 150, 200).exist();
+		new Block(-100, 600, 1000, 200).display();
+		new Block(100, platHeight1, 150, 200).display();
+		new Block(325, platHeight2, 150, 200).display();
+		new Block(550, platHeight3, 150, 200).display();
 		//warrior
 		warriorClass.y = platHeight1 - 46;
 		warriorClass.display(true, true);
@@ -10730,7 +10271,7 @@ function doByTime() {
 		c.fillText("You were killed by " + p.deathCause, 400, 460);
 		p.worldX = 0;
 		p.worldY = 0;
-		new Block(-100, 700, 1000, 200).exist();
+		new Block(-100, 700, 1000, 200).display();
 		//home button
 		c.fillStyle = "rgb(20, 20, 20)";
 		c.fillRect(100, 570, 150, 100);
