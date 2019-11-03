@@ -1,4 +1,6 @@
-/** PRIMITIVES + CONSTANTS **/
+/*
+IO + CONSTANTS
+*/
 var canvas = document.getElementById("theCanvas");
 var c = canvas.getContext("2d");
 c.textAlign = "center";
@@ -6,7 +8,7 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = false;
+const hax = true;
 const showHitboxes = false;
 var frozen = false;
 var hitboxes = [];
@@ -41,8 +43,10 @@ function resizeCanvas() {
 	}
 };
 
-/** UTILITIES **/
-//generic utilities
+/*
+UTILITIES
+*/
+/* Generic utilities */
 Math.dist = function(x1, y1, x2, y2) {
 	/*
 	Returns the distance between ('x1', 'y1') and ('x2', 'y2')
@@ -58,12 +62,17 @@ Math.distSq = function(x1, y1, x2, y2) {
 Math.normalize = function(x, y) {
 	/*
 	Scales the point ('x', 'y') so that it is 1 pixel away from the origin.
-	Expects to be able to use Math.rotate(), as shown above
 	*/
-	var deg = Math.atan2(y, x) / Math.PI * 180;
-	return Math.rotate(1, 0, deg);
+	var dist = Math.dist(0, 0, x, y);
+	return {
+		x: x / dist,
+		y: y / dist
+	};
 };
 Math.rad = function(deg) {
+	/*
+	Convert 'deg' degrees to radians.
+	*/
 	return deg / 180 * Math.PI;
 };
 Math.map = function(value, min1, max1, min2, max2) {
@@ -73,35 +82,100 @@ Math.map = function(value, min1, max1, min2, max2) {
 	return (value - min1) / (max1 - min1) * (max2 - min2) + min2;
 };
 Math.rotate = function(x, y, deg) {
+	/*
+	Returns new coords of ('x', 'y') after being rotated 'deg' degrees about origin.
+	*/
 	deg = Math.rad(deg);
 	return {
 		x: x * Math.cos(deg) - y * Math.sin(deg),
 		y: x * Math.sin(deg) + y * Math.cos(deg)
 	};
 };
+Array.prototype.min = function(func) {
+	/*
+	Returns the lowest item, or the item for which func() returns the lowest value.
+	*/
+	if(typeof func === "function") {
+		var lowestIndex = 0;
+		var lowestValue = 0;
+		for(var i = 0; i < this.length; i ++) {
+			var value = func(this[i]);
+			if(value < lowestValue) {
+				lowestIndex = i;
+				lowestValue = value;
+			}
+		}
+		return lowestValue;
+	}
+	else {
+		var lowestIndex = 0;
+		var lowestValue = 0;
+		for(var i = 0; i < this.length; i ++) {
+			if(this[i] < lowestValue) {
+				lowestIndex = i;
+				lowestValue = this[i];
+			}
+		}
+		return lowestValue;
+	}
+};
+Array.prototype.max = function(func) {
+	/*
+	Returns the highest item, or the item for which func() returns the highest value.
+	*/
+	if(typeof func === "function") {
+		var highestIndex = 0;
+		var highestValue = 0;
+		for(var i = 0; i < this.length; i ++) {
+			var value = func(this[i]);
+			if(value < highestValue) {
+				highestIndex = i;
+				highestValue = value;
+			}
+		}
+		return highestValue;
+	}
+	else {
+		var highestIndex = 0;
+		var highestValue = 0;
+		for(var i = 0; i < this.length; i ++) {
+			if(this[i] < highestValue) {
+				highestIndex = i;
+				highestValue = this[i];
+			}
+		}
+		return highestValue;
+	}
+};
 function deepClone(obj) {
 	/*
 	Returns a new object, identical to 'obj' but not a reference.
 	Note: do not pass circular objects.
 	*/
+	/* Return primitives */
 	if(typeof(obj) !== "object" || obj === null) {
 		return obj;
 	}
+	/* Initialize objects / arrays */
 	var clone = {};
 	if(Array.isArray(obj)) {
 		clone = [];
 	}
+	/* Recursively clone the object */
 	for(var i in obj) {
 		if(Array.isArray(obj) && isNaN(parseInt(i))) {
-			continue;
+			continue; // skip non-numeric keys if it is an array
 		}
 		clone[i] = deepClone(obj[i]);
 	}
 	return clone;
 };
 function findPointsCircular(x, y, r) {
+	/*
+	Returns an array containing all points (nearest integer) on a circle at ('x', 'y') with radius r in clockwise order.
+	*/
 	var circularPoints = [];
-	//top right quadrant
+	/* top right quadrant */
 	for(var X = x; X < x + r; X ++) {
 		for(var Y = y - r; Y < y; Y ++) {
 			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
@@ -109,7 +183,7 @@ function findPointsCircular(x, y, r) {
 			}
 		}
 	}
-	//bottom right quadrant
+	/* bottom right quadrant */
 	for(var X = x + r; X > x; X --) {
 		for(var Y = y; Y < y + r; Y ++) {
 			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
@@ -117,7 +191,7 @@ function findPointsCircular(x, y, r) {
 			}
 		}
 	}
-	//bottom left
+	/* bottom left quadrant */
 	for(var X = x; X > x - r; X --) {
 		for(var Y = y + r; Y > y; Y --) {
 			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
@@ -125,7 +199,7 @@ function findPointsCircular(x, y, r) {
 			}
 		}
 	}
-	//top left
+	/* top left quadrant */
 	for(var X = x - r; X < x; X ++) {
 		for(var Y = y; Y > y - r; Y --) {
 			if(Math.floor(Math.dist(x, y, X, Y)) === r - 1) {
@@ -136,10 +210,13 @@ function findPointsCircular(x, y, r) {
 	return circularPoints;
 };
 function findPointsLinear(x1, y1, x2, y2) {
+	/*
+	Returns all points on a line w/ endpoints ('x1', 'y1') and ('x2', 'y2') rounded to nearest integer.
+	*/
 	var inverted = false;
+	/* Swap x's and y's if the line is closer to vertical than horizontal */
 	if(Math.abs(x1 - x2) < Math.abs(y1 - y2)) {
 		inverted = true;
-		//swap x's and y's
 		var oldX1 = x1;
 		x1 = y1;
 		y1 = oldX1;
@@ -147,7 +224,9 @@ function findPointsLinear(x1, y1, x2, y2) {
 		x2 = y2;
 		y2 = oldX2;
 	}
+	/* Calculate line slope */
 	var m = Math.abs(y1 - y2) / Math.abs(x1 - x2);
+	/* Find points on line */
 	var linearPoints = [];
 	if(x1 < x2) {
 		if(y1 < y2) {
@@ -198,6 +277,7 @@ function findPointsLinear(x1, y1, x2, y2) {
 			}
 		}
 	}
+	/* Swap it again to cancel out previous swap and return */
 	if(inverted) {
 		for(var i = 0; i < linearPoints.length; i ++) {
 			var oldX = linearPoints[i].x;
@@ -207,15 +287,21 @@ function findPointsLinear(x1, y1, x2, y2) {
 	}
 	return linearPoints;
 };
-//parallax graphic utilities
+var tempVars = {}; // temporary variables (but used between functions)
+/* Parallax graphic utilities */
 function point3d(x, y, z) {
-	//returns the visual position of a point at x, y, z
+	/*
+	Returns the visual position of a point at 'x', 'y', 'z'
+	*/
 	return {
 		x: 400 - (400 - x) * z,
 		y: 400 - (400 - y) * z,
-	}
+	};
 };
 function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
+	/*
+	Draws a line (really more like a plane) extending the line between ('x1', 'y1') and ('x2', 'y2') from 'startDepth' to 'endDepth' with a color of 'col'.
+	*/
 	var p1 = point3d(x1, y1, startDepth);
 	var p2 = point3d(x1, y1, endDepth);
 	var p3 = point3d(x2, y2, endDepth);
@@ -227,108 +313,318 @@ function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
 	c.lineTo(p3.x, p3.y);
 	c.lineTo(p4.x, p4.y);
 	c.fill();
+	// thingsToBeRendered.push(new RenderingPoly(
+	// 	col,
+	// 	[p1, p2, p3, p4],
+	// 	[
+	// 		{
+	// 			x: x1,
+	// 			y: y1,
+	// 			z: startDepth
+	// 		},
+	// 		{
+	// 			x: x1,
+	// 			y: y1,
+	// 			z: endDepth
+	// 		},
+	// 		{
+	// 			x: x2,
+	// 			y: y2,
+	// 			z: endDepth
+	// 		},
+	// 		{
+	// 			x: x2,
+	// 			y: y2,
+	// 			z: startDepth
+	// 		}
+	// 	]
+	// ));
 };
 function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
-	if(typeof sideCol !== "string") {
-		sideCol = "rgb(150, 150, 150)";
+	/*
+	Draws a rect. prism from ('x', 'y', 'startDepth') to ('x' + 'w', 'y' + 'h', 'endDepth').
+	*/
+	frontCol = frontCol || "rgb(110, 110, 110)";
+	sideCol = sideCol || "rgb(150, 150, 150)";
+	settings = settings || {};
+	settings.noFrontExtended = settings.noFrontExtended || false;
+	settings.sideColors = settings.sideColors || {left: sideCol, right: sideCol, top: sideCol, bottom: sideCol};
+	if(endDepth < startDepth) {
+		var oldEnd = endDepth;
+		endDepth = startDepth;
+		startDepth = oldEnd;
 	}
-	if(typeof frontCol !== "string") {
-		frontCol = "rgb(110, 110, 110)";
-	}
-	if(typeof settings !== "object") {
-		settings = {
-			noFrontExtended: false,
-			sideColors: {
-				left: sideCol,
-				right: sideCol,
-				top: sideCol,
-				bottom: sideCol
-			}
-		};
-	}
-	else if(typeof settings.sideColors !== "object") {
-		settings.sideColors = {};
-		settings.sideColors.left = sideCol;
-		settings.sideColors.top = sideCol;
-		settings.sideColors.bottom = sideCol;
-		settings.sideColors.right = sideCol;
-	}
-	else {
-		settings.sideColors.left = (settings.sideColors.left === undefined) ? sideCol : settings.sideColors.left;
-		settings.sideColors.right = (settings.sideColors.right === undefined) ? sideCol : settings.sideColors.right;
-		settings.sideColors.top = (settings.sideColors.top === undefined) ? sideCol : settings.sideColors.top;
-		settings.sideColors.bottom = (settings.sideColors.bottom === undefined) ? sideCol : settings.sideColors.bottom;
-	}
-	//background square
-	var leftBX = 400 - (400 - x) * startDepth;
-	var topBY = 400 - (400 - y) * startDepth;
-	var rightBX = 400 - (400 - (x + w)) * startDepth;
-	var bottomBY = 400 - (400 - (y + h)) * startDepth;
-	//foreground square
-	var leftFX = 400 - (400 - x) * endDepth;
-	var topFY = 400 - (400 - y) * endDepth;
-	var rightFX = 400 - (400 - (x + w)) * endDepth;
-	var bottomFY = 400 - (400 - (y + h)) * endDepth;
-	//top face
+	/* Calculate back face coordinates */
+	var topLeftB = point3d(x, y, startDepth);
+	var bottomRightB = point3d(x + w, y + h, startDepth);
+	/* Calculate front face coordinates */
+	var topLeftF = point3d(x, y, endDepth);
+	var bottomRightF = point3d(x + w, y + h, endDepth);
+	/* Top face */
 	c.fillStyle = settings.sideColors.top;
 	c.beginPath();
-	c.moveTo(leftBX, topBY);
-	c.lineTo(rightBX, topBY);
-	c.lineTo(rightFX, topFY);
-	c.lineTo(leftFX, topFY);
+	c.moveTo(topLeftF.x, topLeftF.y);
+	c.lineTo(bottomRightF.x, topLeftF.y);
+	c.lineTo(bottomRightB.x, topLeftB.y);
+	c.lineTo(topLeftB.x, topLeftB.y);
 	c.fill();
-	//right face
-	c.fillStyle = settings.sideColors.right;
-	c.beginPath();
-	c.moveTo(rightFX, topFY);
-	c.lineTo(rightBX, topBY);
-	c.lineTo(rightBX, bottomBY);
-	c.lineTo(rightFX, bottomFY);
-	c.fill();
-	//bottom face
+	/* Bottom face */
 	c.fillStyle = settings.sideColors.bottom;
 	c.beginPath();
-	c.moveTo(rightBX, bottomBY);
-	c.lineTo(rightFX, bottomFY);
-	c.lineTo(leftFX, bottomFY);
-	c.lineTo(leftBX, bottomBY);
+	c.moveTo(topLeftF.x, bottomRightF.y);
+	c.lineTo(bottomRightF.x, bottomRightF.y);
+	c.lineTo(bottomRightB.x, bottomRightB.y);
+	c.lineTo(topLeftB.x, bottomRightB.y);
 	c.fill();
-	//left face
+	/* Left face */
 	c.fillStyle = settings.sideColors.left;
 	c.beginPath();
-	c.moveTo(leftBX, topBY);
-	c.lineTo(leftFX, topFY);
-	c.lineTo(leftFX, bottomFY);
-	c.lineTo(leftBX, bottomBY);
+	c.moveTo(topLeftF.x, topLeftF.y);
+	c.lineTo(topLeftF.x, bottomRightF.y);
+	c.lineTo(topLeftB.x, bottomRightB.y);
+	c.lineTo(topLeftB.x, topLeftB.y);
 	c.fill();
-	//front face
+	/* Right face */
+	c.fillStyle = settings.sideColors.right;
+	c.beginPath();
+	c.moveTo(bottomRightF.x, topLeftF.y);
+	c.lineTo(bottomRightF.x, bottomRightF.y);
+	c.lineTo(bottomRightB.x, bottomRightB.y);
+	c.lineTo(bottomRightB.x, topLeftB.y);
+	c.fill();
 	if(!settings.noFrontExtended) {
+		/* Front face */
 		boxFronts.push({
 			type: "rect",
-			loc: [leftFX, topFY, rightFX - leftFX, bottomFY - topFY],
-			col: frontCol
+			col: frontCol,
+			loc: [topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y]
 		});
 	}
 	else {
 		c.fillStyle = frontCol;
-		c.fillRect(leftFX, topFY, rightFX - leftFX, bottomFY - topFY);
+		c.fillRect(topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y);
+		// /* Top face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	settings.sideColors.top,
+		// 	[
+		// 		topLeftF,
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: topLeftF.y
+		// 		},
+		// 		{
+		// 			x: bottomRightB.x,
+		// 			y: topLeftB.y
+		// 		},
+		// 		topLeftB
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
+		// /* Bottom face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	settings.sideColors.bottom,
+		// 	[
+		// 		{
+		// 			x: topLeftF.x,
+		// 			y: bottomRightF.y
+		// 		},
+		// 		bottomRightF,
+		// 		bottomRightB,
+		// 		{
+		// 			x: topLeftB.x,
+		// 			y: bottomRightB.y
+		// 		}
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
+		// /* Left face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	settings.sideColors.left,
+		// 	[
+		// 		topLeftF,
+		// 		{
+		// 			x: topLeftF.x,
+		// 			y: bottomRightF.y
+		// 		},
+		// 		{
+		// 			x: topLeftB.x,
+		// 			y: bottomRightB.y
+		// 		},
+		// 		topLeftB
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
+		// /* Right face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	settings.sideColors.right,
+		// 	[
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: topLeftF.y,
+		// 		},
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: bottomRightF.y
+		// 		},
+		// 		{
+		// 			x: bottomRightB.x,
+		// 			y: bottomRightB.y
+		// 		},
+		// 		{
+		// 			x: bottomRightB.x,
+		// 			y: topLeftB.y
+		// 		}
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x + w,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
+		// /* Front face */
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	frontCol,
+		// 	[
+		// 		{
+		// 			x: topLeftF.x,
+		// 			y: topLeftF.y
+		// 		},
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: topLeftF.y
+		// 		},
+		// 		{
+		// 			x: bottomRightF.x,
+		// 			y: bottomRightF.y
+		// 		},
+		// 		{
+		// 			x: topLeftF.x,
+		// 			y: bottomRightF.y
+		// 		}
+		// 	],
+		// 	[
+		// 		{
+		// 			x: x,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x + w,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: x,
+		// 			y: y + h,
+		// 			z: endDepth
+		// 		}
+		// 	]
+		// ));
 	}
 };
-function polygon3d(frontCol, sideCol, startDepth, endDepth, points) {
-	//swap 'startDepth' and 'endDepth' if in wrong order
+function polygon3d(frontCol, sideCol, startDepth, endDepth, points, settings) {
+	/*
+	Draws a sideways polygonal prism w/ base defined by 'points' array, w/ front color 'frontCol' and side color 'sideCol' going from 'startDepth' to 'endDepth'.
+	*/
 	if(startDepth > endDepth) {
 		var start = startDepth;
 		startDepth = endDepth;
 		endDepth = start;
 	}
-	//generate a list of points in 3d
+	/* Generate a list of points in 3d */
 	var frontVertices = [];
 	var backVertices = [];
 	for(var i = 0; i < points.length; i ++) {
-		frontVertices.push(point3d(points[i].x, points[i].y, endDepth));
+		var front = point3d(points[i].x, points[i].y, endDepth)
+		frontVertices.push(front);
 		backVertices.push(point3d(points[i].x, points[i].y, startDepth));
 	}
-	//side faces
+	/* side faces */
 	c.fillStyle = sideCol;
 	for(var i = 0; i < frontVertices.length; i ++) {
 		var next = (i === frontVertices.length - 1) ? 0 : i + 1;
@@ -338,8 +634,51 @@ function polygon3d(frontCol, sideCol, startDepth, endDepth, points) {
 		c.lineTo(backVertices[next].x, backVertices[next].y);
 		c.lineTo(backVertices[i].x, backVertices[i].y);
 		c.fill();
+		// thingsToBeRendered.push(new RenderingPoly(
+		// 	sideCol,
+		// 	[
+		// 		{
+		// 			x: frontVertices[i].x,
+		// 			y: frontVertices[i].y
+		// 		},
+		// 		{
+		// 			x: frontVertices[next].x,
+		// 			y: frontVertices[next].y
+		// 		},
+		// 		{
+		// 			x: backVertices[next].x,
+		// 			y: backVertices[next].y
+		// 		},
+		// 		{
+		// 			x: backVertices[i].x,
+		// 			y: backVertices[i].y
+		// 		}
+		// 	],
+		// 	[
+		// 		{
+		// 			x: points[i].x,
+		// 			y: points[i].y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: points[next].x,
+		// 			y: points[next].y,
+		// 			z: endDepth
+		// 		},
+		// 		{
+		// 			x: points[next].x,
+		// 			y: points[next].y,
+		// 			z: startDepth
+		// 		},
+		// 		{
+		// 			x: points[i].x,
+		// 			y: points[i].y,
+		// 			z: startDepth
+		// 		}
+		// 	]
+		// ));
 	}
-	//front face
+	/* front face */
 	c.fillStyle = frontCol;
 	c.beginPath();
 	for(var i = 0; i < frontVertices.length; i ++) {
@@ -351,252 +690,29 @@ function polygon3d(frontCol, sideCol, startDepth, endDepth, points) {
 		}
 	}
 	c.fill();
-};
-function cylinder(x, y, r, startDepth, endDepth, frontCol, sideCol, arr) {
-	var width = c.lineWidth;
-	c.lineWidth = 4;
-	if(arr === undefined) {
-		//if you know what the array of points is, pass it to the function as 'arr' so it doesn't have to calculate for better fps (should be centered on the origin)
-		var arr = findPointsCircular(x, y, r);
-	}
-	else {
-		for(var i = 0; i < arr.length; i ++) {
-			arr[i].x += x;
-			arr[i].y += y;
-		}
-	}
-	for(var i = 0; i < arr.length - 1; i ++) {
-		var front1 = point3d(arr[i].x, arr[i].y, startDepth);
-		var back1 = point3d(arr[i].x, arr[i].y, endDepth);
-		var front2 = point3d(arr[i + 1].x, arr[i + 1].y, startDepth);
-		var back2 = point3d(arr[i + 1].x, arr[i + 1].y, endDepth);
-		c.fillStyle = sideCol;
-		c.beginPath();
-		c.moveTo(front1.x, front1.y);
-		c.lineTo(back1.x, back1.y);
-		c.lineTo(back2.x, back2.y);
-		c.lineTo(front2.x, front2.y);
-		c.fill();
-	}
-	var center = point3d(x, y, (startDepth > endDepth) ? startDepth : endDepth);
-	boxFronts.push({
-		type: "circle",
-		loc: [center.x, center.y, r],
-		col: frontCol
-	});
-	c.lineWidth = width;
+	// thingsToBeRendered.push(new RenderingPoly(
+	// 	frontCol,
+	// 	frontVertices,
+	// 	arr
+	// ));
 };
 var boxFronts = [];//for 3d-ish rendering
 var extraGraphics = [];
-//game-specific utilities
+/* Game-specific utilities */
 function hitboxRect(x, y, w, h) {
+	/*
+	Returns whether or not the player overlaps the rectangle at ('x', 'y') with width 'w' and height 'h'.
+	*/
 	if(showHitboxes) {
 		hitboxes.push({x: x, y: y, w: w, h: h, color: "green"});
 	}
 	return (p.x + 5 > x && p.x - 5 < x + w && p.y + 46 > y && p.y < y + h);
 };
 function collisionRect(x, y, w, h, settings) {
-	settings = settings || {};
-	settings.onlyEnemies = settings.onlyEnemies || false;
-	settings.walls = settings.walls || [true, true, true, true];
-	settings.illegalHandling = settings.illegalHandling || "collide";
-	settings.moving = settings.moving || false;
-	if(settings.player === undefined) {
-		if(p.onScreen === "play") {
-			settings.player = p;
-		}
-		else if(p.onScreen === "how") {
-			settings.player = howChar;
-		}
-	}
-	// settings.player = settings.player || p;
-	if(showHitboxes) {
-		hitboxes.push({x: x, y: y, w: w, h: h, color: settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
-	}
-	if(inRoom === theRoom) {
-		if(!settings.moving) {
-			if(settings.player.x + 5 > x && settings.player.x - 5 < x + w && settings.player.y + 46 >= y && settings.player.y + 46 <= y + settings.player.velY + 1 && settings.walls[0]) {
-				settings.player.velY = 0;
-				settings.player.y = y - 46;
-				settings.player.canJump = true;
-				if(settings.player.fallDmg !== 0) {
-					settings.player.hurt(settings.player.fallDmg, "falling", true);
-					settings.player.fallDmg = 0;
-				}
-			}
-			if(settings.player.x + 5 > x && settings.player.x - 5 < x + w && settings.player.y <= y + h && settings.player.y >= y + h + settings.player.velY - 1 && settings.walls[1]) {
-				settings.player.velY = 2;
-			}
-			if(settings.player.y + 46 > y && settings.player.y < y + h && settings.player.x + 5 >= x && settings.player.x + 5 <= x + settings.player.velX + 1 && settings.walls[2]) {
-				if(settings.illegalHandling === "collide") {
-					settings.player.velX = (settings.extraBouncy) ? -3 : -1;
-				}
-				else {
-					settings.player.y = y - 46;
-				}
-			}
-			if(settings.player.y + 46 > y && settings.player.y < y + h && settings.player.x - 5 <= x + w && settings.player.x - 5 >= x + w + settings.player.velX - 1 && settings.walls[3]) {
-				if(settings.illegalHandling === "collide") {
-					settings.player.velX = (settings.extraBouncy) ? 3 : 1;
-				}
-				else {
-					settings.player.y = y - 46;
-				}
-			}
-		}
-		else {
-			if(settings.player.x + 5 > x && settings.player.x - 5 < x + w && settings.player.y + 46 >= y && settings.player.y + 46 <= y + 6 && settings.walls[0]) {
-				settings.player.velY = 0;
-				settings.player.y = y - 46;
-				settings.player.canJump = true;
-				if(settings.player.fallDmg !== 0) {
-					settings.player.hurt(settings.player.fallDmg, "falling");
-					settings.player.fallDmg = 0;
-				}
-			}
-			if(settings.player.x + 5 > x && settings.player.x - 5 < x + w && settings.player.y <= y + h && settings.player.y >= y + h - 6 && settings.walls[1]) {
-				settings.player.velY = 2;
-			}
-			if(settings.player.y + 46 > y && settings.player.y < y + h && settings.player.x + 5 >= x && settings.player.x + 5 <= x + 6 && settings.walls[2]) {
-				if(settings.illegalHandling === "collide") {
-					settings.player.velX = (settings.extraBouncy) ? -3 : -1;
-				}
-				else {
-					settings.player.y = y - 46;
-				}
-			}
-			if(settings.player.y + 46 > y && settings.player.y < y + h && settings.player.x - 5 <= x + w && settings.player.x - 5 >= x + w - 6 && settings.walls[3]) {
-				if(settings.illegalHandling === "collide") {
-					settings.player.velX = (settings.extraBouncy) ? 3 : 1;
-				}
-				else {
-					settings.player.y = y - 46;
-				}
-			}
-		}
-	}
-	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-		if(roomInstances[theRoom].content[i] instanceof Enemy) {
-			var enemy = roomInstances[theRoom].content[i];
-			if(enemy.x + p.worldX + enemy.rightX > x && enemy.x + p.worldX + enemy.leftX < x + w) {
-				if(enemy.y + p.worldY + enemy.bottomY >= y && enemy.y + p.worldY + enemy.bottomY <= y + enemy.velY + 1) {
-					enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
-					enemy.y = y - p.worldY - Math.abs(enemy.bottomY);
-					enemy.canJump = true;
-					if(enemy instanceof Bat && enemy.timePurified > 0) {
-						enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
-					}
-				}
-				if(enemy.y + p.worldY + enemy.topY <= y + h && enemy.y + p.worldY + enemy.topY >= y + h + enemy.velY - 1) {
-					enemy.velY = 3;
-					enemy.y = y + h - p.worldY + Math.abs(enemy.topY);
-					if(enemy instanceof Bat && enemy.timePurified > 0) {
-						enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
-					}
-				}
-			}
-			if(enemy.y + enemy.bottomY + p.worldY > y && enemy.y + enemy.topY + p.worldY < y + h) {
-				if(enemy.x + p.worldX + enemy.rightX >= x && enemy.x + p.worldX + enemy.rightX <= x + enemy.velX + 1) {
-					if(settings.illegalHandling === "teleport") {
-						enemy.y = y - p.worldY - Math.abs(enemy.bottomY);
-						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
-						enemy.canJump = true;
-					}
-					else {
-						enemy.velX = (enemy.velX > 0) ? -3 : enemy.velX;
-						enemy.x = x - p.worldX - Math.abs(enemy.rightX);
-						if(enemy instanceof Bat && enemy.timePurified > 0) {
-							enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
-						}
-					}
-				}
-				if(enemy.x + p.worldX + enemy.leftX <= x + w && enemy.x + p.worldX + enemy.leftX >= x + w + enemy.velX - 1) {
-					if(settings.illegalHandling === "teleport") {
-						enemy.y = y - p.worldY - Math.abs(enemy.bottomY);
-						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
-						enemy.canJump = true;
-					}
-					else {
-						enemy.velX = (enemy.velX < 0) ? 3 : enemy.velX;
-						enemy.x = x + w - p.worldX + Math.abs(enemy.leftX);
-						if(enemy instanceof Bat && enemy.timePurified > 0) {
-							enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
-						}
-					}
-				}
-				if(!(typeof enemy.velX === "number") && enemy.x + enemy.rightX + p.worldX > x && enemy.x + enemy.rightX + p.worldX < x + 5) {
-					enemy.x = x - p.worldX - Math.abs(enemy.rightX) - 1;
-				}
-				if(!(typeof enemy.velX === "number") && enemy.x + enemy.leftX + p.worldX < x + w && enemy.x + enemy.leftX + p.worldX > x + w - 5) {
-					enemy.x = x + w - p.worldX + Math.abs(enemy.leftX) + 1;
-				}
-			}
-		}
-		else if(roomInstances[theRoom].content[i] instanceof MagicCharge && roomInstances[theRoom].content[i].x + p.worldX > x && roomInstances[theRoom].content[i].x + p.worldX < x + w && roomInstances[theRoom].content[i].y + p.worldY > y && roomInstances[theRoom].content[i].y + p.worldY < y + h) {
-			roomInstances[theRoom].content[i].splicing = true;
-			if(roomInstances[theRoom].content[i].type === "chaos" && !p.aiming) {
-				if(roomInstances[theRoom].content[i].timeWarp) {
-					fps = 30;
-					realTime = 0;
-				}
-				else {
-					var charge = roomInstances[theRoom].content[i];
-					p.x = charge.x + p.worldX;
-					p.y = charge.y + p.worldY;
-					console.log(p.x + 5 > x);
-					while(p.x + 5 > x && p.x - 5 < x + 10 && p.y + 46 > y && p.y - 7 < y + h) {
-						p.x --;
-					}
-					while(p.x - 5 < x + w && p.x + 5 > x + w - 10 && p.y + 46 > y && p.y - 7 < y + h) {
-						p.x ++;
-					}
-					while(p.x + 5 > x && p.x - 5 < x + w && p.y + 46 > y && p.y - 7 < y + 10) {
-						p.y --;
-					}
-				}
-			}
-			continue;
-		}
-		else if(roomInstances[theRoom].content[i] instanceof SpikeBall) {
-			x -= p.worldX, y -= p.worldY;
-			var spikeball = roomInstances[theRoom].content[i];
-			if(spikeball.x + 20 > x && spikeball.x + -20 < x + w) {
-				if(spikeball.y + 20 >= y && spikeball.y + 20 <= y + spikeball.velY + 1) {
-					spikeball.velY = (spikeball.velY > 0) ? -1 : spikeball.velY;
-					spikeball.y = y - Math.abs(20);
-				}
-				if(spikeball.y + -20 <= y + h && spikeball.y + -20 >= y + h + spikeball.velY - 1) {
-					spikeball.velY = 3;
-					spikeball.y = y + h + Math.abs(-20);
-				}
-			}
-			if(spikeball.y + 20 > y && spikeball.y + -20 < y + h) {
-				if(spikeball.x + 20 >= x && spikeball.x + 20 <= x + spikeball.velX + 1) {
-					if(illegalHandling === "teleport") {
-						spikeball.y = y - Math.abs(20);
-						spikeball.velY = (spikeball.velY > 0) ? 0 : spikeball.velY;
-						spikeball.canJump = true;
-					}
-					else {
-						spikeball.velX = (spikeball.velX > 0) ? -3 : spikeball.velX;
-						spikeball.x = x - Math.abs(20);
-					}
-				}
-				if(spikeball.x + -20 <= x + w && spikeball.x + -20 >= x + w + spikeball.velX - 1) {
-					if(illegalHandling === "teleport") {
-						spikeball.y = y - Math.abs(-20);
-						spikeball.velY = (spikeball.velY > 0) ? 0 : spikeball.velY;
-						spikeball.canJump = true;
-					}
-					else {
-						spikeball.velX = (spikeball.velX < 0) ? 3 : spikeball.velX;
-						spikeball.x = x + w + Math.abs(-20);
-					}
-				}
-			}
-			x += p.worldX, y += p.worldY;
-		}
-	}
+	/*
+	Adds a CollisionRect object at the parameter's locations.
+	*/
+	collisions.push(new CollisionRect(x, y, w, h, settings));
 };
 function circularPointsTopHalf(x, y, r) {
 	/*
@@ -613,6 +729,10 @@ function circularPointsTopHalf(x, y, r) {
 	return circularPoints;
 };
 function collisionLine(x1, y1, x2, y2, settings) {
+	// console.trace();
+	/*
+	Places a line of CollisionRects between ('x1', 'y1') and ('x2', 'y2').
+	*/
 	settings = settings || {};
 	if(settings.illegalHandling === undefined) {
 		if(Math.abs(x1 - x2) < Math.abs(y1 - y2) || (p.y + 10 > y1 && p.y + 10 > y2)) {
@@ -627,33 +747,47 @@ function collisionLine(x1, y1, x2, y2, settings) {
 	}
 	settings.moving = settings.moving || false;
 	settings.extraBouncy = settings.extraBouncy || false;
+	/* Generate a list of points to place collisions at */
 	var points = findPointsLinear(x1, y1, x2, y2);
+	/* Place collisions at all those points */
+	// console.log("Number of points in line: " + points.length);
 	for(var i = 0; i < points.length; i ++) {
 		collisionRect(points[i].x, points[i].y, 3, 3, { illegalHandling: settings.illegalHandling, walls: settings.walls, extraBouncy: settings.extraBouncy, moving: settings.moving });
 	}
 };
 function calcAngleDegrees(x, y) {
+	/*
+	Returns the corrected arctangent of ('x', 'y').
+	*/
 	return Math.atan2(y, x) * 180 / Math.PI;
 };
 function inheritsFrom(child, parent) {
+	/*
+	Sets 'child' to inherit all methods belonging to 'parent'.
+	*/
 	child.prototype = Object.create(parent.prototype);
 	child.prototype.constructor = child;
 };
 function circle(x, y, r) {
+	/*
+	Draws a circle at ('x', 'y') with radius 'r'.
+	*/
 	c.beginPath();
 	c.arc(x, y, r, 0, 2 * Math.PI);
 	c.fill();
 };
 
-/** PLAYER **/
+/*
+PLAYER
+*/
 function Player() {
-	//location
+	/* Location */
 	this.x = 500;
 	this.y = 300;
 	this.worldX = 0;
 	this.worldY = 0;
 	this.onScreen = "home";
-	//animation
+	/* Animation */
 	this.legs = 5;
 	this.legDir = 1;
 	this.enteringDoor = false;
@@ -662,7 +796,7 @@ function Player() {
 	this.fallOp = 0;
 	this.fallDir = 0;
 	this.fallDmg = 0;
-	//health bars
+	/* Health, mana, etc... bars */
 	this.health = 100;
 	this.maxHealth = 100;
 	this.visualHealth = 1;
@@ -675,19 +809,19 @@ function Player() {
 	this.damOp = 0;
 	this.manaRegen = 18; //1 mana / 18 frames
 	this.healthRegen = 18; // health / 18 frames
-	this.exp = 0;
-	this.visualExp = 0;
-	this.level = 0;
-	//movement
+	// this.exp = 0;
+	// this.visualExp = 0;
+	// this.level = 0;
+	/* Movement */
 	this.canJump = false;
 	this.velX = 0;
 	this.velY = 0;
-	//inventory + gui
+	/* Items + GUI */
 	this.invSlots = [];
 	this.guiOpen = "none";
 	this.activeSlot = 0;
 	this.openCooldown = 0;
-	//attacking
+	/* Attacking */
 	this.facing = "right";
 	this.attacking = false;
 	this.attackArm = 0;
@@ -700,13 +834,13 @@ function Player() {
 	this.attackSpeed = 5;
 	this.canStopAttacking = true;
 	this.class = "warrior";
-	//other object properties
+	/* Properties used by other objects */
 	this.healthAltarsFound = 0;
 	this.manaAltarsFound = 0;
 	this.openingBefore = false;
 	this.terminateProb = 0;
 	this.doorType = "arch";
-	//scoring / permanent values
+	/* Scoring + Permanent Values */
 	this.roomsExplored = 0;
 	this.enemiesKilled = 0;
 	this.deathCause = null;
@@ -717,23 +851,30 @@ function Player() {
 		{ coins: 15, rooms: 150, kills: 7, class: "mage"},
 		{ coins: 6, rooms: 5, kills: 1, class: "archer"},
 		{ coins: 20, rooms: 1000, kills: 60, class: "warrior"}
-	];
+	]; // example scores for testing
 	this.scores = [];
 };
 Player.prototype.init = function() {
+	/*
+	This function initalizes the player's item slots.
+	*/
+	/* Slots for items held */
 	for(var x = 0; x < 3; x ++) {
 		this.invSlots.push({x: x * 80 - 35 + 55, y: 20, content: "empty", type: "holding"});
 	}
+	/* Slots for items owned */
 	for(var y = 0; y < 3; y ++) {
 		for(var x = 0; x < 5; x ++) {
 			this.invSlots.push({x: x * 80 - 35 + 240, y: y * 80 - 35 + 250, content: "empty", type: "storage"});
 		}
 	}
+	/* Slots for items worn */
 	for(var x = 0; x < 2; x ++) {
 		this.invSlots.push({x: x * 80 + 630, y: 20, content: "empty", type: "equip"});
 	}
 };
 Player.prototype.sideScroll = function() {
+	/* Updates the world's position, keeping the player at the screen center. */
 	if(this.y > 400 && (this.worldY > roomInstances[inRoom].minWorldY || roomInstances[inRoom].minWorldY === undefined)) {
 		this.worldY -= Math.dist(0, this.y, 0, 400);
 		this.y = 400;
@@ -752,19 +893,17 @@ Player.prototype.sideScroll = function() {
 	}
 };
 Player.prototype.display = function(noSideScroll, straightArm) {
-	//parameters are only for custom stick figures on class selection screens
+	/*
+	Draws the player. (Parameters are only for custom stick figures on class selection screen.)
+	*/
 	if(!noSideScroll) {
 		this.sideScroll();
 	}
+	this.op = (this.op < 0) ? 0 : this.op;
+	this.op = (this.op > 1) ? 1 : this.op;
 	c.lineWidth = 5;
 	c.lineCap = "round";
-	//head
-	if(this.op <= 0) {
-		this.op = 0;
-	}
-	if(this.op >= 1) {
-		this.op = 1;
-	}
+	/* head */
 	c.globalAlpha = this.op;
 	c.fillStyle = "rgb(0, 0, 0)";
 	c.save();
@@ -774,20 +913,20 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	c.arc(0, 12, 10, 0, 2 * Math.PI);
 	c.fill();
 	c.restore();
-	//body
+	/* Body */
 	c.strokeStyle = "rgb(0, 0, 0)";
 	c.beginPath();
 	c.moveTo(this.x, this.y + 12);
 	c.lineTo(this.x, this.y + 36);
 	c.stroke();
-	//legs
+	/* Legs */
 	c.beginPath();
 	c.moveTo(this.x, this.y + 36);
 	c.lineTo(this.x - this.legs, this.y + 46);
 	c.moveTo(this.x, this.y + 36);
 	c.lineTo(this.x + this.legs, this.y + 46);
 	c.stroke();
-	//leg animations
+	/* Leg Animations */
 	if(keys[37] || keys[39]) {
 		this.legs += this.legDir;
 		if(this.legs >= 5) {
@@ -797,7 +936,12 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 			this.legDir = 0.5;
 		}
 	}
-	//arms
+	if(!keys[37] && !keys[39]) {
+		this.legDir = (this.legs < 0) ? -0.5 : 0.5;
+		this.legDir = (this.legs >= 5 || this.legs <= -5) ? 0 : this.legDir;
+		this.legs += this.legDir;
+	}
+	/* Standard Arms (no item held) */
 	if(((!this.attacking && !this.aiming) || this.facing === "left") && !(this.attackingWith instanceof Spear && this.attacking)) {
 		c.beginPath();
 		c.moveTo(this.x, this.y + 26);
@@ -810,6 +954,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.lineTo(this.x - 10, this.y + 36);
 		c.stroke();
 	}
+	/* Attacking Arms (holding a standard weapon like sword, dagger) */
 	if(this.attacking && this.facing === "left" && !(this.attackingWith instanceof Spear) && !(this.attackingWith instanceof Mace)) {
 		c.save();
 		c.translate(this.x, this.y + 26);
@@ -858,6 +1003,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 			}
 		}
 	}
+	/* Arms when holding a Spear*/
 	if(this.attacking && this.facing === "left" && this.attackingWith instanceof Spear) {
 		c.save();
 		c.translate(this.x, this.y + 26);
@@ -932,6 +1078,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 			}
 		}
 	}
+	/* Arms when holding a Mace [WIP] */
 	if(this.attacking && this.facing === "right" && this.attackingWith instanceof Mace) {
 		c.save();
 		c.translate(this.x, this.y + 26);
@@ -948,7 +1095,12 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		c.restore();
 		c.restore();
 	}
+	/* Arm Movement */
 	this.attackArm += this.attackArmDir;
+	if(!this.attacking) {
+		this.attackArm = null;
+	}
+	/* Arms when aiming a Ranged Weapon */
 	if(this.aiming && this.facing === "right") {
 		if(this.attackingWith instanceof RangedWeapon) {
 			c.save();
@@ -1012,87 +1164,54 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 			}
 		}
 	}
-	if(!this.attacking) {
-		this.attackArm = null;
-	}
 	c.lineCap = "butt";
 	c.globalAlpha = 1;
+	/* Status Bars */
 	if(this.onScreen === "play") {
 		c.textAlign = "center";
-		//health bar
-		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(550, 12.5, 225, 25);
-		c.beginPath();
-		c.arc(550, 25, 12, 0, 2 * Math.PI);
-		c.arc(775, 25, 12, 0, 2 * Math.PI);
-		c.fill();
-		c.fillStyle = "rgb(255, 0, 0)";
-		c.fillRect(550, 12.5, this.visualHealth * 225, 25);
-		c.beginPath();
-		c.arc(550, 25, 12, 0, 2 * Math.PI);
-		c.arc(550 + (this.visualHealth * 225), 25, 12, 0, 2 * Math.PI);
-		c.fill();
-		c.fillStyle = "rgb(100, 100, 100)";
-		c.font = "bold 10pt monospace";
-		c.fillText("Health: " + this.health + " / " + this.maxHealth, 662, 28);
+		/* Health */
+		this.displayHealthBar(550, 12.5, "Health", this.health, this.maxHealth, "rgb(255, 0, 0)", this.visualHealth);
 		this.visualHealth += ((this.health / this.maxHealth) - this.visualHealth) / 10;
-		//mana bar
-		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(550, 50, 225, 25);
-		c.beginPath();
-		c.arc(550, 62.5, 12, 0, 2 * Math.PI);
-		c.arc(775, 62.5, 12, 0, 2 * Math.PI);
-		c.fill();
-		c.fillStyle = "rgb(20, 20, 255)";
-		c.fillRect(550, 50, this.visualMana * 225, 25);
-		c.beginPath();
-		c.arc(550, 62.5, 12, 0, 2 * Math.PI);
-		c.arc(550 + (this.visualMana * 225), 62.5, 12, 0, 2 * Math.PI);
-		c.fill();
-		c.fillStyle = "rgb(100, 100, 100)";
-		c.fillText("Mana: " + this.mana + " / " + this.maxMana, 662, 65.5);
+		/* Mana */
+		this.displayHealthBar(550, 50, "Mana", this.mana, this.maxMana, "rgb(20, 20, 255)", this.visualMana);
 		this.visualMana += ((this.mana / this.maxMana) - this.visualMana) / 10;
 		//gold bar
-		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(550, 87.5, 225, 25);
-		c.beginPath();
-		c.arc(550, 100, 12, 0, 2 * Math.PI);
-		c.arc(775, 100, 12, 0, 2 * Math.PI);
-		c.fill();
-		c.fillStyle = "rgb(255, 255, 0)";
-		c.fillRect(550, 87.5, this.visualGold * 225, 25);
-		c.beginPath();
-		c.arc(550, 100, 12, 0, 2 * Math.PI);
-		c.arc(550 + (this.visualGold * 225), 100, 12, 0, 2 * Math.PI);
-		c.fill();
-		c.fillStyle = "rgb(100, 100, 100)";
-		c.fillText("Gold: " + this.gold, 662, 102.5);
+		this.displayHealthBar(550, 87.5, "Gold", this.gold, Infinity, "rgb(255, 255, 0)", this.visualGold);
 		this.visualGold += ((this.gold / this.maxGold) - this.visualGold) / 10;
-		//experience bar
-// 		c.fillStyle = "rgb(150, 150, 150)";
-// 		c.fillRect(550, 125, 225, 25);
-// 		c.beginPath();
-// 		c.arc(550, 137.5, 12, 0, 2 * Math.PI);
-// 		c.arc(775, 137.5, 12, 0, 2 * Math.PI);
-// 		c.fill();
-// 		c.fillStyle = "rgb(0, 170, 0)";
-// 		c.fillRect(550, 100, this.visualExp * 225, 25);
-// 		c.beginPath();
-// 		c.arc(550, 137.5, 12, 0, 2 * Math.PI);
-// 		c.arc(550 + (this.visualGold * 225), 137.5, 12, 0, 2 * Math.PI);
-// 		c.fill();
-// 		c.fillStyle = "rgb(100, 100, 100)";
-// 		c.fillText("Experience: " + this.exp, 662, 137.5);
 	}
 };
+Player.prototype.displayHealthBar = function(x, y, txt, num, max, col, percentFull) {
+	/*
+	Displays a health bar w/ top left at ('x', 'y') and color 'col'. Labeled as 'txt: num / max'.
+	*/
+	/* Health Bar (gray background) */
+	c.fillStyle = "rgb(150, 150, 150)";
+	c.fillRect(x, y, 225, 25);
+	/* Rounded Corners (gray background) */
+	c.beginPath();
+	c.arc(x, y + 12, 12, 0, 2 * Math.PI);
+	c.arc(x + 225, y + 12, 12, 0, 2 * Math.PI);
+	c.fill();
+	/* Health Bar (colored part) */
+	c.fillStyle = col;
+	c.fillRect(x, y, percentFull * 225, 25);
+	/* Rounded Corners (colored part) */
+	c.beginPath();
+	c.arc(x, y + 12, 12, 0, 2 * Math.PI);
+	c.arc(x + (percentFull * 225), y + 12, 12, 0, 2 * Math.PI);
+	c.fill();
+	/* Text */
+	c.fillStyle = "rgb(100, 100, 100)";
+	c.textAlign = "center";
+	c.font = "bold 10pt monospace";
+	c.fillText(txt + ": " + num + ((max === Infinity) ? "" : (" / " + max)), x + 112, y + 15);
+};
 Player.prototype.update = function() {
+	/*
+	This function does all of the key management for the player, as well as movement, attacking, and other things.
+	*/
 	keys = this.enteringDoor ? [] : keys;
-	if(!keys[37] && !keys[39]) {
-		this.legDir = (this.legs < 0) ? -0.5 : 0.5;
-		this.legDir = (this.legs >= 5 || this.legs <= -5) ? 0 : this.legDir;
-		this.legs += this.legDir;
-	}
-	//changing selected slots
+	/* Change selected slots when number keys are pressed */
 	if(this.guiOpen !== "crystal-infusion" && !this.attacking) {
 		if(keys[49]) {
 			this.activeSlot = 0;
@@ -1104,34 +1223,36 @@ Player.prototype.update = function() {
 		this.activeSlot = 2;
 	}
 	}
-	//movement
-	if(keys[37]) {
-		this.velX -= 0.1;
+	/* Movement + Jumping */
+	if(this.guiOpen === "none") {
+		if(keys[37]) {
+			this.velX -= 0.1;
+		}
+		else if(keys[39]) {
+			this.velX += 0.1;
+		}
 	}
-	else if(keys[39]) {
-		this.velX += 0.1;
+	this.x += this.velX;
+	this.y += this.velY;
+	if(keys[38] && this.canJump && !this.aiming) {
+		this.velY = -10;
 	}
+	/* Velocity Cap */
 	if(this.velX > 4) {
 		this.velX = 4;
 	}
 	else if(this.velX < -4) {
 		this.velX = -4;
 	}
-	this.x += this.velX;
-	this.y += this.velY;
+	/* Friction + Gravity */
 	if(!keys[37] && !keys[39]) {
 		this.velX *= 0.93;
 	}
 	if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon && !(this.invSlots[this.activeSlot].content instanceof Dagger) && this.class !== "warrior") {
-		this.velX *= 0.965;
+		this.velX *= 0.965; // non-warriors walk slower when holding a melee weapon
 	}
-	// this.velY += 0.15;
 	this.velY += 0.3;
-	if(keys[38] && this.canJump && !this.aiming) {
-		this.velY = -10;
-	}
-	this.canJump = false;
-	//screen transitions
+	/* Screen Transitions */
 	if(this.enteringDoor) {
 		this.op -= 0.05;
 		if(this.op <= 0) {
@@ -1147,7 +1268,7 @@ Player.prototype.update = function() {
 		this.screenOp -= 0.05;
 	}
 	this.fallOp += this.fallDir;
-	this.fallOp = this.fallOp < 0 ? 0 : this.fallOp;
+	this.fallOp = (this.fallOp < 0) ? 0 : this.fallOp;
 	if(this.fallOp > 1) {
 		this.roomsExplored ++;
 		this.fallDir = -0.05;
@@ -1177,7 +1298,64 @@ Player.prototype.update = function() {
 			)
 		);
 	}
-	//attacking + item use
+	/* Attacking + Item Use */
+	this.useItem();
+	/* Update Health Bars */
+	if(this.health >= this.maxHealth) {
+		this.numHeals = 0;
+	}
+	this.healthRegen = 1;
+	for(var i = 0; i < this.invSlots.length; i ++) {
+		if(this.invSlots[i].type === "equip" && this.invSlots[i].content instanceof Helmet) {
+			this.healthRegen -= (this.invSlots[i].content.healthRegen * 0.01);
+		}
+	}
+	if(this.numHeals > 0 && frameCount % Math.floor(18 * this.healthRegen) === 0) {
+		this.health ++;
+		this.numHeals -= 0.1 * this.healthRegen;
+	}
+	this.manaRegen = 1;
+	for(var i = 0; i < this.invSlots.length; i ++) {
+		if(this.invSlots[i].type === "equip" && this.invSlots[i].content instanceof WizardHat) {
+			this.manaRegen -= (this.invSlots[i].content.manaRegen * 0.01);
+		}
+	}
+	if(frameCount % Math.floor(18 * this.manaRegen) === 0 && this.mana < this.maxMana) {
+		this.mana += 1;
+	}
+	for(var i = 0; i < this.invSlots.length; i ++) {
+		if(this.invSlots[i].content instanceof Coin) {
+			this.gold = this.invSlots[i].content.quantity;
+			break;
+		}
+	}
+	if(this.gold > this.maxGold) {
+		this.maxGold = this.gold;
+	}
+	if(this.dead) {
+		this.op -= 0.05;
+		if(this.op <= 0 && fading !== "out") {
+			fading = "out";
+			fadeDest = "dead";
+			console.log(this.scores);
+			this.scores.push({
+				coins: this.gold,
+				rooms: this.roomsExplored,
+				kills: this.enemiesKilled,
+				class: this.class
+			});
+			console.log(this.scores);
+			var scores = JSON.stringify(this.scores);
+			localStorage.setItem("scores", scores);
+		}
+	}
+	if(this.health < 0) {
+		this.health = 0;
+	}
+	this.damOp -= 0.05;
+};
+Player.prototype.useItem = function() {
+	/* Update facing direction */
 	this.facing = keys[39] ? "right" : this.facing;
 	this.facing = keys[37] ? "left" : this.facing;
 	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
@@ -1209,6 +1387,7 @@ Player.prototype.update = function() {
 			this.attackSpeed = 1;
 		}
 	}
+	/* Begin Attacking + Use Non-weapon Items */
 	if(keys[65] && this.invSlots[this.activeSlot].content !== "empty") {
 		if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon && !(this.invSlots[this.activeSlot].content instanceof Mace)) {
 			this.invSlots[this.activeSlot].content.attack();
@@ -1221,7 +1400,7 @@ Player.prototype.update = function() {
 				}
 			}
 		}
-		else if(this.invSlots[this.activeSlot].content instanceof RangedWeapon || this.invSlots[this.activeSlot].content instanceof MagicWeapon) {
+		else if((this.invSlots[this.activeSlot].content instanceof RangedWeapon || this.invSlots[this.activeSlot].content instanceof MagicWeapon) && !(this.invSlots[this.activeSlot].content instanceof Arrow)) {
 			if(this.aimRot === null) {
 				this.aimRot = 0;
 				this.attackingWith = this.invSlots[this.activeSlot].content;
@@ -1266,10 +1445,22 @@ Player.prototype.update = function() {
 				}
 			}
 		}
+		else if(this.invSlots[this.activeSlot].content instanceof Equipable) {
+			console.log("using an equipable");
+			for(var i = 0; i < this.invSlots.length; i ++) {
+				if(this.invSlots[i].type === "equip" && this.invSlots[i].content === "empty") {
+					this.invSlots[i].content = new this.invSlots[this.activeSlot].content.constructor();
+					this.invSlots[i].content.modifier = this.invSlots[this.activeSlot].content.modifier;
+					this.invSlots[this.activeSlot].content = "empty";
+					break;
+				}
+			}
+		}
 		else if(this.invSlots[this.activeSlot].content.hasOwnProperty("use")) {
 			this.invSlots[this.activeSlot].content.use();
 		}
 	}
+	/* Melee Weapon Attacking */
 	if(this.attacking) {
 		if(this.attackingWith instanceof MeleeWeapon && !(this.attackingWith instanceof Mace)) {
 			//calculate weapon tip position
@@ -1360,9 +1551,10 @@ Player.prototype.update = function() {
 		this.canHit = true;
 	}
 	this.timeSinceAttack ++;
+	/* Change angle for aiming */
 	if(this.aiming && keys[38] && this.aimRot > -45) {
 		if((this.attackingWith instanceof RangedWeapon && this.class !== "archer") || (this.attackingWith instanceof MagicWeapon && this.class !== "mage")) {
-			this.aimRot += 1.5;
+			this.aimRot += 1.5; // slow down movement if you're not using the right class weapon
 		}
 		this.aimRot -= 2;
 		if(this.attackingWith instanceof MagicWeapon) {
@@ -1372,7 +1564,7 @@ Player.prototype.update = function() {
 	}
 	if(this.aiming && keys[40] && this.aimRot < 45) {
 		if((this.attackingWith instanceof RangedWeapon && this.class !== "archer") || (this.attackingWith instanceof MagicWeapon && this.class !== "mage")) {
-			this.aimRot -= 1.5;
+			this.aimRot -= 1.5; // slow down movement if you're using the wrong class weapon
 		}
 		this.aimRot += 2;
 		if(this.attackingWith instanceof MagicWeapon) {
@@ -1380,6 +1572,7 @@ Player.prototype.update = function() {
 			this.chargeLoc = Math.rotate((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 		}
 	}
+	/* Launch projectile when A is released */
 	if(!this.aiming && this.aimingBefore && this.shootReload < 0 && !(this.attackingWith instanceof MechBow)) {
 		if(this.attackingWith instanceof RangedWeapon) {
 			var hasArrows = false;
@@ -1520,68 +1713,15 @@ Player.prototype.update = function() {
 	this.aimingBefore = this.aiming;
 	this.facingBefore = this.facing;
 	this.shootReload --;
-	//update health bars
-	if(this.health >= this.maxHealth) {
-		this.numHeals = 0;
-	}
-	this.healthRegen = 1;
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].type === "equip" && this.invSlots[i].content instanceof Helmet) {
-			this.healthRegen -= (this.invSlots[i].content.healthRegen * 0.01);
-		}
-	}
-	if(this.numHeals > 0 && frameCount % Math.floor(18 * this.healthRegen) === 0) {
-		this.health ++;
-		this.numHeals -= 0.1 * this.healthRegen;
-	}
-	this.manaRegen = 1;
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].type === "equip" && this.invSlots[i].content instanceof WizardHat) {
-			this.manaRegen -= (this.invSlots[i].content.manaRegen * 0.01);
-		}
-	}
-	if(frameCount % Math.floor(18 * this.manaRegen) === 0 && this.mana < this.maxMana) {
-		this.mana += 1;
-	}
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].content instanceof Coin) {
-			this.gold = this.invSlots[i].content.quantity;
-			break;
-		}
-	}
-	if(this.gold > this.maxGold) {
-		this.maxGold = this.gold;
-	}
-	if(this.dead) {
-		this.op -= 0.05;
-		if(this.op <= 0 && fading !== "out") {
-			fading = "out";
-			fadeDest = "dead";
-			console.log(this.scores);
-			this.scores.push({
-				coins: this.gold,
-				rooms: this.roomsExplored,
-				kills: this.enemiesKilled,
-				class: this.class
-			});
-			console.log(this.scores);
-			var scores = JSON.stringify(this.scores);
-			localStorage.setItem("scores", scores);
-		}
-	}
-	if(this.health < 0) {
-		this.health = 0;
-	}
-	this.damOp -= 0.05;
 };
 Player.prototype.gui = function() {
-	//delete consumed items
+	/* Delete Consumed Items */
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		if(this.invSlots[i].content.consumed) {
 			this.invSlots[i].content = "empty";
 		}
 	}
-	//change gui open
+	/* Change GUI Open */
 	if(keys[68] && !this.openingBefore) {
 		if(this.guiOpen === "none") {
 			this.guiOpen = "inventory";
@@ -1598,60 +1738,80 @@ Player.prototype.gui = function() {
 		// escape key to exit guis
 		this.guiOpen = "none";
 	}
-	//inventory
+	/* Display GUIs */
+	function selectionGraphic(invSlot) {
+		/*
+		Display 4 triangles on 'invSlot'
+		*/
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.beginPath();
+		c.moveTo(invSlot.x + 10, invSlot.y + 35);
+		c.lineTo(invSlot.x, invSlot.y + 25);
+		c.lineTo(invSlot.x, invSlot.y + 45);
+		c.fill();
+		c.beginPath();
+		c.moveTo(invSlot.x + 35, invSlot.y + 10);
+		c.lineTo(invSlot.x + 25, invSlot.y);
+		c.lineTo(invSlot.x + 45, invSlot.y);
+		c.fill();
+		c.beginPath();
+		c.moveTo(invSlot.x + 60, invSlot.y + 35);
+		c.lineTo(invSlot.x + 70, invSlot.y + 25);
+		c.lineTo(invSlot.x + 70, invSlot.y + 45);
+		c.fill();
+		c.beginPath();
+		c.moveTo(invSlot.x + 35, invSlot.y + 60);
+		c.lineTo(invSlot.x + 25, invSlot.y + 70);
+		c.lineTo(invSlot.x + 45, invSlot.y + 70);
+		c.fill();
+	};
+	function display(invSlot) {
+		/*
+		Displays the item in the slot 'invSlot'.
+		*/
+		if(invSlot.content === "empty" || invSlot.content === undefined) {
+			return;
+		}
+		c.save();
+		c.translate(invSlot.x + 35, invSlot.y + 35);
+		c.globalAlpha = invSlot.content.opacity;
+		invSlot.content.display("holding");
+		c.restore();
+		invSlot.content.opacity += 0.05;
+		/* Weapon Particles */
+		if(invSlot.content instanceof Weapon) {
+			c.save();
+			c.translate(invSlot.x - p.worldX, invSlot.y - p.worldY);
+			invSlot.content.displayParticles();
+			c.restore();
+		}
+	};
 	if(this.guiOpen === "inventory") {
+		/* Background */
 		c.strokeStyle = "rgb(100, 100, 100)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
+		/* Display Items */
 		var hoverIndex = null;
 		for(var i = 0; i < this.invSlots.length; i ++) {
+			/* Item Slot */
 			c.fillStyle = "rgb(150, 150, 150)";
 			c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 			c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
+			/* Item */
 			if(this.invSlots[i].content !== "empty") {
 				if(!this.invSlots[i].content.initialized) {
 					this.invSlots[i].content.init();
 				}
-				c.save();
-				c.translate(this.invSlots[i].x + 35, this.invSlots[i].y + 35);
-				c.globalAlpha = this.invSlots[i].content.opacity;
-				this.invSlots[i].content.display("holding");
-				c.restore();
-				this.invSlots[i].content.opacity += 0.05;
-				//load weapon particles
-				if(this.invSlots[i].content instanceof Weapon) {
-					c.save();
-					c.translate(this.invSlots[i].x - this.worldX, this.invSlots[i].y - this.worldY);
-					this.invSlots[i].content.displayParticles();
-					c.restore();
-				}
+				/* Display Items */
+				display(this.invSlots[i]);
 			}
-			//graphic for selection
+			/* Selection Graphic (4 triangles) */
 			if(i === this.activeSlot) {
-				c.fillStyle = "rgb(100, 100, 100)";
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 10, this.invSlots[i].y + 35);
-				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 25);
-				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 45);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 10);
-				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y);
-				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 60, this.invSlots[i].y + 35);
-				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 25);
-				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 45);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 60);
-				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y + 70);
-				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y + 70);
-				c.fill();
+				selectionGraphic(this.invSlots[i]);
 			}
 		}
-		//find which you are hovering over
+		/* Find which item is being hovered over */
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			if(mouseX > this.invSlots[i].x && mouseX < this.invSlots[i].x + 70 && mouseY > this.invSlots[i].y && mouseY < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
 				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
@@ -1659,14 +1819,15 @@ Player.prototype.gui = function() {
 				break;
 			}
 		}
+		/* Item hovering */
 		if(hoverIndex !== null) {
-			//display desc of hovered item
+			/* Display descriptions */
 			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + ((this.invSlots[hoverIndex].type === "equip") ? 0 : 70), this.invSlots[hoverIndex].y + 35, (this.invSlots[hoverIndex].type === "equip") ? "left" : "right");
-			//move item if clicked
+			/* Move Item if clicked */
 			if(mouseIsPressed) {
 				if(this.invSlots[hoverIndex].type === "storage") {
-					//hoverIndex is deleted, i is created
 					if(!(this.invSlots[hoverIndex].content instanceof Equipable)) {
+						/* Move from a storage slot to a "wearing" slot */
 						for(var i = 0; i < 3; i ++) {
 							if(this.invSlots[i].content === "empty") {
 								this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
@@ -1679,6 +1840,7 @@ Player.prototype.gui = function() {
 						}
 					}
 					else {
+						/* Move from a storage slot to a "held" slot */
 						for(var i = 0; i < this.invSlots.length; i ++) {
 							if(this.invSlots[i].type === "equip" && this.invSlots[i].content === "empty") {
 								this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
@@ -1692,6 +1854,7 @@ Player.prototype.gui = function() {
 					}
 				}
 				else if(this.invSlots[hoverIndex].type === "holding") {
+					/* Move from a "held" slot to a storage slot */
 					for(var i = 0; i < this.invSlots.length; i ++) {
 						if(this.invSlots[i].type === "storage" && this.invSlots[i].content === "empty") {
 							this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
@@ -1704,6 +1867,7 @@ Player.prototype.gui = function() {
 					}
 				}
 				else if(this.invSlots[hoverIndex].type === "equip") {
+					/* Move from a "wearing" slot to a storage slot */
 					for(var i = 0; i < this.invSlots.length; i ++) {
 						if(this.invSlots[i].type === "storage" && this.invSlots[i].content === "empty") {
 							this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
@@ -1717,8 +1881,8 @@ Player.prototype.gui = function() {
 				}
 			}
 		}
+		/* Guiding lines for tutorial */
 		if(this.onScreen === "how") {
-			console.log("how to play");
 			c.fillStyle = "rgb(255, 255, 255)";
 			c.strokeStyle = "rgb(255, 255, 255)";
 			c.lineWidth = 5;
@@ -1729,11 +1893,11 @@ Player.prototype.gui = function() {
 		}
 	}
 	else if(this.guiOpen === "crystal-infusion") {
-		//background rect
+		/* Background */
 		c.strokeStyle = "rgb(100, 100, 100)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
-		//text
+		/* GUI Title */
 		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
 		c.fillStyle = "rgb(100, 100, 100)";
@@ -1746,21 +1910,8 @@ Player.prototype.gui = function() {
 			c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 			c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 			if(this.invSlots[i].content !== "empty") {
-				if(!this.invSlots[i].content.initialized) {
-					this.invSlots[i].content.init();
-				}
-				c.save();
-				c.translate(this.invSlots[i].x + 35, this.invSlots[i].y + 35);
-				this.invSlots[i].content.display("holding");
-				c.restore();
-				//load weapon particles
-				if(this.invSlots[i].content instanceof Weapon) {
-					c.save();
-					c.translate(this.invSlots[i].x - this.worldX, this.invSlots[i].y - this.worldY);
-					this.invSlots[i].content.displayParticles();
-					c.restore();
-				}
-				//gray out invalid choices
+				display(this.invSlots[i]);
+				/* Gray out invalid choices */
 				var item = this.invSlots[i].content;
 				if(
 					!(item instanceof Weapon) || // not a weapon
@@ -1773,32 +1924,12 @@ Player.prototype.gui = function() {
 					c.globalAlpha = 1;
 				}
 			}
-			//graphic for selection
+			/* Selection graphic */
 			if(i === this.activeSlot) {
-				c.fillStyle = "rgb(100, 100, 100)";
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 10, this.invSlots[i].y + 35);
-				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 25);
-				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 45);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 10);
-				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y);
-				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 60, this.invSlots[i].y + 35);
-				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 25);
-				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 45);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 60);
-				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y + 70);
-				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y + 70);
-				c.fill();
+				selectionGraphic(this.invSlots[i]);
 			}
 		}
-		//find which you are hovering over
+		/* Find which is hovered */
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			if(mouseX > this.invSlots[i].x && mouseX < this.invSlots[i].x + 70 && mouseY > this.invSlots[i].y && mouseY < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
 				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
@@ -1807,9 +1938,10 @@ Player.prototype.gui = function() {
 			}
 		}
 		if(hoverIndex !== null) {
-			//display desc of hovered item
+			/* Display desc of hovered item */
 			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + (this.invSlots[hoverIndex].type === "equip" ? 0 : 70), this.invSlots[hoverIndex].y + 35, this.invSlots[hoverIndex].type === "equip" ? "left" : "right");
-			if(mouseIsPressed && this.invSlots[hoverIndex].content instanceof Weapon && !(this.invSlots[hoverIndex].content instanceof Arrow) && this.invSlots[hoverIndex].content.element !== this.infusedGui) {
+			/* Detect clicks */
+			if(mouseIsPressed && this.invSlots[hoverIndex].content instanceof Weapon && !(this.invSlots[hoverIndex].content instanceof Arrow) && this.invSlots[hoverIndex].content.element !== this.infusedGui && (this.invSlots[hoverIndex].content instanceof ElementalStaff || !(this.invSlots[hoverIndex].content instanceof MagicWeapon))) {
 				this.invSlots[hoverIndex].content.element = this.infusedGui;
 				this.guiOpen = "none";
 				this.invSlots[this.activeSlot].content = "empty";
@@ -1818,11 +1950,11 @@ Player.prototype.gui = function() {
 		}
 	}
 	else if(this.guiOpen === "reforge-item") {
-		//background rect
+		/* Background */
 		c.strokeStyle = "rgb(100, 100, 100)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
-		//text
+		/* Text */
 		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
 		c.fillStyle = "rgb(100, 100, 100)";
@@ -1835,21 +1967,8 @@ Player.prototype.gui = function() {
 			c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 			c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 			if(this.invSlots[i].content !== "empty") {
-				if(!this.invSlots[i].content.initialized) {
-					this.invSlots[i].content.init();
-				}
-				c.save();
-				c.translate(this.invSlots[i].x + 35, this.invSlots[i].y + 35);
-				this.invSlots[i].content.display("holding");
-				c.restore();
-				//load weapon particles
-				if(this.invSlots[i].content instanceof Weapon) {
-					c.save();
-					c.translate(this.invSlots[i].x - this.worldX, this.invSlots[i].y - this.worldY);
-					this.invSlots[i].content.displayParticles();
-					c.restore();
-				}
-				//gray out invalid choices
+				display(this.invSlots[i]);
+				/* Gray out invalid choices */
 				if(!(this.invSlots[i].content instanceof Weapon || this.invSlots[i].content instanceof Equipable)) {
 					c.globalAlpha = 0.75;
 					c.fillStyle = "rgb(150, 150, 150)";
@@ -1857,32 +1976,12 @@ Player.prototype.gui = function() {
 					c.globalAlpha = 1;
 				}
 			}
-			//graphic for selection
+			/* Selection graphic */
 			if(i === this.activeSlot) {
-				c.fillStyle = "rgb(100, 100, 100)";
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 10, this.invSlots[i].y + 35);
-				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 25);
-				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 45);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 10);
-				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y);
-				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 60, this.invSlots[i].y + 35);
-				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 25);
-				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 45);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 60);
-				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y + 70);
-				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y + 70);
-				c.fill();
+				selectionGraphic(this.invSlots[i]);
 			}
 		}
-		//find which you are hovering over
+		/* Find which is hovered */
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			if(mouseX > this.invSlots[i].x && mouseX < this.invSlots[i].x + 70 && mouseY > this.invSlots[i].y && mouseY < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
 				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
@@ -1891,9 +1990,11 @@ Player.prototype.gui = function() {
 			}
 		}
 		if(hoverIndex !== null) {
-			//display desc of hovered item
+			/* Display desc of hovered item */
 			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + (this.invSlots[hoverIndex].type === "equip" ? 0 : 70), this.invSlots[hoverIndex].y + 35, this.invSlots[hoverIndex].type === "equip" ? "left" : "right");
+			/* Detect clicks */
 			if(mouseIsPressed && (this.invSlots[hoverIndex].content instanceof Weapon || this.invSlots[hoverIndex].content instanceof Equipable) && !(this.invSlots[hoverIndex].content instanceof Arrow)) {
+				/* Find current reforge status of item */
 				this.reforgeIndex = hoverIndex;
 				if(this.invSlots[hoverIndex].content.modifier === "none") {
 					this.guiOpen = "reforge-trait-none";
@@ -1904,6 +2005,7 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[hoverIndex].content.modifier === "heavy" || this.invSlots[hoverIndex].content.modifier === "forceful" || this.invSlots[hoverIndex].content.modifier === "arcane" || this.invSlots[hoverIndex].content.modifier === "sturdy") {
 					this.guiOpen = "reforge-trait-heavy";
 				}
+				/* Find type of item */
 				if(this.invSlots[hoverIndex].content instanceof MeleeWeapon) {
 					this.reforgeType = "melee";
 				}
@@ -1921,18 +2023,18 @@ Player.prototype.gui = function() {
 		}
 	}
 	else if(this.guiOpen === "reforge-trait-none") {
-		//background rect
+		/* Background */
 		c.strokeStyle = "rgb(100, 100, 100)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
-		//text
+		/* Text */
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.textAlign = "center";
 		c.font = "bold 20pt monospace";
 		c.fillText("Choose a trait to reforge for", 400, 200);
 		c.fillText((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "Speed" : "Range") : (this.reforgeType === "magic" ? "Mana Cost" : "Bonuses"), 300, 500);
-		c.fillText("Damage", 500, 500);
-		//choice 1
+		c.fillText((this.reforgeType === "equipable") ? "Defense" : "Damage", 500, 500);
+		/* First Choice */
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(300 - 35, 400 - 35, 70, 70);
 		c.strokeRect(300 - 35, 400 - 35, 70, 70);
@@ -1960,7 +2062,7 @@ Player.prototype.gui = function() {
 		c.translate(300, 400);
 		choice1.display("holding");
 		c.restore();
-		//choice 2
+		/* Choice 2 */
 		c.fillRect(500 - 35, 400 - 35, 70, 70);
 		c.strokeRect(500 - 35, 400 - 35, 70, 70);
 		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy"));
@@ -1987,17 +2089,16 @@ Player.prototype.gui = function() {
 		c.translate(500, 400);
 		choice2.display("holding");
 		c.restore();
-		//select choices and add to item
+		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
-				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering");
-				this.guiOpen = "none";
+				/* Update item stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
 				this.invSlots[this.reforgeIndex].content.damHigh = choice1.damHigh;
-				this.invSlots[this.reforgeIndex].content.modifier = theModifier;
+				this.invSlots[this.reforgeIndex].content.modifier = choice1.modifier;
 				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
 					this.invSlots[this.reforgeIndex].content.attackSpeed = choice1.attackSpeed;
 				}
@@ -2010,12 +2111,14 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
 				}
+				/* Exit GUI and mark forge as used */
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
 						roomInstances[inRoom].content[i].used = true;
 						break;
 					}
 				}
+				this.guiOpen = "none";
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
@@ -2023,11 +2126,10 @@ Player.prototype.gui = function() {
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
-				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy");
-				this.guiOpen = "none";
+				/* Update item stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
 				this.invSlots[this.reforgeIndex].content.damHigh = choice2.damHigh;
-				this.invSlots[this.reforgeIndex].content.modifier = theModifier;
+				this.invSlots[this.reforgeIndex].content.modifier = choice2.modifier;
 				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
 					this.invSlots[this.reforgeIndex].content.attackSpeed = choice2.attackSpeed;
 				}
@@ -2040,28 +2142,30 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
-			}
-			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
-				if(roomInstances[inRoom].content[i] instanceof Forge) {
-					roomInstances[inRoom].content[i].used = true;
-					break;
+				/* Exit GUI and mark forge as used */
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					if(roomInstances[inRoom].content[i] instanceof Forge) {
+						roomInstances[inRoom].content[i].used = true;
+						break;
+					}
 				}
+				this.guiOpen = "none";
 			}
 		}
 	}
 	else if(this.guiOpen === "reforge-trait-light") {
-		//background rect
+		/* Background */
 		c.strokeStyle = "rgb(100, 100, 100)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
-		//text
+		/* Text */
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.textAlign = "center";
 		c.font = "bold 20pt monospace";
 		c.fillText("Choose a trait to reforge for", 400, 200);
 		c.fillText("Balance", 300, 500);
-		c.fillText("Damage", 500, 500);
-		//choice 1
+		c.fillText((this.reforgeType === "equipable") ? "Defense" : "Damage", 500, 500);
+		/* Choice 1 */
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(300 - 35, 400 - 35, 70, 70);
 		c.strokeRect(300 - 35, 400 - 35, 70, 70);
@@ -2071,7 +2175,7 @@ Player.prototype.gui = function() {
 		c.translate(300, 400);
 		choice1.display("holding");
 		c.restore();
-		//choice 2
+		/* Choice 2 */
 		c.fillRect(500 - 35, 400 - 35, 70, 70);
 		c.strokeRect(500 - 35, 400 - 35, 70, 70);
 		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy"));
@@ -2098,13 +2202,13 @@ Player.prototype.gui = function() {
 		c.translate(500, 400);
 		choice2.display("holding");
 		c.restore();
-		//select choices and add to item
+		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
-				this.guiOpen = "none";
+				/* Update item stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
 				this.invSlots[this.reforgeIndex].content.damHigh = choice1.damHigh;
 				this.invSlots[this.reforgeIndex].content.modifier = "none";
@@ -2120,12 +2224,14 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
 				}
+				/* Exit GUI and mark forge as used */
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
 						roomInstances[inRoom].content[i].used = true;
 						break;
 					}
 				}
+				this.guiOpen = "none";
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
@@ -2133,11 +2239,10 @@ Player.prototype.gui = function() {
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
-				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "heavy" : "forceful") : (this.reforgeType === "magic" ? "arcane" : "sturdy");
-				this.guiOpen = "none";
+				/* Update item stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
 				this.invSlots[this.reforgeIndex].content.damHigh = choice2.damHigh;
-				this.invSlots[this.reforgeIndex].content.modifier = theModifier;
+				this.invSlots[this.reforgeIndex].content.modifier = choice2.modifier;
 				if(this.invSlots[this.reforgeIndex].content instanceof MeleeWeapon) {
 					this.invSlots[this.reforgeIndex].content.attackSpeed = choice2.attackSpeed;
 				}
@@ -2150,28 +2255,30 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
+				/* Close GUI and mark forge as used */
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
 						roomInstances[inRoom].content[i].used = true;
 						break;
 					}
 				}
+				this.guiOpen = "none";
 			}
 		}
 	}
 	else if(this.guiOpen === "reforge-trait-heavy") {
-		//background rect
+		/* Background */
 		c.strokeStyle = "rgb(100, 100, 100)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
-		//text
+		/* Text */
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.textAlign = "center";
 		c.font = "bold 20pt monospace";
 		c.fillText("Choose a trait to reforge for", 400, 200);
 		c.fillText((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "Speed" : "Range") : (this.reforgeType === "magic" ? "Mana Cost" : "Bonuses"), 300, 500);
 		c.fillText("Balance", 500, 500);
-		//choice 1
+		/* Choice 1 */
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(300 - 35, 400 - 35, 70, 70);
 		c.strokeRect(300 - 35, 400 - 35, 70, 70);
@@ -2199,7 +2306,7 @@ Player.prototype.gui = function() {
 		c.translate(300, 400);
 		choice1.display("holding");
 		c.restore();
-		//choice 2
+		/* Choice 2 */
 		c.fillRect(500 - 35, 400 - 35, 70, 70);
 		c.strokeRect(500 - 35, 400 - 35, 70, 70);
 		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor("none");
@@ -2208,14 +2315,14 @@ Player.prototype.gui = function() {
 		c.translate(500, 400);
 		choice2.display("holding");
 		c.restore();
-		//select choices and add to item
+		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursorHand = true;
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
+				/* Update Item Stats */
 				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering");
-				this.guiOpen = "none";
 				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
 				this.invSlots[this.reforgeIndex].content.damHigh = choice1.damHigh;
 				this.invSlots[this.reforgeIndex].content.modifier = theModifier;
@@ -2231,12 +2338,14 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
 				}
+				/* Close GUI and mark forge as used */
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
 						roomInstances[inRoom].content[i].used = true;
 						break;
 					}
 				}
+				this.guiOpen = "none";
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
@@ -2244,7 +2353,7 @@ Player.prototype.gui = function() {
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
-				this.guiOpen = "none";
+				/* Update Item Stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
 				this.invSlots[this.reforgeIndex].content.damHigh = choice2.damHigh;
 				this.invSlots[this.reforgeIndex].content.modifier = "none";
@@ -2260,17 +2369,19 @@ Player.prototype.gui = function() {
 				else if(this.invSlots[this.reforgeIndex].content instanceof Equipable) {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
+				/* Close GUI and mark forge as used */
 				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 					if(roomInstances[inRoom].content[i] instanceof Forge) {
 						roomInstances[inRoom].content[i].used = true;
 						break;
 					}
 				}
+				this.guiOpen = "none";
 			}
 		}
 	}
 	else {
-		//display items you are holding
+		/* Display held items */
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			this.invSlots[i].content.opacity += 0.05;
 			if(this.invSlots[i].type === "holding") {
@@ -2279,49 +2390,21 @@ Player.prototype.gui = function() {
 				c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 				c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 				if(this.invSlots[i].content !== "empty") {
-					this.invSlots[i].content.opacity += 0.05;
-					c.save();
-					c.translate(this.invSlots[i].x + 35, this.invSlots[i].y + 35);
-					c.globalAlpha = (this.invSlots[i].content.opacity < 0) ? 0 : this.invSlots[i].content.opacity;
-					this.invSlots[i].content.display("holding");
-					c.restore();
-					//load weapon particles
-					if(this.invSlots[i].content instanceof Weapon) {
-						c.save();
-						c.translate(this.invSlots[i].x - this.worldX, this.invSlots[i].y - this.worldY);
-						this.invSlots[i].content.displayParticles();
-						c.restore();
-					}
+					display(this.invSlots[i]);
 				}
 			}
 			if(i === this.activeSlot) {
-				c.fillStyle = "rgb(100, 100, 100)";
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 10, this.invSlots[i].y + 35);
-				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 25);
-				c.lineTo(this.invSlots[i].x, this.invSlots[i].y + 45);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 10);
-				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y);
-				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 60, this.invSlots[i].y + 35);
-				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 25);
-				c.lineTo(this.invSlots[i].x + 70, this.invSlots[i].y + 45);
-				c.fill();
-				c.beginPath();
-				c.moveTo(this.invSlots[i].x + 35, this.invSlots[i].y + 60);
-				c.lineTo(this.invSlots[i].x + 25, this.invSlots[i].y + 70);
-				c.lineTo(this.invSlots[i].x + 45, this.invSlots[i].y + 70);
-				c.fill();
+				selectionGraphic(this.invSlots[i]);
 			}
 		}
 	}
 	this.openingBefore = keys[68];
 };
 Player.prototype.addItem = function(item) {
+	/*
+	Adds the item 'item' to the player's inventory.
+	*/
+	/* Check for matching items if it's stackable */
 	if(item.stackable) {
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			if(this.invSlots[i].content instanceof item.constructor) {
@@ -2330,6 +2413,7 @@ Player.prototype.addItem = function(item) {
 			}
 		}
 	}
+	/* Check for empty slots if it's not */
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		if(this.invSlots[i].content === "empty") {
 			this.invSlots[i].content = new item.constructor();
@@ -2342,9 +2426,13 @@ Player.prototype.addItem = function(item) {
 	}
 };
 Player.prototype.hurt = function(amount, killer, ignoreDef) {
+	/*
+	Deals 'amount' damage to the player. 'killer' shows up in death message. If 'ignoreDef' is true, the player's defense will be ignored.
+	*/
 	if(amount !== 0) {
 		this.damOp = 1;
 	}
+	/* Calculate defense */
 	this.defLow = 0;
 	this.defHigh = 0;
 	for(var i = 0; i < this.invSlots.length; i ++) {
@@ -2354,23 +2442,30 @@ Player.prototype.hurt = function(amount, killer, ignoreDef) {
 		}
 	}
 	var defense = Math.random() * (this.defHigh - this.defLow) + this.defLow;
+	/* Subtract defense from damage dealt*/
 	if(ignoreDef) {
 		var damage = amount;
 	}
 	else {
 		var damage = amount - defense;
 	}
+	/* Cap damage at 0 + hurt player */
 	if(damage < 0) {
 		damage = 0;
 	}
 	damage = Math.round(damage);
 	this.health -= damage;
+	/* If player is dead, record killer */
 	if(this.health <= 0) {
 		this.dead = true;
 		this.deathCause = killer;
 	}
 };
 Player.prototype.reset = function() {
+	/*
+	This function resets most of the player's properties. (Usually called after starting a new game)
+	*/
+	/* Reset rooms */
 	roomInstances = [
 		new Room(
 			"ambient1",
@@ -2392,7 +2487,8 @@ Player.prototype.reset = function() {
 	];
 	inRoom = 0;
 	numRooms = 0;
-	var permanentProperties = ["onScreen", "class", "maxGold"]; //properties that should not be reset
+	/* Reset player properties */
+	var permanentProperties = ["onScreen", "class", "maxGold", "scores"];
 	for(var i in this) {
 		var isPermanent = false;
 		permanentLoop: for(var j = 0; j < permanentProperties.length; j ++) {
@@ -2407,7 +2503,8 @@ Player.prototype.reset = function() {
 			this[i] = newPlayer[i];
 		}
 	}
-	switch(this["class"]) {
+	/* Re-add class items */
+	switch(this.class) {
 		case "warrior":
 			this.addItem(new Sword());
 			this.addItem(new Helmet());
@@ -2425,6 +2522,9 @@ Player.prototype.reset = function() {
 	}
 };
 Player.prototype.updatePower = function() {
+	/*
+	This function gives a number representing the overall quality of the player's items + health and mana upgrades. (stores in this.power)
+	*/
 	this.power = 0;
 	this.power += (this.maxHealth - 100);
 	this.power += (this.maxMana - 100);
@@ -2440,6 +2540,223 @@ if(localStorage.getItem("scores") !== null) {
 	p.scores = JSON.parse(localStorage.getItem("scores"));
 }
 
+/** COLLISIONS **/
+var collisions = [];
+function CollisionRect(x, y, w, h, settings) {
+	/*
+	This object represents a collision - the kind where when the player hits it, they bounce back.
+	*/
+	this.x = x;
+	this.y = y;
+	this.w = w;
+	this.h = h;
+	this.settings = settings || {};
+	this.settings.walls = this.settings.walls || [true, true, true, true];
+	this.settings.illegalHandling = this.settings.illegalHandling || "collide";
+	this.settings.moving = this.settings.moving || false;
+	this.settings.player = this.settings.player || (p.onScreen === "play" ? p : howChar);
+};
+CollisionRect.prototype.collide = function() {
+	/* Add a hitbox if 'showHitboxes' is true (for debugging) */
+	if(showHitboxes) {
+		hitboxes.push({x: this.x, y: this.y, w: this.w, h: this.h, color: this.settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
+	}
+	/* Collide with player if in the same room */
+	if(inRoom === theRoom) {
+		if(!this.settings.moving) {
+			/* Top */
+			if(this.settings.player.x + 5 > this.x && this.settings.player.x - 5 < this.x + this.w && this.settings.player.y + 46 >= this.y && this.settings.player.y + 46 <= this.y + this.settings.player.velY + 1 && this.settings.walls[0]) {
+				this.settings.player.velY = 0;
+				this.settings.player.y = this.y - 46;
+				this.settings.player.canJump = true;
+				/* Hurt the player if they've fallen from a height */
+				if(this.settings.player.fallDmg !== 0) {
+					this.settings.player.hurt(this.settings.player.fallDmg, "falling", true);
+					this.settings.player.fallDmg = 0;
+				}
+			}
+			/* Bottom */
+			if(this.settings.player.x + 5 > this.x && this.settings.player.x - 5 < this.x + this.w && this.settings.player.y <= this.y + this.h && this.settings.player.y >= this.y + this.h + this.settings.player.velY - 1 && this.settings.walls[1]) {
+				this.settings.player.velY = 2;
+			}
+			/* Left */
+			if(this.settings.player.y + 46 > this.y && this.settings.player.y < this.y + this.h && this.settings.player.x + 5 >= this.x && this.settings.player.x + 5 <= this.x + this.settings.player.velX + 1 && this.settings.walls[2]) {
+				if(this.settings.illegalHandling === "collide") {
+					this.settings.player.velX = (this.settings.extraBouncy) ? -3 : -1;
+				}
+				else {
+					this.settings.player.y = this.y - 46;
+				}
+			}
+			/* Right */
+			if(this.settings.player.y + 46 > this.y && this.settings.player.y < this.y + this.h && this.settings.player.x - 5 <= this.x + this.w && this.settings.player.x - 5 >= this.x + this.w + this.settings.player.velX - 1 && this.settings.walls[3]) {
+				if(this.settings.illegalHandling === "collide") {
+					this.settings.player.velX = (this.settings.extraBouncy) ? 3 : 1;
+				}
+				else {
+					this.settings.player.y = this.y - 46;
+				}
+			}
+		}
+		else {
+			/* Top */
+			if(this.settings.player.x + 5 > this.x && this.settings.player.x - 5 < this.x + this.w && this.settings.player.y + 46 >= this.y && this.settings.player.y + 46 <= this.y + 6 && this.settings.walls[0]) {
+				this.settings.player.velY = 0;
+				this.settings.player.y = this.y - 46;
+				this.settings.player.canJump = true;
+				if(this.settings.player.fallDmg !== 0) {
+					this.settings.player.hurt(this.settings.player.fallDmg, "falling");
+					this.settings.player.fallDmg = 0;
+				}
+			}
+			/* Bottom */
+			if(this.settings.player.x + 5 > this.x && this.settings.player.x - 5 < this.x + this.w && this.settings.player.y <= this.y + this.h && this.settings.player.y >= this.y + this.h - 6 && this.settings.walls[1]) {
+				this.settings.player.velY = 2;
+			}
+			/* Left */
+			if(this.settings.player.y + 46 > this.y && this.settings.player.y < this.y + this.h && this.settings.player.x + 5 >= this.x && this.settings.player.x + 5 <= this.x + 6 && this.settings.walls[2]) {
+				if(this.settings.illegalHandling === "collide") {
+					this.settings.player.velX = (this.settings.extraBouncy) ? -3 : -1;
+				}
+				else {
+					this.settings.player.y = this.y - 46;
+				}
+			}
+			/* Right */
+			if(this.settings.player.y + 46 > this.y && this.settings.player.y < this.y + this.h && this.settings.player.x - 5 <= this.x + this.w && this.settings.player.x - 5 >= this.x + this.w - 6 && this.settings.walls[3]) {
+				if(this.settings.illegalHandling === "collide") {
+					this.settings.player.velX = (this.settings.extraBouncy) ? 3 : 1;
+				}
+				else {
+					this.settings.player.y = this.y - 46;
+				}
+			}
+		}
+	}
+	/* Collide with other objects */
+	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+		var thing = roomInstances[theRoom].content[i];
+		if(thing instanceof Enemy) {
+			var enemy = thing;
+			if(enemy.x + p.worldX + enemy.rightX > this.x && enemy.x + p.worldX + enemy.leftX < this.x + this.w) {
+				if(enemy.y + p.worldY + enemy.bottomY >= this.y && enemy.y + p.worldY + enemy.bottomY <= this.y + enemy.velY + 1) {
+					enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
+					enemy.y = this.y - p.worldY - Math.abs(enemy.bottomY);
+					enemy.canJump = true;
+					if(enemy instanceof Bat && enemy.timePurified > 0) {
+						enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
+					}
+				}
+				if(enemy.y + p.worldY + enemy.topY <= this.y + this.h && enemy.y + p.worldY + enemy.topY >= this.y + this.h + enemy.velY - 1) {
+					enemy.velY = 3;
+					enemy.y = this.y + this.h - p.worldY + Math.abs(enemy.topY);
+					if(enemy instanceof Bat && enemy.timePurified > 0) {
+						enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
+					}
+				}
+			}
+			if(enemy.y + enemy.bottomY + p.worldY > this.y && enemy.y + enemy.topY + p.worldY < this.y + this.h) {
+				if(enemy.x + p.worldX + enemy.rightX >= this.x && enemy.x + p.worldX + enemy.rightX <= this.x + enemy.velX + 1) {
+					if(this.settings.illegalHandling === "teleport") {
+						enemy.y = this.y - p.worldY - Math.abs(enemy.bottomY);
+						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
+						enemy.canJump = true;
+					}
+					else {
+						enemy.velX = (enemy.velX > 0) ? -3 : enemy.velX;
+						enemy.x = this.x - p.worldX - Math.abs(enemy.rightX);
+						if(enemy instanceof Bat && enemy.timePurified > 0) {
+							enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
+						}
+					}
+				}
+				if(enemy.x + p.worldX + enemy.leftX <= this.x + this.w && enemy.x + p.worldX + enemy.leftX >= this.x + this.w + enemy.velX - 1) {
+					if(this.settings.illegalHandling === "teleport") {
+						enemy.y = this.y - p.worldY - Math.abs(enemy.bottomY);
+						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
+						enemy.canJump = true;
+					}
+					else {
+						enemy.velX = (enemy.velX < 0) ? 3 : enemy.velX;
+						enemy.x = this.x + this.w - p.worldX + Math.abs(enemy.leftX);
+						if(enemy instanceof Bat && enemy.timePurified > 0) {
+							enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
+						}
+					}
+				}
+				if(!(typeof enemy.velX === "number") && enemy.x + enemy.rightX + p.worldX > this.x && enemy.x + enemy.rightX + p.worldX < this.x + 5) {
+					enemy.x = this.x - p.worldX - Math.abs(enemy.rightX) - 1;
+				}
+				if(!(typeof enemy.velX === "number") && enemy.x + enemy.leftX + p.worldX < this.x + this.w && enemy.x + enemy.leftX + p.worldX > this.x + this.w - 5) {
+					enemy.x = this.x + this.w - p.worldX + Math.abs(enemy.leftX) + 1;
+				}
+			}
+		}
+		else if(thing instanceof MagicCharge && thing.x + p.worldX + 20 > this.x && thing.x + p.worldX - 20 < this.x + this.w && thing.y + p.worldY + 20 > this.y && thing.y + p.worldY - 20 < this.y + this.h && !thing.splicing) {
+			thing.splicing = true;
+			if(thing.type === "chaos" && !p.aiming) {
+				var charge = thing;
+				p.x = charge.x + p.worldX;
+				p.y = charge.y + p.worldY;
+				for(var j = 0; j < collisions.length; j ++) {
+					while(p.x + 5 > collisions[i].x && p.x - 5 < collisions[i].x + 10 && p.y + 46 > collisions[i].y && p.y - 7 < collisions[i].y + collisions[i].h) {
+						p.x --;
+					}
+					while(p.x - 5 < collisions[i].x + collisions[i].w && p.x + 5 > collisions[i].x + collisions[i].w - 10 && p.y + 46 > collisions[i].y && p.y - 7 < collisions[i].y + collisions[i].h) {
+						p.x ++;
+					}
+					while(p.x + 5 > collisions[i].x && p.x - 5 < collisions[i].x + collisions[i].w && p.y - 7 < collisions[i].y + collisions[i].h && p.y + 46 > collisions[i].y + collisions[i].h - 10) {
+						p.y ++;
+					}
+					while(p.x + 5 > collisions[i].x && p.x - 5 < collisions[i].x + collisions[i].w && p.y + 46 > collisions[i].y && p.y - 7 < collisions[i].y + 10) {
+					p.y --;
+				}
+				}
+			}
+			continue;
+		}
+		else if(thing instanceof ShotArrow && this.isPointInside(thing.x + p.worldX, thing.y + p.worldY, thing.w, thing.h)) {
+			thing.hitSomething = true;
+		}
+	}
+};
+CollisionRect.prototype.isPointInside = function(x, y) {
+	return (x > this.x && x < this.x + this.w && y > this.y && y < this.y + this.h);
+};
+CollisionRect.prototype.isRectInside = function(x, y, w, h) {
+	return (x + w > this.x && x < this.x + this.w && y + h > this.y && y < this.y + this.h);
+};
+function CollisionCircle(x, y, r) {
+	/*
+	('x', 'y') is center, not top-left corner. Radius is 'r'
+	*/
+	this.x = x;
+	this.y = y;
+	this.r = r;
+};
+CollisionCircle.prototype.collide = function() {
+	var rSquared = this.r * this.r;
+	/* Collide with player if in the same room */
+	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY) <  rSquared || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY) < rSquared) {
+		p.y --;
+		p.canJump = true;
+		p.velY = (p.velY > 3) ? 3 : p.velY;
+	}
+	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+		var thing = roomInstances[theRoom].content[i];
+		if(thing instanceof Enemy) {
+			while(Math.distSq(this.x, this.y, thing.x + thing.leftX, thing.y + thing.bottomY) < rSquared || Math.distSq(this.x, this.y, thing.x + thing.rightX, thing.y + thing.bottomY) < rSquared) {
+				thing.y --;
+				thing.velY = (thing.velY > 3) ? 3 : thing.velY;
+				if(thing instanceof Bat && thing.timePurified > 0) {
+					thing.dest = {x: thing.x + (Math.random() * 200 - 100), y: thing.y + (Math.random() * 200 - 100)};
+					thing.velY = 0;
+				}
+			}
+		}
+	}
+};
+
 /** IN GAME STRUCTURES **/
 function Block(x, y, w, h) {
 	this.x = x;
@@ -2448,14 +2765,14 @@ function Block(x, y, w, h) {
 	this.h = h;
 };
 Block.prototype.update = function() {
-	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, {walls: [true, true, true, true], illegalHandling: partOfAStair ? "teleport" : "collide"} );
-};
-Block.prototype.display = function() {
-	cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
+	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, {walls: [true, true, true, true], illegalHandling: tempVars.partOfAStair ? "teleport" : "collide"} );
 };
 Block.prototype.exist = function() {
 	this.display();
 	this.update();
+};
+Block.prototype.display = function() {
+	cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
 };
 function loadBoxFronts() {
 	for(var i = 0; i < boxFronts.length; i ++) {
@@ -2528,9 +2845,12 @@ function Platform(x, y, w) {
 	this.y = y;
 	this.w = w;
 };
-Platform.prototype.exist = function() {
-	cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
+Platform.prototype.update = function() {
 	collisionRect(this.x + p.worldX, this.y + p.worldY, this.w, 3, {walls: [true, false, false, false]});
+};
+Platform.prototype.exist = function() {
+	this.update();
+	cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
 };
 function Door(x, y, dest, noEntry, invertEntries, type) {
 	this.x = x;
@@ -2594,29 +2914,38 @@ Door.prototype.getInfo = function() {
 	return "x";
 };
 Door.prototype.exist = function() {
-	if(this.type === "same" || this.type === "toggle") {
-		if(this.type === "same") {
-			this.type = p.doorType;
-		}
-		else {
-			this.type = p.doorType === "arch" ? "lintel" : "arch";
-		}
-	}
-	//graphics
-	var leftBX = 400 - (400 - (this.x + p.worldX - 30)) * (1 - floorWidth);
-	var rightBX = 400 - (400 - (this.x + p.worldX + 30)) * (1 - floorWidth);
-	var bottomBY = 400 - (400 - (this.y + p.worldY)) * (1 - floorWidth);
-	var topBY = 400 - (400 - (this.y + p.worldY - 60)) * (1 - floorWidth);
+	/* Display graphics */
+	this.display();
+	// var loc = point3d(this.x + p.worldX, this.y + p.worldY);
+	// thingsToBeRendered.push(new RenderingObject(
+	// 	this,
+	// 	{
+	// 		x: loc.x - 30,
+	// 		y: loc.y - 60,
+	// 		w: 60,
+	// 		h: 60
+	// 	},
+	// 	{
+	// 		x: this.x + p.worldX - 30,
+	// 		y: this.y + p.worldY - 60,
+	// 		w: 60,
+	// 		h: 60,
+	// 		z: 0.9
+	// 	}
+	// ));
+	/* Update */
+	this.update();
+};
+Door.prototype.display = function() {
+	/* Graphics */
+	var topLeft = point3d(this.x + p.worldX - 30, this.y + p.worldY - 60, 0.9);
+	var bottomRight = point3d(this.x + p.worldX + 30, this.y + p.worldY, 0.9);
 	if(this.type === "arch") {
 		c.fillStyle = "rgb(20, 20, 20)";
-		c.fillRect(leftBX, topBY, rightBX - leftBX, bottomBY - topBY);
+		c.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
 		c.beginPath();
-		c.arc(leftBX + ((rightBX - leftBX) / 2), topBY, 27, 0, 2 * Math.PI);
+		c.arc(topLeft.x + ((bottomRight.x - topLeft.x) / 2), topLeft.y, 27, 0, 2 * Math.PI);
 		c.fill();
-	}
-	else {
-		cube(this.x + p.worldX - 30, this.y + p.worldY - 90, 60, 90, 0.9, 0.9, "rgb(20, 20, 20)", "rgb(20, 20, 20)", { noFrontExtended: true });
-		cube(this.x + p.worldX - 45, this.y + p.worldY - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)", {noFrontExtended: true} );
 	}
 	if(this.barricaded) {
 		c.save();
@@ -2646,19 +2975,19 @@ Door.prototype.exist = function() {
 			c.stroke();
 		};
 		c.save();
-		c.translate(leftBX + (rightBX - leftBX) / 2, bottomBY - 60);
+		c.translate(topLeft.x + (bottomRight.x - topLeft.x) / 2, bottomRight.y - 60);
 		c.rotate(22 / 180 * Math.PI);
 		woodBoard();
 		c.restore();
 
 		c.save();
-		c.translate(leftBX + (rightBX - leftBX) / 2, bottomBY - 40);
+		c.translate(topLeft.x + (bottomRight.x - topLeft.x) / 2, bottomRight.y - 40);
 		c.rotate(-22 / 180 * Math.PI);
 		woodBoard();
 		c.restore();
 
 		c.save();
-		c.translate(leftBX + (rightBX - leftBX) / 2, bottomBY - 20);
+		c.translate(topLeft.x + (bottomRight.x - topLeft.x) / 2, bottomRight.y - 20);
 		c.rotate(22 / 180 * Math.PI);
 		woodBoard();
 		c.restore();
@@ -2666,7 +2995,11 @@ Door.prototype.exist = function() {
 		c.restore();
 
 	}
-	//text for maps
+	if(this.type === "lintel") {
+		cube(this.x + p.worldX - 30, this.y + p.worldY - 90, 60, 90, 0.9, 0.9, "rgb(20, 20, 20)", "rgb(20, 20, 20)", { noFrontExtended: true });
+		cube(this.x + p.worldX - 45, this.y + p.worldY - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)", {noFrontExtended: true} );
+	}
+	/* Symbols for maps */
 	var symbol = this.getInfo();
 	var center = point3d(this.x + p.worldX, this.y + p.worldY - 40, 0.9);
 	c.font = "15pt monospace";
@@ -2683,8 +3016,21 @@ Door.prototype.exist = function() {
 			c.fillText(">", center.x, center.y);
 		}
 	}
-	//transition between rooms
-	if(p.x - 5 > leftBX && p.x + 5 < rightBX && p.y + 46 > topBY && p.y + 46 < bottomBY + 10 && p.canJump && keys[83] && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
+};
+Door.prototype.update = function() {
+	/* Resolve type (arched top vs. lintel) */
+	if(this.type === "same" || this.type === "toggle") {
+		if(this.type === "same") {
+			this.type = p.doorType;
+		}
+		else {
+			this.type = (p.doorType === "arch") ? "lintel" : "arch";
+		}
+	}
+	/* Room Transition */
+	var topLeft = point3d(this.x + p.worldX - 30, this.y + p.worldY - 60, 0.9);
+	var bottomRight = point3d(this.x + p.worldX + 30, this.y + p.worldY, 0.9);
+	if(p.x - 5 > topLeft.x && p.x + 5 < bottomRight.x && p.y + 46 > topLeft.y && p.y + 46 < bottomRight.y + 10 && p.canJump && keys[83] && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
 		p.enteringDoor = true;
 		this.entering = true;
 	}
@@ -2693,8 +3039,8 @@ Door.prototype.exist = function() {
 		if(typeof this.dest !== "number") {
 			p.roomsExplored ++;
 			p.numHeals ++;
-			//calculate how close the nearest unexplored door is
-			calcPaths();
+			/* Calculate distance to nearest unexplored door */
+			calculatePaths();
 			p.terminateProb = 0;
 			for(var i = 0; i < roomInstances.length; i ++) {
 				for(var j = 0; j < roomInstances[i].content.length; j ++) {
@@ -2703,7 +3049,7 @@ Door.prototype.exist = function() {
 					}
 				}
 			}
-			//create a list of valid rooms to generate
+			/* Create a list of valid rooms to generate */
 			var possibleRooms = [];
 			for(var i = 0; i < rooms.length; i ++) {
 				if(roomInstances[inRoom].colorScheme === "red") {
@@ -2733,7 +3079,7 @@ Door.prototype.exist = function() {
 					}
 				}
 			}
-			//apply weighting based on number of nearby unexplored doors
+			/* Apply weighting based on number of nearby unexplored doors */
 			/*
 			higher # - more doors - more dead ends
 			lower # - less doors - more splits
@@ -2746,12 +3092,11 @@ Door.prototype.exist = function() {
 				var termScore = Math.abs(possibleRooms[i].extraDoors - p.terminateProb); //smaller # = less likely
 				var totalScore = termScore - diffScore;
 			}
-			// for(var i = 0; i < newWeights.length
-			//add selected room
+			/* Add selected room */
 			var roomIndex = Math.round(Math.random() * (possibleRooms.length - 1));
 			possibleRooms[roomIndex].add();
 			roomInstances[roomInstances.length - 1].id = "?";
-			//reset variables for transition
+			/* Reset transition variables */
 			var previousRoom = inRoom;
 			inRoom = numRooms;
 			p.enteringDoor = false;
@@ -2759,16 +3104,17 @@ Door.prototype.exist = function() {
 			p.op = 1;
 			p.op = 95;
 			this.dest = numRooms;
-			//give the newly generated room an id
+			/* Give new room an ID */
 			for(var i = 0; i < roomInstances.length; i ++) {
 				if(roomInstances[i].id === "?") {
 					roomInstances[i].id = numRooms;
 					numRooms ++;
 				}
 			}
+			/* Move player to exit door */
 			for(var i = 0; i < roomInstances.length; i ++) {
 				if(roomInstances[i].id === numRooms - 1) {
-					//select a door for the player to come out of
+					/* Select a door */
 					var doorIndexes = [];
 					for(var j = 0; j < roomInstances[i].content.length; j ++) {
 						if(roomInstances[i].content[j] instanceof Door && (!!roomInstances[i].content[j].noEntry) === (!!this.invertEntries) && roomInstances[i].content[j].noEntry !== "no entries") {
@@ -2776,7 +3122,6 @@ Door.prototype.exist = function() {
 						}
 					}
 					if(doorIndexes.length === 0) {
-						//prevent errors if you enter a room w/ no illegal entry doors and you have invert turned on
 						for(var j = 0; j < roomInstances[i].content.length; j ++) {
 							if(roomInstances[i].content[j] instanceof Door) {
 								doorIndexes.push(j);
@@ -2784,7 +3129,7 @@ Door.prototype.exist = function() {
 						}
 					}
 					var theIndex = doorIndexes[Math.round(Math.random() * (doorIndexes.length - 1))];
-					//move the player to the door they exit out of
+					/* Move player to door */
 					p.worldX = 0;
 					p.worldY = 0;
 					p.x = roomInstances[i].content[theIndex].x;
@@ -2813,12 +3158,13 @@ Door.prototype.exist = function() {
 						p.worldX += Math.dist(p.x, 0, 400, 0);
 						p.x = 400;
 					}
-					//assign that door to lead back to this room
+					/* Assign new door to lead to this room */
 					roomInstances[i].content[theIndex].dest = previousRoom;
-					//assign this door to lead into that room
+					/* Assign this door to lead to new door */
 					this.dest = inRoom;
 				}
 			}
+			/* Assign new room's color scheme */
 			for(var i = 0; i < roomInstances.length; i ++) {
 				if(roomInstances[i].id === numRooms - 1 && roomInstances[i].type !== "ambient5" && roomInstances[i].type !== "reward2" && roomInstances[i].type !== "reward3" && roomInstances[i].type !== "secret1" && roomInstances[i].type !== "secret3") {
 					var hasDecorations = false;
@@ -2848,12 +3194,6 @@ Door.prototype.exist = function() {
 					}
 				}
 			}
-			//schedule enemies to move through the door
-			for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-				if(roomInstances[theRoom].content[i] instanceof Enemy && roomInstances[theRoom].content[i].seesPlayer) {
-					roomInstances[theRoom].hasEnemy = true;
-				}
-			}
 		}
 		else {
 			var previousRoom = inRoom;
@@ -2873,16 +3213,10 @@ Door.prototype.exist = function() {
 			p.enteringDoor = false;
 			p.exitingDoor = true;
 			p.op = 0.95;
-			//schedule enemies to move through the door
-			for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-				if(roomInstances[theRoom].content[i] instanceof Enemy && roomInstances[theRoom].content[i].seesPlayer) {
-					roomInstances[theRoom].hasEnemy = true;
-				}
-			}
 		}
 		p.screenOp = 0.95;
 		this.entering = false;
-		calcPaths();
+		calculatePaths();
 	}
 };
 function calculated() {
@@ -2893,7 +3227,7 @@ function calculated() {
 	}
 	return true;
 };
-function calcPaths() {
+function calculatePaths() {
 	for(var i = 0; i < roomInstances.length; i ++) {
 		roomInstances[i].pathScore = null;
 	}
@@ -2922,6 +3256,27 @@ function Torch(x, y) {
 	this.fireParticles = [];
 };
 Torch.prototype.exist = function() {
+	this.update();
+	/* Request graphics */
+	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97, null, null, { noFrontExtended: true });
+	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
+		this.lit = true;
+	}
+	if(this.lit) {
+		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.random() * -3, Math.random() * 5 + 5));
+		this.fireParticles[this.fireParticles.length - 1].z = Math.random() * 0.02 + 0.94;
+		for(var i = 0; i < this.fireParticles.length; i ++) {
+			this.fireParticles[i].exist();
+			if(this.fireParticles[i].splicing) {
+				this.fireParticles.splice(i, 1);
+				continue;
+			}
+		}
+	}
+};
+Torch.prototype.update = function() {
+	/* Resolve color */
 	if(this.color === "?" || this.color === undefined) {
 		if(roomInstances[theRoom].colorScheme === "red") {
 			this.color = "rgb(255, 128, 0)";
@@ -2933,259 +3288,160 @@ Torch.prototype.exist = function() {
 			this.color = "rgb(0, 255, 255)";
 		}
 	}
-	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97, undefined, undefined, { noFrontExtended: true });
-	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
-		this.lit = true;
-	}
-	if(this.lit) {
-		// this.fireParticles.push(new FireParticle(this.x, this.y - 25));
-		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.random() * -3, Math.random() * 5 + 5));
-		this.fireParticles[this.fireParticles.length - 1].z = Math.random() * 0.02 + 0.94;
-		for(var i = 0; i < this.fireParticles.length; i ++) {
-			this.fireParticles[i].exist();
-			if(this.fireParticles[i].splicing) {
-				this.fireParticles.splice(i, 1);
-				continue;
-			}
-		}
-	}
-	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.95, 0.95, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.97, 0.97, undefined, undefined, { noFrontExtended: true });
-};
-function FireParticle(x, y) {
-	this.x = x;
-	this.y = y;
-	this.velX = Math.random();
-	this.velY = Math.random() * -3;
-	this.size = Math.random() * 5 + 5;
-	this.op = 1;
-};
-FireParticle.prototype.exist = function() {
-	c.fillStyle = "rgb(255, 128, 0)";
-	c.globalAlpha = this.op;
-	c.beginPath();
-	c.arc(400 - (400 - (this.x + p.worldX)) * 0.96, 400 - (400 - (this.y + p.worldY)), (this.size > 0) ? this.size : 0, 0, 2 * Math.PI);
-	c.fill();
-	c.globalAlpha = 1;
-	this.x += this.velX;
-	this.y += this.velY;
-	this.size -= 0.5;
-	this.op -= 0.05;
 };
 function LightRay(x, w) {
 	this.x = x;
 	this.w = w;
 };
 LightRay.prototype.exist = function() {
-	// c.fillStyle = "rgb(255, 255, 255)";
-	// c.globalAlpha = 0.5;
-	// c.fillRect(p.worldX + this.x, 0, this.w, 800);
-	// c.globalAlpha = 1;
-	var leftF = 400 - (400 - (p.worldX + this.x)) * 1.1;
-	var leftB = 400 - (400 - (p.worldX + this.x)) * 0.9;
-	var rightF = 400 - (400 - (p.worldX + this.x + this.w)) * 1.1;
-	var rightB = 400 - (400 - (p.worldX + this.x + this.w)) * 0.9;
-	var left = Math.min(leftF, leftB);
-	var right = Math.max(rightF, rightB);
+	var left = Math.min(point3d(this.x + p.worldX, 0, 0.9).x, point3d(this.x + p.worldX, 0, 1.1).x);
+	var right = Math.max(point3d(this.x + p.worldX + this.w, 0, 0.9).x, point3d(this.x + p.worldX + this.w, 0, 1.1).x);
 	c.fillStyle = "rgb(255, 255, 255)";
 	c.globalAlpha = 0.5;
 	c.fillRect(left, 0, right - left, 800);
 	c.globalAlpha = 1;
-	// cube(p.worldX + this.x, -100, this.w, 900, 0.9, 0.9, "rgba(255, 255, 255, 0.5)", "rgb(255, 255, 255, 0.5)", true);
 };
 function Tree(x, y) {
 	//tree, comes with the planter and everything
 	this.x = x;
 	this.y = y;
 };
-Tree.prototype.exist = function(theRoom) {
+Tree.prototype.exist = function() {
+	this.update();
 	cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
+	// var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
+	this.display();
+	// thingsToBeRendered.push(new RenderingObject(
+	// 	this,
+	// 	{
+	// 		x: loc.x - 150,
+	// 		y: loc.y - 230,
+	// 		w: 300,
+	// 		h: 230
+	// 	},
+	// 	{
+	// 		x: this.x + p.worldX - 150,
+	// 		y: this.y + p.worldY - 230,
+	// 		w: 300,
+	// 		h: 230,
+	// 		z: 0.95
+	// 	}
+	// ));
+};
+Tree.prototype.update = function() {
+	var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
+	collisionLine(loc.x - 6, loc.y - 100, loc.x - 150, loc.y - 100, {walls: [true, false, false, false]});
+	collisionLine(loc.x + 6, loc.y - 120, loc.x + 150, loc.y - 120, {walls: [true, false, false, false]});
+	collisionLine(loc.x - 5, loc.y - 170, loc.x - 100, loc.y - 180, {walls: [true, false, false, false]});
+	collisionLine(loc.x + 5, loc.y - 190, loc.x + 100, loc.y - 200, {walls: [true, false, false, false]});
+	collisionLine(loc.x, loc.y - 220, loc.x - 60, loc.y - 230, {walls: [true, false, false, false]});
+	// collisionRect(loc.x - 4, loc.y - 350, 8, 2, {walls: [true, false, false, false]});
+};
+Tree.prototype.display = function() {
 	c.fillStyle = "rgb(139, 69, 19)";
-	//trunk
+	var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
+	/* Tree trunk */
 	c.beginPath();
-	c.moveTo(400 - (400 - (this.x + p.worldX - 10)) * 0.95, 400 - (400 - (this.y + p.worldY - 40)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX + 10)) * 0.95, 400 - (400 - (this.y + p.worldY - 40)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX)) * 0.95, 400 - (400 - (this.y + p.worldY - 350)) * 0.95);
+	c.moveTo(loc.x - 10, loc.y - 40);
+	c.lineTo(loc.x + 10, loc.y - 40);
+	c.lineTo(loc.x, loc.y - 350);
 	c.fill();
-	//1st branch on left
+	/* 1st branch on left */
 	c.beginPath();
-	c.moveTo(400 - (400 - (this.x + p.worldX - 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 80)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX - 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX - 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95);
+	c.moveTo(loc.x - 5, loc.y - 80);
+	c.lineTo(loc.x - 6, loc.y - 100);
+	c.lineTo(loc.x - 150, loc.y - 100);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX - 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95, 400 - (400 - (this.x + p.worldX - 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95, {walls: [true, false, false, false]});
 	//1st branch on right
 	c.beginPath();
-	c.moveTo(400 - (400 - (this.x + p.worldX + 7)) * 0.95, 400 - (400 - (this.y + p.worldY - 100)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX + 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX + 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95);
+	c.moveTo(loc.x + 7, loc.y - 100);
+	c.lineTo(loc.x + 6, loc.y - 120);
+	c.lineTo(loc.x + 150, loc.y - 120);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX + 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95, 400 - (400 - (this.x + p.worldX + 150)) * 0.95, 400 - (400 - (this.y + p.worldY - 120)) * 0.95, {walls: [true, false, false, false]});
 	//2nd branch on left
 	c.beginPath();
-	c.moveTo(400 - (400 - (this.x + p.worldX - 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 150)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX - 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 170)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX - 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 180)) * 0.95);
+	c.moveTo(loc.x - 6, loc.y - 150);
+	c.lineTo(loc.x - 5, loc.y - 170);
+	c.lineTo(loc.x - 100, loc.y - 180);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX - 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 170)) * 0.95, 400 - (400 - (this.x + p.worldX - 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 180)) * 0.95, {walls: [true, false, false, false]});
 	//2nd branch on right
 	c.beginPath();
-	c.moveTo(400 - (400 - (this.x + p.worldX + 6)) * 0.95, 400 - (400 - (this.y + p.worldY - 170)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX + 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 190)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX + 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 200)) * 0.95);
+	c.moveTo(loc.x + 6, loc.y - 170);
+	c.lineTo(loc.x + 5, loc.y - 190);
+	c.lineTo(loc.x + 100, loc.y - 200);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX + 5)) * 0.95, 400 - (400 - (this.y + p.worldY - 190)) * 0.95, 400 - (400 - (this.x + p.worldX + 100)) * 0.95, 400 - (400 - (this.y + p.worldY - 200)) * 0.95, {walls: [true, false, false, false]});
 	//3rd branch on left
 	c.beginPath();
-	c.moveTo(400 - (400 - (this.x + p.worldX)) * 0.95, 400 - (400 - (this.y + p.worldY - 200)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX)) * 0.95, 400 - (400 - (this.y + p.worldY - 220)) * 0.95);
-	c.lineTo(400 - (400 - (this.x + p.worldX - 60)) * 0.95, 400 - (400 - (this.y + p.worldY - 230)) * 0.95);
+	c.moveTo(loc.x, loc.y - 200);
+	c.lineTo(loc.x, loc.y - 220);
+	c.lineTo(loc.x - 60, loc.y - 230);
 	c.fill();
-	collisionLine(400 - (400 - (this.x + p.worldX)) * 0.95, 400 - (400 - (this.y + p.worldY - 220)) * 0.95, 400 - (400 - (this.x + p.worldX - 60)) * 0.95, 400 - (400 - (this.y + p.worldY - 230)) * 0.95, {walls: [true, false, false, false]});
-	collisionRect(400 - (400 - (this.x + p.worldX - 4)) * 0.95, 400 - (400 - (this.y + p.worldY - 350)) * 0.95, 8, 2, {walls: [true, false, false, false]});
 };
-const chestAnimationArray = [
-[{x: 37, y: -19}, {x: 38, y: -19}, {x: 39, y: -17}, {x: 40, y: -18}, {x: 41, y: -17}, {x: 41, y: -19}, {x: 42, y: -19}, {x: 44, y: -19}, {x: 45, y: -19}, {x: 46, y: -18}, {x: 46, y: -20}, {x: 47, y: -20}, {x: 49, y: -19}, {x: 50, y: -20}, {x: 51, y: -19}, {x: 52, y: -19}, {x: 53, y: -19}, {x: 55, y: -17}, {x: 55, y: -19}, {x: 56, y: -19}, {x: 57, y: -17}, {x: 58, y: -18}, {x: 59, y: -18}, {x: 60, y: -18}, {x: 61, y: -17}, {x: 62, y: -17}, {x: 63, y: -16}, {x: 64, y: -17}, {x: 65, y: -16}, {x: 66, y: -16}, {x: 66, y: -17}, {x: 67, y: -16}, {x: 68, y: -16}, {x: 69, y: -14}, {x: 70, y: -15}, {x: 71, y: -13}, {x: 72, y: -13}, {x: 73, y: -13}, {x: 75, y: -12}, {x: 76, y: -12}, {x: 76, y: -11}, {x: 77, y: -12}, {x: 78, y: -10}, {x: 0, y: -1}, {x: 1, y: -2}, {x: 1, y: -2}, {x: 2, y: -3}, {x: 3, y: -3}, {x: 4, y: -5}, {x: 5, y: -5}, {x: 6, y: -6}, {x: 7, y: -7}, {x: 8, y: -7}, {x: 8, y: -8}, {x: 9, y: -9}, {x: 10, y: -8}, {x: 11, y: -8}, {x: 11, y: -10}, {x: 12, y: -10}, {x: 12, y: -11}, {x: 13, y: -11}, {x: 15, y: -11}, {x: 15, y: -12}, {x: 16, y: -12}, {x: 17, y: -13}, {x: 18, y: -14}, {x: 19, y: -13}, {x: 20, y: -14}, {x: 21, y: -14}, {x: 22, y: -15}, {x: 22, y: -16}, {x: 24, y: -15}, {x: 25, y: -16}, {x: 26, y: -16}, {x: 27, y: -17}, {x: 28, y: -17}, {x: 29, y: -17}, {x: 30, y: -17}, {x: 31, y: -18}, {x: 31, y: -19}, {x: 33, y: -18}, {x: 34, y: -18}, {x: 35, y: -18}, {x: 36, y: -19}],[{x: 34, y: -23}, {x: 36, y: -22}, {x: 37, y: -20}, {x: 37, y: -22}, {x: 39, y: -22}, {x: 39, y: -23}, {x: 40, y: -23}, {x: 42, y: -23}, {x: 42, y: -24}, {x: 44, y: -23}, {x: 44, y: -25}, {x: 45, y: -25}, {x: 47, y: -23}, {x: 47, y: -25}, {x: 48, y: -25}, {x: 50, y: -25}, {x: 51, y: -24}, {x: 53, y: -22}, {x: 53, y: -25}, {x: 54, y: -25}, {x: 55, y: -23}, {x: 56, y: -24}, {x: 57, y: -23}, {x: 58, y: -23}, {x: 59, y: -24}, {x: 60, y: -23}, {x: 61, y: -23}, {x: 62, y: -24}, {x: 62, y: -23}, {x: 63, y: -23}, {x: 65, y: -23}, {x: 65, y: -22}, {x: 66, y: -22}, {x: 67, y: -22}, {x: 68, y: -22}, {x: 69, y: -21}, {x: 71, y: -20}, {x: 71, y: -21}, {x: 73, y: -20}, {x: 74, y: -20}, {x: 74, y: -19}, {x: 75, y: -20}, {x: 76, y: -18}, {x: 0, y: -1}, {x: 1, y: -2}, {x: 1, y: -2}, {x: 2, y: -3}, {x: 3, y: -3}, {x: 3, y: -6}, {x: 5, y: -6}, {x: 5, y: -7}, {x: 7, y: -7}, {x: 7, y: -8}, {x: 7, y: -9}, {x: 8, y: -9}, {x: 9, y: -8}, {x: 9, y: -10}, {x: 10, y: -10}, {x: 10, y: -12}, {x: 11, y: -12}, {x: 12, y: -13}, {x: 13, y: -13}, {x: 14, y: -13}, {x: 15, y: -14}, {x: 16, y: -15}, {x: 17, y: -15}, {x: 18, y: -15}, {x: 18, y: -16}, {x: 20, y: -16}, {x: 20, y: -18}, {x: 21, y: -17}, {x: 23, y: -17}, {x: 23, y: -19}, {x: 24, y: -18}, {x: 24, y: -20}, {x: 25, y: -20}, {x: 27, y: -20}, {x: 28, y: -20}, {x: 28, y: -21}, {x: 30, y: -21}, {x: 30, y: -22}, {x: 32, y: -21}, {x: 33, y: -21}, {x: 33, y: -23}],[{x: 32, y: -27}, {x: 34, y: -26}, {x: 35, y: -24}, {x: 35, y: -25}, {x: 37, y: -25}, {x: 36, y: -27}, {x: 38, y: -26}, {x: 39, y: -27}, {x: 40, y: -28}, {x: 41, y: -27}, {x: 41, y: -30}, {x: 43, y: -29}, {x: 44, y: -28}, {x: 44, y: -30}, {x: 46, y: -30}, {x: 47, y: -29}, {x: 48, y: -29}, {x: 50, y: -28}, {x: 50, y: -31}, {x: 52, y: -29}, {x: 53, y: -28}, {x: 53, y: -30}, {x: 54, y: -30}, {x: 55, y: -30}, {x: 57, y: -29}, {x: 57, y: -30}, {x: 58, y: -30}, {x: 59, y: -30}, {x: 60, y: -29}, {x: 61, y: -30}, {x: 62, y: -29}, {x: 62, y: -28}, {x: 63, y: -29}, {x: 65, y: -28}, {x: 65, y: -29}, {x: 66, y: -29}, {x: 68, y: -28}, {x: 69, y: -28}, {x: 71, y: -27}, {x: 71, y: -28}, {x: 72, y: -27}, {x: 72, y: -28}, {x: 74, y: -26}, {x: 0, y: -1}, {x: 1, y: -2}, {x: 1, y: -2}, {x: 2, y: -3}, {x: 2, y: -4}, {x: 3, y: -6}, {x: 4, y: -6}, {x: 4, y: -7}, {x: 6, y: -7}, {x: 6, y: -8}, {x: 6, y: -10}, {x: 8, y: -10}, {x: 8, y: -9}, {x: 8, y: -11}, {x: 9, y: -11}, {x: 9, y: -12}, {x: 10, y: -13}, {x: 11, y: -14}, {x: 11, y: -15}, {x: 13, y: -14}, {x: 13, y: -16}, {x: 14, y: -16}, {x: 14, y: -17}, {x: 15, y: -18}, {x: 17, y: -17}, {x: 17, y: -19}, {x: 19, y: -19}, {x: 19, y: -20}, {x: 20, y: -20}, {x: 21, y: -20}, {x: 22, y: -21}, {x: 23, y: -22}, {x: 23, y: -23}, {x: 25, y: -23}, {x: 26, y: -22}, {x: 26, y: -24}, {x: 27, y: -24}, {x: 28, y: -25}, {x: 29, y: -25}, {x: 31, y: -25}, {x: 31, y: -26}],[{x: 29, y: -29}, {x: 30, y: -30}, {x: 32, y: -28}, {x: 32, y: -29}, {x: 34, y: -29}, {x: 33, y: -31}, {x: 35, y: -30}, {x: 36, y: -31}, {x: 37, y: -32}, {x: 38, y: -31}, {x: 37, y: -34}, {x: 40, y: -33}, {x: 41, y: -32}, {x: 41, y: -35}, {x: 42, y: -34}, {x: 44, y: -34}, {x: 45, y: -34}, {x: 47, y: -33}, {x: 46, y: -36}, {x: 49, y: -34}, {x: 50, y: -33}, {x: 49, y: -36}, {x: 51, y: -35}, {x: 51, y: -36}, {x: 53, y: -35}, {x: 54, y: -35}, {x: 55, y: -36}, {x: 56, y: -36}, {x: 56, y: -35}, {x: 57, y: -36}, {x: 59, y: -34}, {x: 60, y: -34}, {x: 60, y: -36}, {x: 61, y: -36}, {x: 62, y: -36}, {x: 64, y: -35}, {x: 65, y: -35}, {x: 65, y: -36}, {x: 67, y: -34}, {x: 68, y: -34}, {x: 69, y: -34}, {x: 69, y: -36}, {x: 71, y: -33}, {x: 0, y: -1}, {x: 0, y: -2}, {x: 0, y: -2}, {x: 1, y: -3}, {x: 2, y: -4}, {x: 2, y: -6}, {x: 3, y: -7}, {x: 4, y: -8}, {x: 5, y: -8}, {x: 6, y: -9}, {x: 5, y: -10}, {x: 6, y: -11}, {x: 8, y: -10}, {x: 7, y: -12}, {x: 8, y: -12}, {x: 8, y: -13}, {x: 8, y: -14}, {x: 9, y: -15}, {x: 10, y: -16}, {x: 12, y: -15}, {x: 12, y: -17}, {x: 12, y: -18}, {x: 13, y: -18}, {x: 13, y: -19}, {x: 16, y: -19}, {x: 15, y: -21}, {x: 17, y: -20}, {x: 17, y: -22}, {x: 17, y: -23}, {x: 19, y: -22}, {x: 19, y: -24}, {x: 21, y: -24}, {x: 20, y: -25}, {x: 23, y: -25}, {x: 23, y: -26}, {x: 22, y: -28}, {x: 25, y: -26}, {x: 24, y: -29}, {x: 27, y: -27}, {x: 28, y: -28}, {x: 27, y: -30}],[{x: 27, y: -31}, {x: 26, y: -33}, {x: 28, y: -32}, {x: 30, y: -32}, {x: 29, y: -34}, {x: 30, y: -34}, {x: 32, y: -34}, {x: 31, y: -36}, {x: 34, y: -34}, {x: 34, y: -36}, {x: 35, y: -37}, {x: 35, y: -38}, {x: 37, y: -37}, {x: 38, y: -38}, {x: 38, y: -39}, {x: 40, y: -38}, {x: 41, y: -39}, {x: 43, y: -38}, {x: 43, y: -40}, {x: 45, y: -39}, {x: 46, y: -37}, {x: 45, y: -40}, {x: 47, y: -40}, {x: 47, y: -41}, {x: 49, y: -41}, {x: 50, y: -40}, {x: 50, y: -42}, {x: 52, y: -42}, {x: 52, y: -41}, {x: 53, y: -41}, {x: 55, y: -41}, {x: 55, y: -40}, {x: 56, y: -41}, {x: 56, y: -42}, {x: 58, y: -41}, {x: 60, y: -41}, {x: 61, y: -41}, {x: 62, y: -42}, {x: 63, y: -42}, {x: 65, y: -41}, {x: 65, y: -40}, {x: 64, y: -43}, {x: 68, y: -40}, {x: 0, y: -1}, {x: 0, y: -2}, {x: 0, y: -2}, {x: 1, y: -3}, {x: 2, y: -4}, {x: 2, y: -6}, {x: 2, y: -7}, {x: 3, y: -8}, {x: 4, y: -9}, {x: 5, y: -9}, {x: 4, y: -11}, {x: 5, y: -11}, {x: 7, y: -10}, {x: 6, y: -12}, {x: 6, y: -13}, {x: 6, y: -14}, {x: 6, y: -15}, {x: 8, y: -15}, {x: 8, y: -17}, {x: 10, y: -17}, {x: 10, y: -18}, {x: 11, y: -19}, {x: 11, y: -20}, {x: 12, y: -20}, {x: 13, y: -21}, {x: 12, y: -22}, {x: 14, y: -22}, {x: 15, y: -23}, {x: 15, y: -24}, {x: 17, y: -24}, {x: 17, y: -25}, {x: 18, y: -26}, {x: 17, y: -28}, {x: 20, y: -27}, {x: 20, y: -28}, {x: 20, y: -29}, {x: 23, y: -28}, {x: 21, y: -31}, {x: 25, y: -29}, {x: 24, y: -31}, {x: 24, y: -33}],[{x: 23, y: -34}, {x: 22, y: -36}, {x: 25, y: -34}, {x: 26, y: -35}, {x: 26, y: -36}, {x: 27, y: -37}, {x: 29, y: -36}, {x: 28, y: -38}, {x: 31, y: -37}, {x: 30, y: -39}, {x: 30, y: -40}, {x: 31, y: -41}, {x: 32, y: -42}, {x: 35, y: -40}, {x: 34, y: -43}, {x: 37, y: -42}, {x: 36, y: -43}, {x: 38, y: -43}, {x: 39, y: -43}, {x: 38, y: -46}, {x: 40, y: -44}, {x: 42, y: -44}, {x: 41, y: -46}, {x: 43, y: -45}, {x: 45, y: -45}, {x: 45, y: -46}, {x: 47, y: -46}, {x: 47, y: -47}, {x: 48, y: -46}, {x: 49, y: -47}, {x: 51, y: -46}, {x: 51, y: -45}, {x: 51, y: -47}, {x: 52, y: -48}, {x: 54, y: -47}, {x: 54, y: -48}, {x: 56, y: -47}, {x: 57, y: -48}, {x: 58, y: -49}, {x: 60, y: -47}, {x: 61, y: -46}, {x: 59, y: -50}, {x: 63, y: -46}, {x: 0, y: -1}, {x: 0, y: -2}, {x: 0, y: -2}, {x: 1, y: -3}, {x: 1, y: -4}, {x: 1, y: -6}, {x: 2, y: -7}, {x: 2, y: -8}, {x: 3, y: -9}, {x: 4, y: -10}, {x: 3, y: -11}, {x: 4, y: -12}, {x: 5, y: -11}, {x: 5, y: -13}, {x: 5, y: -14}, {x: 5, y: -15}, {x: 5, y: -16}, {x: 7, y: -16}, {x: 6, y: -17}, {x: 8, y: -18}, {x: 8, y: -19}, {x: 9, y: -20}, {x: 9, y: -21}, {x: 9, y: -22}, {x: 11, y: -22}, {x: 11, y: -23}, {x: 12, y: -24}, {x: 12, y: -25}, {x: 13, y: -25}, {x: 14, y: -26}, {x: 15, y: -27}, {x: 15, y: -28}, {x: 14, y: -29}, {x: 17, y: -29}, {x: 17, y: -30}, {x: 16, y: -32}, {x: 20, y: -31}, {x: 18, y: -33}, {x: 22, y: -32}, {x: 21, y: -34}, {x: 20, y: -35}],[{x: 20, y: -36}, {x: 19, y: -38}, {x: 20, y: -37}, {x: 22, y: -37}, {x: 22, y: -39}, {x: 22, y: -40}, {x: 25, y: -39}, {x: 23, y: -41}, {x: 27, y: -40}, {x: 26, y: -42}, {x: 25, y: -44}, {x: 26, y: -44}, {x: 27, y: -45}, {x: 31, y: -44}, {x: 29, y: -46}, {x: 32, y: -45}, {x: 32, y: -47}, {x: 33, y: -47}, {x: 35, y: -47}, {x: 33, y: -49}, {x: 35, y: -48}, {x: 38, y: -47}, {x: 35, y: -50}, {x: 38, y: -49}, {x: 40, y: -49}, {x: 40, y: -51}, {x: 43, y: -49}, {x: 41, y: -52}, {x: 42, y: -52}, {x: 45, y: -50}, {x: 44, y: -52}, {x: 45, y: -52}, {x: 44, y: -54}, {x: 48, y: -51}, {x: 46, y: -55}, {x: 50, y: -52}, {x: 50, y: -54}, {x: 52, y: -54}, {x: 53, y: -54}, {x: 54, y: -54}, {x: 55, y: -53}, {x: 55, y: -54}, {x: 58, y: -53}, {x: 0, y: -1}, {x: 0, y: -2}, {x: 0, y: -2}, {x: 0, y: -3}, {x: 1, y: -4}, {x: 0, y: -6}, {x: 1, y: -7}, {x: 1, y: -8}, {x: 2, y: -9}, {x: 3, y: -10}, {x: 2, y: -11}, {x: 2, y: -12}, {x: 4, y: -12}, {x: 4, y: -13}, {x: 3, y: -14}, {x: 3, y: -15}, {x: 3, y: -16}, {x: 5, y: -17}, {x: 5, y: -18}, {x: 6, y: -19}, {x: 6, y: -20}, {x: 7, y: -20}, {x: 6, y: -22}, {x: 7, y: -22}, {x: 8, y: -23}, {x: 8, y: -24}, {x: 10, y: -25}, {x: 9, y: -26}, {x: 10, y: -27}, {x: 12, y: -27}, {x: 12, y: -28}, {x: 12, y: -29}, {x: 11, y: -31}, {x: 14, y: -30}, {x: 14, y: -31}, {x: 13, y: -33}, {x: 16, y: -33}, {x: 14, y: -35}, {x: 18, y: -34}, {x: 17, y: -36}, {x: 17, y: -37}],[{x: 15, y: -39}, {x: 16, y: -39}, {x: 18, y: -39}, {x: 19, y: -39}, {x: 18, y: -41}, {x: 18, y: -42}, {x: 21, y: -42}, {x: 19, y: -43}, {x: 23, y: -43}, {x: 20, y: -45}, {x: 21, y: -46}, {x: 23, y: -46}, {x: 22, y: -48}, {x: 26, y: -47}, {x: 24, y: -49}, {x: 27, y: -49}, {x: 27, y: -50}, {x: 28, y: -50}, {x: 30, y: -50}, {x: 28, y: -52}, {x: 30, y: -51}, {x: 32, y: -51}, {x: 31, y: -53}, {x: 33, y: -53}, {x: 34, y: -54}, {x: 34, y: -55}, {x: 37, y: -54}, {x: 35, y: -56}, {x: 36, y: -56}, {x: 39, y: -55}, {x: 38, y: -57}, {x: 40, y: -56}, {x: 39, y: -58}, {x: 44, y: -55}, {x: 41, y: -59}, {x: 44, y: -57}, {x: 44, y: -59}, {x: 45, y: -59}, {x: 48, y: -58}, {x: 47, y: -60}, {x: 48, y: -60}, {x: 51, y: -58}, {x: 50, y: -60}, {x: -1, y: -1}, {x: -1, y: -2}, {x: -1, y: -2}, {x: 0, y: -3}, {x: 0, y: -4}, {x: 0, y: -6}, {x: 0, y: -7}, {x: 0, y: -8}, {x: 1, y: -9}, {x: 1, y: -10}, {x: 1, y: -11}, {x: 1, y: -12}, {x: 3, y: -12}, {x: 2, y: -13}, {x: 2, y: -14}, {x: 2, y: -15}, {x: 2, y: -16}, {x: 3, y: -17}, {x: 3, y: -18}, {x: 4, y: -19}, {x: 4, y: -20}, {x: 4, y: -21}, {x: 4, y: -22}, {x: 5, y: -23}, {x: 6, y: -24}, {x: 6, y: -25}, {x: 7, y: -26}, {x: 6, y: -27}, {x: 7, y: -28}, {x: 9, y: -28}, {x: 8, y: -29}, {x: 9, y: -30}, {x: 8, y: -32}, {x: 10, y: -32}, {x: 12, y: -32}, {x: 9, y: -34}, {x: 12, y: -34}, {x: 11, y: -36}, {x: 15, y: -35}, {x: 14, y: -37}, {x: 13, y: -38}],[{x: 11, y: -40}, {x: 11, y: -41}, {x: 13, y: -40}, {x: 14, y: -41}, {x: 14, y: -42}, {x: 13, y: -44}, {x: 16, y: -44}, {x: 15, y: -45}, {x: 18, y: -45}, {x: 16, y: -47}, {x: 15, y: -48}, {x: 18, y: -48}, {x: 18, y: -49}, {x: 21, y: -49}, {x: 18, y: -51}, {x: 23, y: -51}, {x: 21, y: -52}, {x: 22, y: -53}, {x: 24, y: -53}, {x: 24, y: -54}, {x: 26, y: -54}, {x: 27, y: -54}, {x: 24, y: -57}, {x: 27, y: -56}, {x: 29, y: -57}, {x: 29, y: -58}, {x: 31, y: -58}, {x: 30, y: -59}, {x: 31, y: -59}, {x: 33, y: -59}, {x: 32, y: -60}, {x: 33, y: -60}, {x: 33, y: -61}, {x: 37, y: -60}, {x: 35, y: -62}, {x: 38, y: -62}, {x: 38, y: -63}, {x: 39, y: -63}, {x: 41, y: -63}, {x: 41, y: -65}, {x: 41, y: -64}, {x: 44, y: -64}, {x: 44, y: -65}, {x: -1, y: -1}, {x: -1, y: -2}, {x: -1, y: -2}, {x: 0, y: -3}, {x: 0, y: -4}, {x: -1, y: -6}, {x: -1, y: -7}, {x: -1, y: -8}, {x: 0, y: -9}, {x: 0, y: -10}, {x: 0, y: -11}, {x: 0, y: -12}, {x: 1, y: -12}, {x: 1, y: -13}, {x: 0, y: -14}, {x: 0, y: -15}, {x: 0, y: -16}, {x: 1, y: -17}, {x: 1, y: -18}, {x: 2, y: -19}, {x: 2, y: -20}, {x: 2, y: -21}, {x: 2, y: -22}, {x: 2, y: -23}, {x: 3, y: -24}, {x: 3, y: -25}, {x: 4, y: -26}, {x: 4, y: -27}, {x: 4, y: -28}, {x: 5, y: -29}, {x: 5, y: -30}, {x: 6, y: -31}, {x: 5, y: -32}, {x: 7, y: -33}, {x: 8, y: -34}, {x: 6, y: -35}, {x: 9, y: -35}, {x: 7, y: -37}, {x: 11, y: -37}, {x: 10, y: -38}, {x: 9, y: -39}],[{x: 7, y: -41}, {x: 7, y: -42}, {x: 9, y: -42}, {x: 10, y: -42}, {x: 9, y: -44}, {x: 9, y: -45}, {x: 11, y: -45}, {x: 10, y: -46}, {x: 13, y: -47}, {x: 11, y: -48}, {x: 11, y: -49}, {x: 12, y: -50}, {x: 13, y: -51}, {x: 15, y: -51}, {x: 13, y: -53}, {x: 17, y: -53}, {x: 16, y: -54}, {x: 17, y: -55}, {x: 18, y: -56}, {x: 18, y: -57}, {x: 20, y: -56}, {x: 21, y: -57}, {x: 19, y: -59}, {x: 21, y: -59}, {x: 23, y: -59}, {x: 22, y: -61}, {x: 25, y: -61}, {x: 23, y: -62}, {x: 24, y: -62}, {x: 27, y: -62}, {x: 26, y: -63}, {x: 28, y: -63}, {x: 26, y: -64}, {x: 30, y: -64}, {x: 28, y: -66}, {x: 32, y: -65}, {x: 31, y: -67}, {x: 32, y: -67}, {x: 33, y: -68}, {x: 34, y: -68}, {x: 35, y: -68}, {x: 38, y: -68}, {x: 37, y: -69}, {x: -1, y: -1}, {x: -1, y: -2}, {x: -1, y: -2}, {x: -1, y: -3}, {x: 0, y: -4}, {x: -1, y: -6}, {x: -2, y: -7}, {x: -2, y: -8}, {x: -1, y: -9}, {x: -1, y: -10}, {x: -1, y: -11}, {x: -2, y: -12}, {x: 0, y: -12}, {x: -1, y: -13}, {x: -1, y: -14}, {x: -2, y: -15}, {x: -2, y: -16}, {x: -1, y: -17}, {x: -1, y: -18}, {x: 0, y: -19}, {x: 0, y: -20}, {x: 0, y: -21}, {x: 0, y: -22}, {x: 0, y: -23}, {x: 1, y: -24}, {x: 0, y: -25}, {x: 1, y: -26}, {x: 1, y: -27}, {x: 1, y: -28}, {x: 2, y: -29}, {x: 2, y: -30}, {x: 2, y: -31}, {x: 2, y: -32}, {x: 4, y: -33}, {x: 4, y: -34}, {x: 2, y: -35}, {x: 5, y: -36}, {x: 3, y: -37}, {x: 7, y: -38}, {x: 6, y: -39}, {x: 5, y: -40}],[{x: 3, y: -41}, {x: 2, y: -42}, {x: 5, y: -42}, {x: 5, y: -43}, {x: 5, y: -44}, {x: 4, y: -45}, {x: 6, y: -46}, {x: 5, y: -47}, {x: 7, y: -48}, {x: 6, y: -49}, {x: 6, y: -50}, {x: 7, y: -51}, {x: 7, y: -52}, {x: 9, y: -53}, {x: 8, y: -54}, {x: 11, y: -54}, {x: 10, y: -56}, {x: 12, y: -56}, {x: 12, y: -57}, {x: 12, y: -58}, {x: 14, y: -58}, {x: 15, y: -59}, {x: 13, y: -60}, {x: 15, y: -61}, {x: 16, y: -61}, {x: 16, y: -62}, {x: 18, y: -63}, {x: 16, y: -65}, {x: 17, y: -64}, {x: 20, y: -64}, {x: 20, y: -65}, {x: 21, y: -65}, {x: 19, y: -67}, {x: 23, y: -67}, {x: 21, y: -68}, {x: 25, y: -68}, {x: 24, y: -69}, {x: 24, y: -70}, {x: 26, y: -71}, {x: 28, y: -71}, {x: 29, y: -71}, {x: 30, y: -71}, {x: 30, y: -73}, {x: -1, y: -1}, {x: -1, y: -2}, {x: -1, y: -2}, {x: -1, y: -3}, {x: -1, y: -4}, {x: -2, y: -6}, {x: -2, y: -7}, {x: -3, y: -8}, {x: -2, y: -9}, {x: -2, y: -10}, {x: -2, y: -11}, {x: -3, y: -12}, {x: -1, y: -12}, {x: -3, y: -13}, {x: -3, y: -14}, {x: -3, y: -15}, {x: -3, y: -16}, {x: -3, y: -17}, {x: -3, y: -18}, {x: -2, y: -19}, {x: -3, y: -20}, {x: -3, y: -21}, {x: -3, y: -22}, {x: -2, y: -23}, {x: -2, y: -24}, {x: -2, y: -25}, {x: -2, y: -26}, {x: -2, y: -27}, {x: -1, y: -28}, {x: -1, y: -29}, {x: -1, y: -30}, {x: -1, y: -31}, {x: -2, y: -32}, {x: 0, y: -33}, {x: 0, y: -34}, {x: -1, y: -35}, {x: 1, y: -36}, {x: 0, y: -37}, {x: 2, y: -38}, {x: 2, y: -39}, {x: 1, y: -40}],[{x: -2, y: -41}, {x: -2, y: -42}, {x: 0, y: -42}, {x: 0, y: -43}, {x: 0, y: -44}, {x: 0, y: -45}, {x: 1, y: -46}, {x: 0, y: -47}, {x: 2, y: -48}, {x: 1, y: -49}, {x: 0, y: -50}, {x: 1, y: -51}, {x: 2, y: -52}, {x: 3, y: -53}, {x: 2, y: -54}, {x: 5, y: -55}, {x: 4, y: -56}, {x: 6, y: -57}, {x: 6, y: -58}, {x: 6, y: -59}, {x: 8, y: -59}, {x: 8, y: -60}, {x: 7, y: -61}, {x: 8, y: -62}, {x: 10, y: -63}, {x: 9, y: -64}, {x: 12, y: -64}, {x: 10, y: -66}, {x: 11, y: -66}, {x: 12, y: -66}, {x: 13, y: -67}, {x: 15, y: -67}, {x: 12, y: -68}, {x: 16, y: -69}, {x: 14, y: -70}, {x: 17, y: -70}, {x: 17, y: -71}, {x: 18, y: -72}, {x: 19, y: -73}, {x: 20, y: -74}, {x: 21, y: -74}, {x: 22, y: -74}, {x: 22, y: -75}, {x: -1, y: -1}, {x: -2, y: -2}, {x: -2, y: -2}, {x: -1, y: -3}, {x: -1, y: -4}, {x: -3, y: -6}, {x: -3, y: -7}, {x: -4, y: -8}, {x: -3, y: -9}, {x: -3, y: -10}, {x: -3, y: -11}, {x: -4, y: -12}, {x: -3, y: -12}, {x: -4, y: -13}, {x: -4, y: -14}, {x: -5, y: -15}, {x: -5, y: -16}, {x: -5, y: -17}, {x: -5, y: -18}, {x: -4, y: -19}, {x: -5, y: -20}, {x: -5, y: -21}, {x: -5, y: -22}, {x: -5, y: -23}, {x: -4, y: -24}, {x: -5, y: -25}, {x: -5, y: -26}, {x: -5, y: -27}, {x: -4, y: -28}, {x: -4, y: -29}, {x: -4, y: -30}, {x: -5, y: -31}, {x: -5, y: -32}, {x: -3, y: -33}, {x: -4, y: -34}, {x: -5, y: -35}, {x: -3, y: -36}, {x: -4, y: -37}, {x: -2, y: -38}, {x: -3, y: -39}, {x: -3, y: -40}],[{x: -7, y: -41}, {x: -6, y: -42}, {x: -4, y: -42}, {x: -4, y: -43}, {x: -4, y: -44}, {x: -5, y: -45}, {x: -4, y: -46}, {x: -5, y: -47}, {x: -3, y: -48}, {x: -4, y: -49}, {x: -5, y: -50}, {x: -4, y: -51}, {x: -3, y: -52}, {x: -2, y: -53}, {x: -3, y: -54}, {x: -2, y: -55}, {x: -1, y: -56}, {x: 0, y: -57}, {x: 0, y: -58}, {x: 0, y: -59}, {x: 2, y: -59}, {x: 2, y: -60}, {x: 1, y: -61}, {x: 2, y: -62}, {x: 3, y: -63}, {x: 3, y: -64}, {x: 4, y: -65}, {x: 3, y: -66}, {x: 4, y: -66}, {x: 5, y: -67}, {x: 6, y: -68}, {x: 7, y: -68}, {x: 5, y: -69}, {x: 8, y: -70}, {x: 7, y: -71}, {x: 10, y: -72}, {x: 10, y: -73}, {x: 10, y: -74}, {x: 11, y: -75}, {x: 12, y: -76}, {x: 13, y: -75}, {x: 13, y: -76}, {x: 14, y: -77}, {x: -1, y: -1}, {x: -2, y: -2}, {x: -2, y: -2}, {x: -2, y: -3}, {x: -2, y: -4}, {x: -3, y: -6}, {x: -4, y: -6}, {x: -4, y: -7}, {x: -4, y: -9}, {x: -4, y: -10}, {x: -4, y: -11}, {x: -6, y: -11}, {x: -4, y: -12}, {x: -5, y: -12}, {x: -6, y: -13}, {x: -6, y: -14}, {x: -6, y: -15}, {x: -7, y: -16}, {x: -6, y: -17}, {x: -6, y: -19}, {x: -7, y: -19}, {x: -8, y: -20}, {x: -7, y: -21}, {x: -7, y: -22}, {x: -7, y: -23}, {x: -7, y: -24}, {x: -8, y: -25}, {x: -7, y: -27}, {x: -7, y: -28}, {x: -7, y: -29}, {x: -7, y: -30}, {x: -8, y: -30}, {x: -8, y: -32}, {x: -7, y: -33}, {x: -7, y: -34}, {x: -8, y: -35}, {x: -7, y: -36}, {x: -8, y: -37}, {x: -6, y: -38}, {x: -7, y: -39}, {x: -7, y: -40}],[{x: -10, y: -40}, {x: -11, y: -41}, {x: -9, y: -42}, {x: -9, y: -43}, {x: -9, y: -44}, {x: -10, y: -44}, {x: -9, y: -46}, {x: -9, y: -47}, {x: -8, y: -48}, {x: -9, y: -49}, {x: -10, y: -49}, {x: -9, y: -51}, {x: -8, y: -52}, {x: -8, y: -53}, {x: -9, y: -54}, {x: -8, y: -55}, {x: -7, y: -56}, {x: -6, y: -57}, {x: -7, y: -58}, {x: -7, y: -59}, {x: -5, y: -59}, {x: -5, y: -60}, {x: -6, y: -61}, {x: -5, y: -62}, {x: -4, y: -63}, {x: -4, y: -64}, {x: -3, y: -65}, {x: -4, y: -66}, {x: -3, y: -66}, {x: -2, y: -67}, {x: -2, y: -68}, {x: 0, y: -68}, {x: -2, y: -69}, {x: 1, y: -70}, {x: 0, y: -71}, {x: 2, y: -72}, {x: 2, y: -73}, {x: 2, y: -74}, {x: 3, y: -75}, {x: 4, y: -76}, {x: 5, y: -76}, {x: 5, y: -77}, {x: 6, y: -78}, {x: -1, y: -1}, {x: -2, y: -2}, {x: -2, y: -2}, {x: -2, y: -3}, {x: -2, y: -4}, {x: -4, y: -5}, {x: -5, y: -6}, {x: -5, y: -7}, {x: -5, y: -8}, {x: -5, y: -9}, {x: -5, y: -10}, {x: -7, y: -10}, {x: -5, y: -11}, {x: -6, y: -12}, {x: -7, y: -13}, {x: -8, y: -13}, {x: -8, y: -14}, {x: -8, y: -15}, {x: -8, y: -17}, {x: -8, y: -18}, {x: -9, y: -18}, {x: -9, y: -19}, {x: -10, y: -20}, {x: -9, y: -22}, {x: -9, y: -23}, {x: -10, y: -23}, {x: -10, y: -24}, {x: -10, y: -26}, {x: -10, y: -27}, {x: -11, y: -27}, {x: -10, y: -29}, {x: -11, y: -30}, {x: -11, y: -31}, {x: -10, y: -32}, {x: -11, y: -33}, {x: -11, y: -34}, {x: -11, y: -35}, {x: -12, y: -36}, {x: -10, y: -37}, {x: -11, y: -38}, {x: -11, y: -39}],[{x: -15, y: -39}, {x: -15, y: -40}, {x: -13, y: -40}, {x: -13, y: -41}, {x: -14, y: -42}, {x: -14, y: -43}, {x: -14, y: -44}, {x: -14, y: -45}, {x: -13, y: -47}, {x: -14, y: -47}, {x: -14, y: -48}, {x: -15, y: -49}, {x: -13, y: -51}, {x: -14, y: -52}, {x: -14, y: -53}, {x: -14, y: -54}, {x: -13, y: -55}, {x: -12, y: -56}, {x: -13, y: -57}, {x: -13, y: -58}, {x: -11, y: -58}, {x: -11, y: -59}, {x: -11, y: -60}, {x: -11, y: -62}, {x: -10, y: -63}, {x: -10, y: -64}, {x: -10, y: -65}, {x: -10, y: -66}, {x: -9, y: -66}, {x: -9, y: -67}, {x: -9, y: -68}, {x: -8, y: -68}, {x: -9, y: -69}, {x: -7, y: -70}, {x: -8, y: -71}, {x: -6, y: -72}, {x: -6, y: -73}, {x: -6, y: -74}, {x: -4, y: -75}, {x: -4, y: -76}, {x: -3, y: -76}, {x: -3, y: -77}, {x: -2, y: -78}, {x: -1, y: -1}, {x: -2, y: -2}, {x: -2, y: -2}, {x: -2, y: -3}, {x: -2, y: -4}, {x: -4, y: -5}, {x: -5, y: -5}, {x: -6, y: -6}, {x: -6, y: -7}, {x: -6, y: -8}, {x: -7, y: -9}, {x: -8, y: -10}, {x: -7, y: -10}, {x: -7, y: -11}, {x: -9, y: -11}, {x: -9, y: -12}, {x: -10, y: -13}, {x: -10, y: -14}, {x: -10, y: -16}, {x: -10, y: -17}, {x: -11, y: -17}, {x: -11, y: -19}, {x: -12, y: -19}, {x: -12, y: -20}, {x: -12, y: -21}, {x: -12, y: -22}, {x: -13, y: -23}, {x: -13, y: -24}, {x: -13, y: -25}, {x: -13, y: -26}, {x: -14, y: -27}, {x: -14, y: -28}, {x: -14, y: -29}, {x: -14, y: -30}, {x: -14, y: -31}, {x: -15, y: -32}, {x: -15, y: -33}, {x: -15, y: -34}, {x: -15, y: -35}, {x: -15, y: -37}, {x: -15, y: -38}]];
 function Chest(x, y) {
 	this.x = x;
 	this.y = y;
 	this.r = 0;
 	this.opening = false;
 	this.openDir = null;
-	this.closedArray = findPointsCircular(40, 50, 64);
+	this.lidArray = findPointsCircular(40, 50, 64); // circle passing through origin
+	this.initialized = false;
 	this.spawnedItem = false;
 };
 Chest.prototype.exist = function() {
-	if(p.x + 5 > this.x + p.worldX - 61 && p.x - 5 < this.x + p.worldX + 61 && p.y + 46 >= this.y + p.worldY - 10 && p.y + 46 <= this.y + p.worldY + 10 && keys[83] && p.canJump && !this.opening) {
+	this.update();
+	/* Square part of chest */
+	c.fillStyle = "rgb(139, 69, 19)";
+	cube(this.x + p.worldX - 20, this.y + p.worldY - 30, 40, 30, 0.95, 1.05, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	/* Chest lid */
+	var rotatedArray = [];
+	for(var i = 0; i < this.lidArray.length; i += this.lidArray.length / 18) {
+		/* Rotate each point to the lid's opening rotation, then add to rotatedArray */
+		var index = Math.floor(i);
+		var pos = this.lidArray[index];
+		var newPos = Math.rotate(pos.x - (this.openDir === "left" ? 0 : 40), pos.y, (this.openDir === "left" ? this.r : -this.r));
+		newPos.x += this.x + p.worldX + ((this.openDir === "left") ? -20 : 20);
+		newPos.y += this.y + p.worldY - 30;
+		rotatedArray.push(newPos);
+	}
+	polygon3d("rgb(139, 69, 19)", "rgb(159, 89, 39)", 0.95, 1.05, rotatedArray);
+};
+Chest.prototype.update = function() {
+	/* Initialize */
+	if(!this.initialized) {
+		for(var i = 0; i < this.lidArray.length; i ++) {
+			this.lidArray[i].x /= 2;
+			this.lidArray[i].y /= 2;
+			if(this.lidArray[i].y > 0) {
+				this.lidArray.splice(i, 1);
+				i --;
+				continue;
+			}
+		}
+		this.initialized = true;
+	}
+	/* Decide which direction to open from */
+	if(!this.opening) {
 		if(p.x < this.x + p.worldX) {
 			this.openDir = "right";
 		}
-		else  {
+		else {
 			this.openDir = "left";
 		}
+	}
+	if(p.x + 5 > this.x + p.worldX - 61 && p.x - 5 < this.x + p.worldX + 61 && p.y + 46 >= this.y + p.worldY - 10 && p.y + 46 <= this.y + p.worldY + 10 && keys[83] && p.canJump && !this.opening) {
 		this.opening = true;
+		if(p.x < this.x + p.worldX) {
+			this.openDir = "right";
+		}
+		else {
+			this.openDir = "left";
+		}
 	}
-	//square portion of chest
-	c.fillStyle = "rgb(139, 69, 19)";
-	cube(this.x + p.worldX - 20, this.y + p.worldY - 30, 40, 30, 0.95, 1.05, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	if(this.openDir === "left") {
-		//top of lid
-		if(this.r !== 0) {
-			for(var i = 0; i < chestAnimationArray[this.r / -6].length; i ++) {
-				var front = point3d(chestAnimationArray[this.r / -6][i].x / 2 + this.x + p.worldX - 20, chestAnimationArray[this.r / -6][i].y / 2 + this.y + p.worldY - 30, 1.05);
-				var back = point3d(chestAnimationArray[this.r / -6][i].x / 2 + this.x + p.worldX - 20, chestAnimationArray[this.r / -6][i].y / 2 + this.y + p.worldY - 30, 0.95);
-				c.strokeStyle = "rgb(159, 89, 39)";
-				c.beginPath();
-				c.moveTo(front.x, front.y);
-				c.lineTo(back.x, back.y);
-				c.stroke();
-			}
-		}
-		//bottom of lid
-		if(this.r !== 0) {
-			var topB = point3d(this.x + p.worldX - 20 + (chestAnimationArray[this.r / -6][42].x / 2), this.y + p.worldY - 30 + (chestAnimationArray[this.r / -6][42].y / 2), 0.95);
-			var topF = point3d(this.x + p.worldX - 20 + (chestAnimationArray[this.r / -6][42].x / 2), this.y + p.worldY - 30 + (chestAnimationArray[this.r / -6][42].y / 2), 1.05);
-			var bottomB = point3d(this.x + p.worldX - 20, this.y + p.worldY - 30, 0.95);
-			var bottomF = point3d(this.x + p.worldX - 20, this.y + p.worldY - 30, 1.05);
-			c.fillStyle = "rgb(159, 89, 39)";
-			c.beginPath();
-			c.moveTo(topB.x, topB.y);
-			c.lineTo(topF.x, topF.y);
-			c.lineTo(bottomF.x, bottomF.y);
-			c.lineTo(bottomB.x, bottomB.y);
-			c.fill();
-		}
-		//front of lid
-		c.fillStyle = "rgb(139, 69, 19)";
-		var corner = point3d(this.x + p.worldX - 20, this.y + p.worldY - 30, 1.05);
-		var center = point3d(this.x + p.worldX, this.y + p.worldY, 1.05);
-		c.save();
-		c.translate(corner.x, corner.y);
-
-		if(this.r !== 0) {
-			c.rotate(this.r / 360 * 2 * Math.PI - 0.145);
-		}
-		else if(this.r === -84) {
-			c.rotate(90 / 360 * 2 * Math.PI);
-		}
-
-		c.beginPath();
-		c.arc(20 * 1.05, 25 * 1.05, 32 * 1.05, 1.5 * Math.PI - 0.669, 1.5 * Math.PI + 0.669);
-		c.fill();
-
-		c.restore();
-	}
-	else if(this.openDir === "right") {
-		//top of lid
-		for(var i = 0; i < chestAnimationArray[this.r / -6].length; i ++) {
-			var front = point3d(chestAnimationArray[this.r / -6][i].x / -2 + this.x + p.worldX + 20, chestAnimationArray[this.r / -6][i].y / 2 + this.y + p.worldY - 30, 1.05);
-			var back = point3d(chestAnimationArray[this.r / -6][i].x / -2 + this.x + p.worldX + 20, chestAnimationArray[this.r / -6][i].y / 2 + this.y + p.worldY - 30, 0.95);
-			c.strokeStyle = "rgb(159, 89, 39)";
-			c.beginPath();
-			c.moveTo(front.x, front.y);
-			c.lineTo(back.x, back.y);
-			c.stroke();
-		}
-		//bottom of lid
-		if(this.r !== 0) {
-			var topB = point3d(this.x + p.worldX + 20 + (chestAnimationArray[this.r / -6][42].x / -2), this.y + p.worldY - 30 + (chestAnimationArray[this.r / -6][42].y / 2), 0.95);
-			var topF = point3d(this.x + p.worldX + 20 + (chestAnimationArray[this.r / -6][42].x / -2), this.y + p.worldY - 30 + (chestAnimationArray[this.r / -6][42].y / 2), 1.05);
-			var bottomB = point3d(this.x + p.worldX + 20, this.y + p.worldY - 30, 0.95);
-			var bottomF = point3d(this.x + p.worldX + 20, this.y + p.worldY - 30, 1.05);
-			c.fillStyle = "rgb(159, 89, 39)";
-			c.beginPath();
-			c.moveTo(topB.x, topB.y);
-			c.lineTo(topF.x, topF.y);
-			c.lineTo(bottomF.x, bottomF.y);
-			c.lineTo(bottomB.x, bottomB.y);
-			c.fill();
-		}
-		//front of lid
-		var corner = point3d(this.x + p.worldX + 20, this.y + p.worldY - 30, 1.05);
-		var center = point3d(this.x + p.worldX, this.y + p.worldY, 1.05);
-		c.fillStyle = "rgb(139, 69, 19)";
-		c.save();
-		c.translate(corner.x, corner.y);
-		if(this.r !== 0) {
-			c.rotate(-this.r / 360 * 2 * Math.PI + 0.145);
-		}
-		else if(this.r === -84) {
-			c.rotate(-90 / 360 * 2 * Math.PI);
-		}
-		c.beginPath();
-		c.arc(20 * -1.05, 25 * 1.05, 32 * 1.05, 1.5 * Math.PI - 0.669, 1.5 * Math.PI + 0.669);
-		c.fill();
-		c.restore();
-
-	}
-	else {
-		for(var i = 0; i < this.closedArray.length; i ++) {
-			if(this.closedArray[i].y <= 0) {
-				var front = point3d(this.closedArray[i].x / 2 + this.x + p.worldX - 20, this.closedArray[i].y / 2 + this.y + p.worldY - 30, 1.05);
-				var back = point3d(this.closedArray[i].x / 2 + this.x + p.worldX - 20, this.closedArray[i].y / 2 + this.y + p.worldY - 30, 0.95);
-				c.strokeStyle = "rgb(159, 89, 39)";
-				c.beginPath();
-				c.moveTo(front.x, front.y);
-				c.lineTo(back.x, back.y);
-				c.stroke();
-			}
-		}
-		c.fillStyle = "rgb(139, 69, 19)";
-		var corner = point3d(this.x + p.worldX - 20, this.y + p.worldY - 30, 1.05);
-		var center = point3d(this.x + p.worldX, this.y + p.worldY, 1.05);
-		c.save();
-		c.translate(corner.x, corner.y);
-		c.beginPath();
-		c.arc(20 * 1.05, 25 * 1.05, 32 * 1.05, 1.5 * Math.PI - 0.669, 1.5 * Math.PI + 0.669);
-		c.fill();
-		c.restore();
-	}
-	//animation
-	if(this.r > -84 && this.opening) {
+	/* Animation */
+	if(this.r >= -84 && this.opening) {
 		this.r -= 6;
 	}
-	//item spawning - give the player one item they don't already have
+	/* Item spawning - give the player an item they don't already have */
 	if(this.r <= -84 && !this.spawnedItem && this.opening) {
 		this.spawnedItem = true;
 		this.requestingItem = true;
@@ -3294,7 +3550,7 @@ FallBlock.prototype.exist = function() {
 	var shakeY = Math.random() * (this.timeShaking * 2) - this.timeShaking;
 	c.save();
 	c.translate(shakeX, shakeY);
-	//top face
+	/* Top face */
 	c.beginPath();
 	c.moveTo(topLeftF.x, topLeftF.y);
 	c.lineTo(topLeftB.x, topLeftB.y);
@@ -3302,7 +3558,7 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(topRightF.x, topRightF.y);
 	c.fill();
 	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
-	//left face
+	/* left face */
 	c.beginPath();
 	c.moveTo(topLeftF.x, topLeftF.y);
 	c.lineTo(topLeftB.x, topLeftB.y);
@@ -3310,7 +3566,7 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(bottomF.x, bottomF.y);
 	c.fill();
 	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
-	//right face
+	/* right face */
 	c.beginPath();
 	c.moveTo(topRightF.x, topRightF.y);
 	c.lineTo(topRightB.x, topRightB.y);
@@ -3318,8 +3574,8 @@ FallBlock.prototype.exist = function() {
 	c.lineTo(bottomF.x, bottomF.y);
 	c.fill();
 	collisionLine(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
-	//front face
-	c.fillStyle = "rgb(110, 110, 110)";
+	/* front face */
+	// c.fillStyle = "rgb(110, 110, 110)";
 	// c.beginPath();
 	// c.moveTo(topLeftF.x, topLeftF.y);
 	// c.lineTo(topRightF.x, topRightF.y);
@@ -3367,7 +3623,6 @@ FallBlock.prototype.exist = function() {
 		this.allDone = false;
 	}
 };
-var partOfAStair;
 function Stairs(x, y, numSteps, dir) {
 	this.x = x;
 	this.y = y;
@@ -3387,24 +3642,18 @@ function Stairs(x, y, numSteps, dir) {
 	}
 };
 Stairs.prototype.exist = function(noGraphics) {
-	partOfAStair = true;
+	tempVars.partOfAStair = true;
 	if(this.dir === "right") {
 		for(var i = 0; i < this.steps.length; i ++) {
-			this.steps[i].update();
-			if(!noGraphics) {
-				this.steps[i].display();
-			}
+			this.steps[i].exist();
 		}
 	}
 	else {
 		for(var i = 0; i < this.steps.length; i ++) {
-			this.steps[i].update();
-			if(!noGraphics) {
-				this.steps[i].display();
-			}
+			this.steps[i].exist();
 		}
 	}
-	partOfAStair = false;
+	tempVars.partOfAStair = false;
 };
 function Altar(x, y, type) {
 	this.x = x;
@@ -3413,19 +3662,23 @@ function Altar(x, y, type) {
 	this.particles = [];
 };
 Altar.prototype.exist = function() {
+	this.update();
+	this.display();
+};
+Altar.prototype.update = function() {
 	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 46 > this.y + p.worldY - 20 && p.y - 5 < this.y + p.worldY + 20) {
 		if(this.type === "health") {
 			p.health += 10;
 			p.maxHealth += 10;
-			// roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max health", "rgb(255, 0, 0)"));
 		}
 		else if(this.type === "mana") {
 			p.mana += 10;
 			p.maxMana += 10;
-			// roomInstances[inRoom].content.push(new Words(p.x - p.worldX + 70, p.y - p.worldY, "+1 max mana", "rgb(0, 0, 255)"));
 		}
 		this.splicing = true;
 	}
+};
+Altar.prototype.display = function() {
 	for(var i = 0; i < 5; i ++) {
 		this.particles.push(new Particle(this.type === "health" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)", this.x + Math.random() * 40 - 20, this.y + Math.random() * 40 - 20, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
 	}
@@ -3435,27 +3688,6 @@ Altar.prototype.exist = function() {
 			this.particles.splice(i, 1);
 			continue;
 		}
-	}
-};
-function Words(x, y, words, color) {
-	this.x = x;
-	this.y = y;
-	this.words = words;
-	this.color = color;
-	this.opacity = 1;
-};
-Words.prototype.exist = function() {
-	c.save();
-	c.globalAlpha = this.opacity;
-	c.fillStyle = this.color;
-	c.font = "bolder 20pt monospace";
-	c.textAlign = "center";
-	c.fillText(this.words, this.x + p.worldX, this.y + p.worldY);
-	c.restore();
-	this.y --;
-	this.opacity -= 0.05;
-	if(this.opacity <= 0) {
-		this.splicing = true;
 	}
 };
 function Forge(x, y) {
@@ -3536,40 +3768,21 @@ function Pulley(x1, w1, x2, w2, y, maxHeight) {
 	this.maxHeight = maxHeight;
 };
 Pulley.prototype.exist = function() {
-	//first platform
-	new Platform(this.x1, this.y1, this.w1).exist();
-	var leftBack = point3d(this.x1 + p.worldX, this.y1 + p.worldY, 0.9);
-	var leftFront = point3d(this.x1 + p.worldX, this.y1 + p.worldY, 1.1);
-	var rightBack = point3d(this.x1 + this.w1 + p.worldX, this.y1 + p.worldY, 0.9);
-	var rightFront = point3d(this.x1 + this.w1 + p.worldX, this.y1 + p.worldY, 1.1);
-	c.strokeStyle = "rgb(150, 150, 150)";
-	c.beginPath();
-	c.moveTo(leftBack.x, leftBack.y);
-	c.lineTo(leftBack.x, 0);
-	c.moveTo(leftFront.x, leftFront.y);
-	c.lineTo(leftFront.x, 0);
-	c.moveTo(rightBack.x, rightBack.y);
-	c.lineTo(rightBack.x, 0);
-	c.moveTo(rightFront.x, rightFront.y);
-	c.lineTo(rightFront.x, 0);
-	c.stroke();
-	//second platform
-	new Platform(this.x2, this.y2, this.w2).exist();
-	var leftBack = point3d(this.x2 + p.worldX, this.y2 + p.worldY, 0.9);
-	var leftFront = point3d(this.x2 + p.worldX, this.y2 + p.worldY, 1.1);
-	var rightBack = point3d(this.x2 + this.w1 + p.worldX, this.y2 + p.worldY, 0.9);
-	var rightFront = point3d(this.x2 + this.w1 + p.worldX, this.y2 + p.worldY, 1.1);
-	c.beginPath();
-	c.moveTo(leftBack.x, leftBack.y);
-	c.lineTo(leftBack.x, 0);
-	c.moveTo(leftFront.x, leftFront.y);
-	c.lineTo(leftFront.x, 0);
-	c.moveTo(rightBack.x, rightBack.y);
-	c.lineTo(rightBack.x, 0);
-	c.moveTo(rightFront.x, rightFront.y);
-	c.lineTo(rightFront.x, 0);
-	c.stroke();
-	//moving
+	/* Graphics & Hitbox */
+	function platform(x, y, w) {
+		new Platform(x, y, w).exist();
+		cube(x + p.worldX, -100, 3, y + 100 + p.worldY, 0.9, 0.9, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
+		cube(x + p.worldX, -100, 3, y + 100 + p.worldY, 1.1, 1.1, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
+		cube(x + w + p.worldX, -100, 3, y + 100 + p.worldY, 0.9, 0.9, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
+		cube(x + w + p.worldX, -100, 3, y + 100 + p.worldY, 1.1, 1.1, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
+	};
+	platform(this.x1, this.y1, this.w1);
+	platform(this.x2, this.y2, this.w2);
+	/* Moving */
+	this.update();
+};
+Pulley.prototype.update = function() {
+	/* Moving */
 	this.steppedOn1 = false;
 	this.steppedOn2 = false;
 	if(p.x + 5 > this.x1 + p.worldX && p.x - 5 < this.x1 + this.w1 + p.worldX && p.canJump && this.y1 < this.origY + this.maxHeight) {
@@ -3582,13 +3795,15 @@ Pulley.prototype.exist = function() {
 	}
 	this.y1 += this.velY;
 	this.y2 -= this.velY;
-	this.y1 = Math.round(this.y1);
-	this.y2 = Math.round(this.y2);
+	// this.y1 = Math.round(this.y1);
+	// this.y2 = Math.round(this.y2);
 	if(this.steppedOn1) {
-		p.y = this.y1 + p.worldY - 46;
+		// p.y = this.y1 + p.worldY - 46;
+		p.y += this.velY;
 	}
 	else if(this.steppedOn2) {
-		p.y = this.y2 + p.worldY - 46;
+		// p.y = this.y2 + p.worldY - 46;
+		p.y -= this.velY;
 	}
 	if(!this.steppedOn1 && !this.steppedOn2) {
 		this.velY = 0;
@@ -3636,18 +3851,18 @@ function Pillar(x, y, h) {
 	this.h = h;
 };
 Pillar.prototype.exist = function() {
-	//base
+	/* Base */
 	cube(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, 0.9, 1.1);
 	cube(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, 0.9, 1.1);
-	//top
+	/* Top */
 	cube(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12, 0.9, 1.1);
 	cube(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10, 0.9, 1.1);
-	//pillar
-	cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05, undefined, undefined, { noFrontExtended: true });
-	//base collisions
+	/* Pillar */
+	cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05, null, null, { noFrontExtended: true });
+	/* Base collisions */
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	collisionRect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, {walls: [true, true, true, true], illegalHandling: "teleport"});
-	//top collisions
+	/* Top collisions */
 	collisionRect(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12);
 	collisionRect(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10);
 };
@@ -3812,7 +4027,7 @@ TiltPlatform.prototype.exist = function() {
 	this.p1 = p1;
 	this.p2 = p2;
 	//graphics
-	cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01, { noFrontExtended: true });
+	cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01, null, null, { noFrontExtended: true });
 	if(Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
 		this.collides = function(x, y) {
 			var p1 = point3d(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, 1.1);
@@ -3834,28 +4049,6 @@ TiltPlatform.prototype.exist = function() {
 		while(this.collides(this.origX + p.worldX + 5, topR)) {
 			topR ++;
 		}
-		boxFronts[boxFronts.length - 1] = {
-		type: "polygon",
-		col: "rgb(110, 110, 110)",
-		loc: [
-			{
-				x: boxFronts[boxFronts.length - 1].loc[0],
-				y: topL
-			},
-			{
-				x: boxFronts[boxFronts.length - 1].loc[0] + boxFronts[boxFronts.length - 1].loc[2],
-				y: topR
-			},
-			{
-				x: boxFronts[boxFronts.length - 1].loc[0] + boxFronts[boxFronts.length - 1].loc[2],
-				y: 800
-			},
-			{
-				x: boxFronts[boxFronts.length - 1].loc[0],
-				y: 800
-			}
-		]
-	};
 	}
 	polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
 		{
@@ -3878,7 +4071,7 @@ TiltPlatform.prototype.exist = function() {
 	//hitbox
 	collisionLine(p1.x + this.x + p.worldX, p1.y + this.y + p.worldY, p2.x + this.x + p.worldX, p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	if(p.x > p1.x + this.x + p.worldX && p.x < -p1.x + this.x + p.worldX && !p.canJump && p.onGroundBefore && p.velY >= 0 && Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
-		while(!p.canJump) {
+		while(!p.canJump && false) {
 			p.y ++;
 			collisionLine(p1.x + this.x + p.worldX, p1.y + this.y + p.worldY, p2.x + this.x + p.worldX, p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
 		}
@@ -4109,23 +4302,24 @@ Bridge.prototype.exist = function() {
 	c.lineTo(lowF.x - 80, 800);
 	c.stroke();
 	//hitbox
-	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000 || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000) {
-		p.y --;
-		p.canJump = true;
-		p.velY = (p.velY > 3) ? 3 : p.velY;
-	}
-	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-		if(roomInstances[theRoom].content[i] instanceof Enemy) {
-			while(Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].leftX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000 || Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].rightX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000) {
-				roomInstances[theRoom].content[i].y --;
-				roomInstances[theRoom].content[i].velY = (roomInstances[theRoom].content[i].velY > 3) ? 3 : roomInstances[theRoom].content[i].velY;
-				if(roomInstances[theRoom].content[i] instanceof Bat && roomInstances[theRoom].content[i].timePurified > 0) {
-					roomInstances[theRoom].content[i].dest = {x: roomInstances[theRoom].content[i].x + (Math.random() * 200 - 100), y: roomInstances[theRoom].content[i].y + (Math.random() * 200 - 100)};
-					roomInstances[theRoom].content[i].velY = 0;
-				}
-			}
-		}
-	}
+	collisions.push(new CollisionCircle(this.x, this.y + 500, 500));
+	// while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000 || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000) {
+	// 	p.y --;
+	// 	p.canJump = true;
+	// 	p.velY = (p.velY > 3) ? 3 : p.velY;
+	// }
+	// for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+	// 	if(roomInstances[theRoom].content[i] instanceof Enemy) {
+	// 		while(Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].leftX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000 || Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].rightX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000) {
+	// 			roomInstances[theRoom].content[i].y --;
+	// 			roomInstances[theRoom].content[i].velY = (roomInstances[theRoom].content[i].velY > 3) ? 3 : roomInstances[theRoom].content[i].velY;
+	// 			if(roomInstances[theRoom].content[i] instanceof Bat && roomInstances[theRoom].content[i].timePurified > 0) {
+	// 				roomInstances[theRoom].content[i].dest = {x: roomInstances[theRoom].content[i].x + (Math.random() * 200 - 100), y: roomInstances[theRoom].content[i].y + (Math.random() * 200 - 100)};
+	// 				roomInstances[theRoom].content[i].velY = 0;
+	// 			}
+	// 		}
+	// 	}
+	// }
 };
 function BookShelf(x, y) {
 	this.x = x;
@@ -4240,7 +4434,7 @@ Chandelier.prototype.exist = function() {
 				c.stroke();
 			}
 			else {
-				cube(p.worldX + this.points[indexes[i].index].x - 5, p.worldY + this.points[indexes[i].index].y - 10, 10, 10, this.points[indexes[i].index].z - 0.01, this.points[indexes[i].index].z + 0.01, null, null, true);
+				cube(p.worldX + this.points[indexes[i].index].x - 5, p.worldY + this.points[indexes[i].index].y - 10, 10, 10, this.points[indexes[i].index].z - 0.01, this.points[indexes[i].index].z + 0.01, null, null);
 				this.particles.push(new Particle("rgb(255, 128, 0)", this.points[indexes[i].index].x, this.points[indexes[i].index].y - 10, Math.random() * 2 - 1, Math.random() * -2, 5));
 				this.particles[this.particles.length - 1].z = this.points[indexes[i].index].z;
 			}
@@ -4507,11 +4701,11 @@ GlassWindow.prototype.exist = function() {
 	c.fillStyle = "rgb(100, 100, 100)";
 	c.fillRect(0, 0, 800, 800);
 	//background
-	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, undefined, undefined, { noFrontExtended: true });
-	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, undefined, undefined, { noFrontExtended: true });
+	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
+	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
 	//cross patterns
 	if(this.color === "red") {
 		c.strokeStyle = "rgb(200, 50, 0)";
@@ -4560,7 +4754,9 @@ function Roof(x, y, w) {
 Roof.prototype.exist = function() {
 	if(this.type === null) {
 		var chooser = Math.random();
-		chooser = 1;
+		if(hax) {
+			chooser = 1;
+		}
 		if(chooser < 0.25) {
 			this.type = "none";
 		}
@@ -4627,16 +4823,19 @@ Roof.prototype.exist = function() {
 			}
 		}
 		var array = [];
-		array.push({x: -100, y: -100});
-		array.push({x: -100, y: this.y + p.worldY});
 		for(var i = 0; i < this.points.length; i += (this.points.length / 36)) {
 			array.push({x: this.points[Math.floor(i)].x + p.worldX, y: this.points[Math.floor(i)].y + p.worldY});
 		}
+		for(var i = 1; i < array.length; i ++) {
+			collisionLine(array[i].x, array[i].y, array[i - 1].x, array[i - 1].y);
+		}
+		array.splice(0, 0, {x: -100, y: -100}, {x: -100, y: this.y + p.worldY}, {x: this.x + p.worldX - this.w, y: this.y + p.worldY});
+		array.push({x: this.x + p.worldX + this.w, y: this.y + p.worldY});
 		array.push({x: 900, y: this.y + p.worldY});
 		array.push({x: 900, y: -100});
 		polygon3d("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, array);
-		for(var i = 1; i < array.length; i ++) {
-			collisionLine(array[i].x, array[i].y, array[i - 1].x, array[i - 1].y);
+		while(Math.distSq(p.x + p.worldX, this.y - (this.y - (p.y + p.worldY - 7)) / 2, this.x, this.y) > (this.w / 2) * (this.w / 2) && p.y - 7 < this.y) {
+			p.y ++;
 		}
 	}
 };
@@ -4886,26 +5085,27 @@ function Room(type, content, id, minWorldY, background) {
 	this.type = type;
 	this.content = content;
 	this.id = id;
-	this.hasEnemy = false;
 	this.pathScore = null;
 	this.background = background || null;
 	this.minWorldY = minWorldY;
 	this.colorScheme = null;
 };
 Room.prototype.exist = function(index) {
+	c.globalAlpha = 1;
+	c.fillStyle = "rgb(100, 100, 100)";
+	c.resetTransform();
+	c.fillRect(0, 0, 800, 800);
 	if(this.background === null) {
 		this.background = (Math.random() < 0.5) ? "plain" : "bricks";
 	}
 	boxFronts = [];
 	extraGraphics = [];
 	hitboxes = [];
+	collisions = [];
 	var chestIndexes = [];
 	var boulderIndexes = [];
 	var chargeIndexes = [];
 	p.canUseEarth = true;
-	if(hax) {
-		p.health = p.maxHealth;
-	}
 	//hax
 	for(var i = 0; i < this.content.length; i ++) {
 		if(this.content[i] instanceof Enemy) {
@@ -4943,6 +5143,22 @@ Room.prototype.exist = function(index) {
 			c.rect(this.content[chestIndex].x - 50 - (this.content[i].x), this.content[chestIndex].y - 1000 - (this.content[i].y), 100, 1000);
 			c.clip();
 			this.content[i].display("item");
+			// thingsToBeRendered.push(new RenderingObject(
+			// 	this.content[i],
+			// 	{
+			// 		x: this.content[i].x + p.worldX - 25,
+			// 		y: this.content[i].y + p.worldY - 25,
+			// 		w: 50,
+			// 		h: 50
+			// 	},
+			// 	{
+			// 		x: this.content[i].x + p.worldX - 25,
+			// 		y: this.content[i].y + p.worldY - 25,
+			// 		w: 50,
+			// 		h: 50,
+			// 		z: 1
+			// 	}
+			// ));
 			c.restore();
 			this.content[i].animate();
 			if(this.content[i].opacity <= 0) {
@@ -5030,14 +5246,11 @@ Room.prototype.exist = function(index) {
 				continue;
 			}
 		}
-		if(this.content[i] instanceof Chest) {
-			chestIndexes.push(i);
-		}
 		if(this.content[i] instanceof BoulderVoid) {
 			p.canUseEarth = false;
 		}
 	}
-	//load chest fronts after everything else
+	/* load chest fronts after everything else */
 	for(var i = 0; i < chestIndexes.length; i ++) {
 		if(this.content[chestIndexes[i]].y + p.worldY > 400) {
 			this.content[chestIndexes[i]].exist();
@@ -5050,15 +5263,24 @@ Room.prototype.exist = function(index) {
 			}
 		}
 	}
-	//load block fronts after everything else
+	/* load block fronts after everything else */
 	loadBoxFronts();
-	//load magic charges
+	/* load magic charges */
 	for(var i = 0; i < chargeIndexes.length; i ++) {
 		this.content[chargeIndexes[i]].exist();
 	}
 	//load boulders
 	for(var i = 0; i < boulderIndexes.length; i ++) {
 		this.content[boulderIndexes[i]].exist();
+	}
+	/* Collisions */
+	// console.log("Room #" + index);
+	// console.log(collisions);
+	if(inRoom === index) {
+		p.canJump = false;
+	}
+	for(var i = 0; i < collisions.length; i ++) {
+		collisions[i].collide();
 	}
 	//show hitboxes
 	for(var i = 0; i < hitboxes.length; i ++) {
@@ -5084,6 +5306,35 @@ Room.prototype.exist = function(index) {
 	c.fillStyle = "rgb(255, 0, 0)";
 	c.globalAlpha = (p.damOp > 0) ? p.damOp : 0;
 	c.fillRect(0, 0, 800, 800);
+};
+Room.prototype.displayBackground = function() {
+	if(this.background === "bricks") {
+		c.save();
+		c.translate((p.worldX * 0.9) % 100, (p.worldY * 0.9) % 100);
+		c.strokeStyle = "rgb(110, 110, 110)";
+		c.lineWidth = 4;
+		for(var y = -100; y < 900; y += 50) {
+			c.beginPath();
+			c.moveTo(-100, y);
+			c.lineTo(900, y);
+			c.stroke();
+			for(var x = (y % 100 === 0) ? -100 : -50; x < 900; x += 100) {
+				c.beginPath();
+				c.moveTo(x, y);
+				c.lineTo(x, y + 50);
+				c.stroke();
+			}
+		}
+		c.restore();
+	}
+};
+Room.prototype.containsEnemies = function() {
+	for(var i = 0; i < this.content.length; i ++) {
+		if(this.content[i] instanceof Enemy) {
+			return true;
+		}
+	}
+	return false;
 };
 var rooms = [
 	{
@@ -5480,6 +5731,7 @@ var rooms = [
 						new Block(1400, -1000, 1000, 2000), //right wall
 						new Door(1300, 500, ["ambient"], false),
 						new Roof(700, 200, 700),
+						// new Roof(700, 200, 350),
 						new Decoration(600, 350),
 						new Decoration(800, 350)
 					],
@@ -5805,14 +6057,20 @@ var roomInstances = [
 if(hax) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat2" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "ambient6" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	enemies = [SkeletonWarrior];
+	enemies = [Skeleton, Wraith];
 	items = [Helmet];
+	// for(var i = 0; i < roomInstances[0].content.length; i ++) {
+	// 	if(roomInstances[0].content[i] instanceof Door) {
+	// 		roomInstances[0].content[i].dest = ["reward"];
+	// 	}
+	// }
+	// enemies = [SkeletonWarrior];
 	for(var i = 0; i < roomInstances[0].content.length; i ++) {
 		if(roomInstances[0].content[i] instanceof Door) {
 			// roomInstances[0].content[i].dest = ["reward"];
@@ -5837,9 +6095,7 @@ Item.prototype.init = function() {
 		}
 	}
 	this.initialized = true;
-	console.log("velY is " + this.velY);
 	this.velY = -4;
-	console.log("velY is " + this.velY);
 	this.opacity = 1;
 };
 Item.prototype.animate = function() {
@@ -5981,23 +6237,25 @@ function Weapon(modifier) {
 };
 inheritsFrom(Weapon, Item);
 Weapon.prototype.displayParticles = function() {
+	if(this.element === null || this.element === "none") {
+		return;
+	}
 	for(var i = 0; i < 5; i ++) {
+		var color = "rgb(255, 255, 255)"; // default color
 		if(this.element === "fire") {
-			this.particles.push(new Particle("rgb(255, 128, 0)", Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
-			this.particles[this.particles.length - 1].opacity = 0.25;
+			color = "rgb(255, 128, 0)";
 		}
 		else if(this.element === "water") {
-			this.particles.push(new Particle("rgb(0, 255, 255)", Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
-			this.particles[this.particles.length - 1].opacity = 0.25;
+			color = "rgb(0, 255, 255)";
 		}
 		else if(this.element === "earth") {
-			this.particles.push(new Particle("rgb(0, 255, 0)", Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
-			this.particles[this.particles.length - 1].opacity = 0.25;
+			color = "rgb(0, 255, 0)";
 		}
 		else if(this.element === "air") {
-			this.particles.push(new Particle("rgb(255, 255, 255)", Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
-			this.particles[this.particles.length - 1].opacity = 0.25;
+			color = "rgb(255, 255, 255)";
 		}
+		this.particles.push(new Particle(color, Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
+		this.particles[this.particles.length - 1].opacity = 0.25;
 	}
 	for(var i = 0; i < this.particles.length; i ++) {
 		this.particles[i].exist();
@@ -6041,7 +6299,7 @@ Dagger.prototype.getDesc = function() {
 		{
 			content: "Damage: " + this.damLow + "-" + this.damHigh,
 			font: "10pt monospace",
-			color: "rgb(255, 255, 255)"
+			color: (this.modifier === "none") ? "rgb(255, 255, 255)" : (this.modifier === "light" ? "rgb(255, 0, 0)" : "rgb(50, 255, 50)")
 		},
 		{
 			content: "Range: Very Short",
@@ -6062,6 +6320,7 @@ Dagger.prototype.getDesc = function() {
 	return desc;
 };
 Dagger.prototype.display = function(type) {
+	type = type || "item";
 	c.fillStyle = "rgb(139, 69, 19)";
 	if(type !== "attacking") {
 		c.translate(-13, 13);
@@ -6089,6 +6348,7 @@ function Sword(modifier) {
 };
 inheritsFrom(Sword, MeleeWeapon);
 Sword.prototype.display = function(type) {
+	type = type || "item";
 	if(type === "holding" || type === "item") {
 		c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
 		c.fillStyle = "rgb(139, 69, 19)";
@@ -6167,6 +6427,7 @@ function Spear(modifier) {
 };
 inheritsFrom(Spear, MeleeWeapon);
 Spear.prototype.display = function(type) {
+	type = type || "item";
 	c.save();
 	if(type !== "attacking") {
 		c.translate(-5, 5);
@@ -6227,6 +6488,7 @@ function Mace(modifier) {
 };
 inheritsFrom(Mace, MeleeWeapon);
 Mace.prototype.display = function(type) {
+	type = type || "item";
 	if(type === "item" || type === "holding") {
 		c.fillStyle = "rgb(60, 60, 60)";
 		c.strokeStyle = "rgb(60, 60, 60)";
@@ -6305,6 +6567,7 @@ function Arrow(quantity) {
 };
 inheritsFrom(Arrow, RangedWeapon);
 Arrow.prototype.display = function(type) {
+	type = type || "item";
 	if(type === "item" || type === "holding") {
 		c.strokeStyle = "rgb(139, 69, 19)";
 		c.lineWidth = 4;
@@ -6358,6 +6621,7 @@ function WoodBow(modifier) {
 };
 inheritsFrom(WoodBow, RangedWeapon);
 WoodBow.prototype.display = function(type) {
+	type = type || "item";
 	if(type === "holding" || type === "item") {
 		c.strokeStyle = "rgb(139, 69, 19)";
 		c.lineWidth = 4;
@@ -6416,6 +6680,7 @@ function MetalBow(modifier) {
 };
 inheritsFrom(MetalBow, RangedWeapon);
 MetalBow.prototype.display = function(type) {
+	type = type || "item";
 	if(type === "holding" || type === "item") {
 		c.strokeStyle = "rgb(200, 200, 200)";
 		c.lineWidth = 4;
@@ -6475,6 +6740,7 @@ function MechBow(modifier) {
 };
 inheritsFrom(MechBow, RangedWeapon);
 MechBow.prototype.display = function(type) {
+	type = type || "item";
 	c.save();
 	if(type === "aiming") {
 		c.translate(-10, 0);
@@ -6570,6 +6836,7 @@ function LongBow(modifier) {
 };
 inheritsFrom(LongBow, RangedWeapon);
 LongBow.prototype.display = function(type) {
+	type = type || "item";
 	c.save();
 	if(type === "aiming") {
 		c.translate(-10, 0);
@@ -6632,12 +6899,13 @@ function EnergyStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.chargeType = "energy";
 	this.manaCost = (this.modifier === "none") ? 40 : (this.modifier === "arcane" ? 50 : 30);
-	this.damLow = (p.class === "mage") ? 80 : 70;
+	this.damLow = (p.class === "mage") ? 80 : 70; // 47.5 damage average with 1/2 damage nerf
 	this.damHigh = (p.class === "mage") ? 110 : 100;
 	this.power = 3;
 };
 inheritsFrom(EnergyStaff, MagicWeapon);
 EnergyStaff.prototype.display = function(type) {
+	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
 	c.save();
 	c.lineWidth = 4;
@@ -6687,6 +6955,7 @@ function ElementalStaff(modifier) {
 };
 inheritsFrom(ElementalStaff, MagicWeapon);
 ElementalStaff.prototype.display = function(type) {
+	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
 	c.fillStyle = "rgb(139, 69, 19)";
 	c.save();
@@ -6872,6 +7141,7 @@ function ChaosStaff(modifier) {
 };
 inheritsFrom(ChaosStaff, MagicWeapon);
 ChaosStaff.prototype.display = function(type) {
+	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
 	c.save();
 	c.lineWidth = 4;
@@ -7043,7 +7313,7 @@ Helmet.prototype.display = function() {
 Helmet.prototype.getDesc = function() {
 	return [
 		{
-			content: "Helmet of Regeneration",
+			content: ((this.modifier === "none") ? "" : (this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, Infinity + " "))) + " Helmet of Regeneration",
 			color: "rgb(255, 255, 255)",
 			font: "bolder 10pt Cursive"
 		},
@@ -7120,6 +7390,7 @@ function FireCrystal() {
 };
 inheritsFrom(FireCrystal, Crystal);
 FireCrystal.prototype.display = function(type) {
+	type = type || "item";
 	c.fillStyle = "rgb(255, 100, 0)";
 	c.strokeStyle = "rgb(255, 0, 0)";
 	this.graphics(type);
@@ -7149,6 +7420,7 @@ function WaterCrystal() {
 };
 inheritsFrom(WaterCrystal, Crystal);
 WaterCrystal.prototype.display = function(type) {
+	type = type || "item";
 	c.fillStyle = "rgb(0, 255, 255)";
 	c.strokeStyle = "rgb(0, 128, 255)";
 	this.graphics(type);
@@ -7177,6 +7449,7 @@ function EarthCrystal() {
 };
 inheritsFrom(EarthCrystal, Crystal);
 EarthCrystal.prototype.display = function(type) {
+	type = type || "item";
 	c.fillStyle = "rgb(0, 128, 128)";
 	c.strokeStyle = "rgb(0, 128, 0)";
 	this.graphics(type);
@@ -7347,6 +7620,7 @@ function AirCrystal() {
 };
 inheritsFrom(AirCrystal, Crystal);
 AirCrystal.prototype.display = function(type) {
+	type = type || "item";
 	c.fillStyle = "rgb(150, 150, 150)";
 	c.strokeStyle = "rgb(220, 220, 220)";
 	this.graphics(type);
@@ -7379,6 +7653,22 @@ function WindBurst(x, y, dir, noDisplay) {
 	this.opacity = 1;
 };
 WindBurst.prototype.exist = function() {
+	// thingsToBeRendered.push(new RenderingObject(
+	// 	this,
+	// 	{
+	// 		x: (this.dir == "right") ? this.x + p.worldX : this.x + p.worldX - 49,
+	// 		y: this.y + p.worldY - 34,
+	// 		w: 49,
+	// 		h: 34
+	// 	},
+	// 	{
+	// 		x: (this.dir == "right") ? this.x + p.worldX : this.x + p.worldX - 49,
+	// 		y: this.y + p.worldY - 34,
+	// 		w: 49,
+	// 		h: 34,
+	// 		z: 1
+	// 	}
+	// ));
 	this.display();
 	this.update();
 };
@@ -7500,6 +7790,7 @@ function Barricade() {
 };
 inheritsFrom(Barricade, Extra);
 Barricade.prototype.display = function(type) {
+	type = type || "item";
 	if(type === "item" || type === "holding") {
 		c.save();
 		c.fillStyle = "rgb(139, 69, 19)";
@@ -7581,7 +7872,7 @@ Barricade.prototype.use = function() {
 	var closeDoor = false;
 	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 		var loc = point3d(roomInstances[inRoom].content[i].x + p.worldX, roomInstances[inRoom].content[i].y + p.worldY, 0.9);
-		if(roomInstances[inRoom].content[i] instanceof Door && Math.dist(loc.x, loc.y, 400, 400) <= 100) {
+		if(roomInstances[inRoom].content[i] instanceof Door && Math.dist(loc.x, loc.y, 400, 400) <= 100 && !roomInstances[inRoom].content[i].barricaded) {
 			closeDoor = true;
 			break;
 		}
@@ -7650,6 +7941,7 @@ Coin.prototype.getDesc = function() {
 	return desc;
 };
 Coin.prototype.display = function(type) {
+	type = type || "item";
 	c.save();
 	c.lineWidth = 2;
 	c.fillStyle = "rgb(255, 255, 0)";
@@ -7752,18 +8044,6 @@ ShotArrow.prototype.exist = function() {
 					this.hitSomething = true;
 				}
 			}
-			else if(roomInstances[inRoom].content[i] instanceof Block) {
-				var block = roomInstances[inRoom].content[i];
-				if(this.x > block.x && this.x < block.x + block.w && this.y > block.y && this.y < block.y + block.h) {
-					this.hitSomething = true;
-				}
-			}
-			else if(roomInstances[inRoom].content[i] instanceof Bridge) {
-				var bridge = roomInstances[inRoom].content[i];
-				if(Math.distSq(this.x, this.y, bridge.x, bridge.y + 500) <= 250000) {
-					this.hitSomething = true;
-				}
-			}
 		}
 		if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && this.shotBy === "enemy") {
 			p.hurt(this.damage, this.name);
@@ -7782,12 +8062,14 @@ function RandomEnemy(x, y, notEnemy) {
 	this.notEnemy = notEnemy; // use this to specify any enemy BUT a certain enemy
 };
 RandomEnemy.prototype.generate = function() {
+	/* Wait until the decorations are resolved before generating enemy */
 	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
 		if(roomInstances[theRoom].content[i] instanceof Decoration) {
 			return; // wait until the decorations resolve before deciding which enemy
 		}
 	}
 	var possibleEnemies = deepClone(enemies);
+	/* Remove dragonlings + trolls if they are in a room where they wouldn't match the decorations */
 	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
 		if(roomInstances[theRoom].content[i] instanceof Torch) {
 			for(var j = 0; j < possibleEnemies.length; j ++) {
@@ -7807,12 +8089,14 @@ RandomEnemy.prototype.generate = function() {
 			}
 		}
 	}
+	/* If this isn't supposed to be a particular enemy, remove that one */
 	for(var i = 0; i < possibleEnemies.length; i ++) {
 		if(possibleEnemies[i] === this.notEnemy) {
 			possibleEnemies.splice(i, 1);
 			break;
 		}
 	}
+	/* Pick an enemy and add it to the game */
 	var enemyIndex = Math.floor(Math.random() * possibleEnemies.length);
 	roomInstances[inRoom].content.push(new possibleEnemies[enemyIndex](this.x, this.y - new possibleEnemies[enemyIndex]().bottomY));
 };
@@ -7838,7 +8122,6 @@ Enemy.prototype.hurt = function(amount, ignoreDef) {
 		amount -= def;
 	}
 	amount = (amount < 0) ? 0 : amount;
-	roomInstances[inRoom].content.push(new Words(this.x, this.y, "-" + amount, "rgb(128, 0, 0)"));
 	this.health -= amount;
 };
 Enemy.prototype.displayStats = function() {
@@ -7906,10 +8189,43 @@ Enemy.prototype.displayStats = function() {
 };
 Enemy.prototype.exist = function() {
 	this.display();
+	// thingsToBeRendered.push(new RenderingObject(
+	// 	this,
+	// 	{
+	// 		x: this.x + p.worldX + this.leftX,
+	// 		y: this.y + p.worldY + this.topY,
+	// 		w: this.rightX - this.leftX,
+	// 		h: this.bottomY - this.topY
+	// 	},
+	// 	{
+	// 		x: this.x + p.worldX + this.leftX,
+	// 		y: this.y + p.worldY + this.topY,
+	// 		w: this.rightX - this.leftX,
+	// 		h: this.bottomY - this.topY,
+	// 		z: 1
+	// 	}
+	// ));
 	this.timeFrozen --;
 	this.timePurified --;
 	if(!this.fadingIn && (this.timeFrozen < 0 || this instanceof Wraith)) {
-		this.update("player");
+		if(inRoom === theRoom) {
+			this.update("player");
+		}
+		else {
+			calculatePaths();
+			for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+				if(roomInstances[theRoom].content[i] instanceof Door) {
+					var door = roomInstances[theRoom].content[i];
+					if(typeof door.dest === "number" && roomInstances[door.dest].pathScore < roomInstances[theRoom].pathScore) {
+						var nextRoom = roomInstances[door.dest];
+						this.update({
+							x: door.x,
+							y: door.y
+						});
+					}
+				}
+			}
+		}
 	}
 	if(this.timeFrozen > 0 && !(this instanceof Wraith)) {
 		this.velY += 0.1;
@@ -7946,6 +8262,7 @@ Enemy.prototype.exist = function() {
 	else {
 		this.purity += (this.purity > 0) ? -5 : 0;
 	}
+	/* Collisions with other enemies */
 	for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
 		if(!(roomInstances[theRoom].content[i] instanceof Enemy)) {
 			continue;
@@ -7986,6 +8303,7 @@ function Spider(x, y) {
 	this.damLow = 20;
 	this.damHigh = 30;
 	this.name = "a giant spider";
+	this.nonMagical = true;
 };
 inheritsFrom(Spider, Enemy);
 Spider.prototype.display = function() {
@@ -8081,7 +8399,8 @@ Spider.prototype.display = function() {
 	c.fill();
 };
 Spider.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	console.log("dest is: " + dest);
+	if(dest === "player") {
 		if(this.timePurified < 0) {
 			if(this.x + p.worldX < p.x) {
 				this.velX = 2;
@@ -8172,7 +8491,8 @@ function Bat(x, y) {
 	this.defHigh = 30;
 	this.damLow = 20;
 	this.damHigh = 30;
-	this.name = "a bat"
+	this.name = "a bat";
+	this.nonMagical = true;
 };
 inheritsFrom(Bat, Enemy);
 Bat.prototype.display = function() {
@@ -8211,7 +8531,7 @@ Bat.prototype.display = function() {
 	c.restore();
 };
 Bat.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		this.wings += this.wingDir;
 		if(this.wings > 5) {
 			this.wingDir = -5;
@@ -8347,7 +8667,7 @@ Skeleton.prototype.display = function() {
 	}
 };
 Skeleton.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		//movement
 		this.x += this.velX;
 		this.y += this.velY;
@@ -8492,7 +8812,7 @@ SkeletonWarrior.prototype.display = function() {
 	}
 };
 SkeletonWarrior.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		//movement
 		this.x += this.velX;
 		this.y += this.velY;
@@ -8660,7 +8980,7 @@ SkeletonArcher.prototype.display = function() {
 	}
 };
 SkeletonArcher.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		this.legs += this.legDir;
 		if(this.x + p.worldX < p.x) {
 			//moving towards p.x - 200
@@ -8883,7 +9203,7 @@ Wraith.prototype.display = function() {
 	}
 };
 Wraith.prototype.update = function(dest) {
-	if(typeof dest === "string") {
+	if(dest === "player") {
 		//movement
 		if(Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) <= 100) {
 			var idealX = (this.x + p.worldX < p.x) ? p.x - p.worldX - 150 : p.x - p.worldX + 150;
@@ -8938,9 +9258,6 @@ function MagicCharge(x, y, velX, velY, type, damage) {
 	this.type = type;
 	this.damage = damage;
 	this.particles = [];
-	if(this.type === "chaos") {
-		this.timeWarp = Math.random() < 0.5 ? true : false;
-	}
 };
 MagicCharge.prototype.exist = function() {
 	//graphics
@@ -9025,26 +9342,19 @@ MagicCharge.prototype.exist = function() {
 					enemy.timePurified = (enemy.timePurified <= 0) ? 600 : 0;
 				}
 				else if(this.type === "chaos") {
-					if(!this.timeWarp) {
-						var hp = enemy.health;
-						console.log("BEFORE: ");
-						console.log(roomInstances[theRoom].content);
-						roomInstances[theRoom].content[i] = new RandomEnemy(enemy.x, enemy.y + enemy.bottomY, enemy.constructor);
-						roomInstances[theRoom].content[i].generate();
-						console.log("AFTER: ");
-						console.log(roomInstances[theRoom].content);
-						roomInstances[theRoom].content[i].health = hp;
-						if(roomInstances[theRoom].content[i].health > roomInstances[theRoom].content[i].maxHealth) {
-							roomInstances[theRoom].content[i].health = roomInstances[theRoom].content[i].maxHealth;
-						}
-						roomInstances[theRoom].content.splice(roomInstances[theRoom].content.length - 1, 1);
-						return;
+					var hp = enemy.health;
+					console.log("BEFORE: ");
+					console.log(roomInstances[theRoom].content);
+					roomInstances[theRoom].content[i] = new RandomEnemy(enemy.x, enemy.y + enemy.bottomY, enemy.constructor);
+					roomInstances[theRoom].content[i].generate();
+					console.log("AFTER: ");
+					console.log(roomInstances[theRoom].content);
+					roomInstances[theRoom].content[i].health = hp;
+					if(roomInstances[theRoom].content[i].health > roomInstances[theRoom].content[i].maxHealth) {
+						roomInstances[theRoom].content[i].health = roomInstances[theRoom].content[i].maxHealth;
 					}
-					else {
-						console.log("time warp");
-						fps = 30;
-						realTime = 0;
-					}
+					roomInstances[theRoom].content.splice(roomInstances[theRoom].content.length - 1, 1);
+					return;
 				}
 			}
 		}
@@ -9053,14 +9363,8 @@ MagicCharge.prototype.exist = function() {
 			if(Math.distSq(this.x, this.y, bridge.x, bridge.y + 500) < 250000) {
 				this.splicing = true;
 				if(this.type === "chaos") {
-					if(this.timeWarp) {
-						fps = 30;
-						realTime = 0;
-					}
-					else {
-						p.x = this.x + p.worldX;
-						p.y = this.y + p.worldY - 46;
-					}
+					p.x = this.x + p.worldX;
+					p.y = this.y + p.worldY - 46;
 				}
 			}
 		}
@@ -9100,6 +9404,7 @@ function Troll(x, y) {
 	this.damHigh = 70;
 	this.complexAttack = true;
 	this.name = "a troll";
+	this.nonMagical = true;
 };
 inheritsFrom(Troll, Enemy);
 Troll.prototype.display = function() {
@@ -9587,8 +9892,11 @@ if(hax) {
 	for(var i = 0; i < items.length; i ++) {
 		// p.addItem(new items[i]());
 	}
-	p.addItem(new EnergyStaff());
-	p.addItem(new Dagger());
+	// roomInstances = [new Room("parkour", [new Pillar(500, 600, 150), new Platform(600, 450, 200)], 0, -Infinity, "bricks")];
+	// p.addItem(new EnergyStaff());
+	// p.addItem(new Dagger("light"));
+	p.addItem(new WoodBow());
+	p.addItem(new Arrow(Infinity));
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
@@ -9634,7 +9942,7 @@ var btn3 = 0;
 /** FRAMES **/
 function doByTime() {
 	if(hax) {
-		// p.health = p.maxHealth;
+		p.health = p.maxHealth;
 	}
 	cursorHand = false;
 	frameCount ++;
@@ -9643,39 +9951,70 @@ function doByTime() {
 	c.fillRect(0, 0, 800, 800);
 
 	if(p.onScreen === "play") {
-		if(roomInstances[inRoom].background === "bricks") {
-			var transX = (p.worldX * 0.9) % 100;
-			var transY = (p.worldY * 0.9) % 100;
-			c.save();
-			c.translate(transX, transY);
-			c.strokeStyle = "rgb(110, 110, 110)";
-			c.lineWidth = 4;
-			for(var y = -100; y < 800; y += 50) {
-				c.beginPath();
-				c.moveTo(-100, y);
-				c.lineTo(900, y);
-				c.stroke();
-				for(var x = (y % 100 === 0) ? -100 : -50; x < 900; x += 100) {
-					c.beginPath();
-					c.moveTo(x, y);
-					c.lineTo(x, y + 50);
-					c.stroke();
+		//load enemies in other rooms
+		var unseenEnemy = false;
+		for(var i = 0; i < roomInstances.length; i ++) {
+			if(roomInstances[i].containsEnemies() && i !== inRoom) {
+				unseenEnemy = true;
+				break;
+			}
+		}
+		if(unseenEnemy) {
+			outerLoop: for(var i = 0; i < roomInstances.length; i ++) {
+				theRoom = i;
+				if(i !== inRoom && roomInstances[i].containsEnemies()) {
+					roomInstances[i].exist(i);
+				}
+				for(var j = 0; j < roomInstances[i].content.length; j ++) {
+					if(roomInstances[i].content[j] instanceof Enemy) {
+						var enemy = roomInstances[i].content[j];
+						for(var k = 0; k < roomInstances[i].content.length; k ++) {
+							if(roomInstances[i].content[k] instanceof Door) {
+								var door = roomInstances[i].content[k];
+								if(typeof door.dest !== "number") {
+									continue;
+								}
+								var nextRoom = roomInstances[door.dest];
+								if(enemy.x + enemy.rightX > door.x - 30 && enemy.x + enemy.leftX < door.x + 30 && enemy.y + enemy.bottomY > door.y - 60 && enemy.y + enemy.topY < door.y + 3 && roomInstances[door.dest].pathScore < roomInstances[i].pathScore) {
+									for(var l = 0; l < nextRoom.content.length; l ++) {
+										if(nextRoom.content[l] instanceof Door) {
+											var exitDoor = nextRoom.content[l];
+											if(exitDoor.dest !== i) {
+												continue;
+											}
+											var movedEnemy = new (enemy.constructor)();
+											movedEnemy.x = exitDoor.x;
+											movedEnemy.y = exitDoor.y - movedEnemy.bottomY;
+											movedEnemy.opacity = 0;
+											movedEnemy.fadingIn = true;
+											movedEnemy.seesPlayer = false;
+											movedEnemy.health = enemy.health;
+											roomInstances[i].content.splice(j, 1);
+											nextRoom.content.push(movedEnemy);
+											break outerLoop;
+										}
+									}
+								}
+							}
+						}
+					}
 				}
 			}
-			c.restore();
 		}
 		p.update();
+
+		roomInstances[inRoom].displayBackground();
 
 		for(var i = 0; i < roomInstances.length; i ++) {
 			if(roomInstances[i].id === "?") {
 				roomInstances[i].id = numRooms;
 				numRooms ++;
 			}
-			if(inRoom === roomInstances[i].id) {
+			if(inRoom === roomInstances[i].id && (!unseenEnemy || true)) {
 				theRoom = i;
 				roomInstances[i].exist(i);
 			}
-			if(roomInstances[i].hasEnemy) {
+			if(roomInstances[i].containsEnemies() && false) {
 				for(var j = 0; j < roomInstances[i].content.length; j ++) {
 					if(roomInstances[i].content[j] instanceof Enemy) {
 						for(var k = 0; k < roomInstances[i].content.length; k ++) {
@@ -9690,73 +10029,6 @@ function doByTime() {
 
 		p.display();
 		p.gui();
-
-		//load enemies in other rooms
-		var unseenEnemy = false;
-		for(var i = 0; i < roomInstances.length; i ++) {
-			for(var j = 0; j < roomInstances[i].content.length; j ++) {
-				if(roomInstances[i].content[j] instanceof Enemy && i !== inRoom) {
-					unseenEnemy = true;
-					break;
-				}
-			}
-		}
-		if(unseenEnemy) {
-			for(var i = 0; i < roomInstances.length; i ++) {
-				theRoom = i;
-				enemyLoop: for(var j = 0; j < roomInstances[i].content.length; j ++) {
-					if(roomInstances[i].content[j] instanceof Enemy) { // roomInstances[i].content[j] is the enemy
-						var doorLoc = null;
-						doorLoop: for(var k = 0; k < roomInstances[i].content.length; k ++) { // roomInstances[i].content[k] is the door
-							if(typeof roomInstances[i].content[k].dest !== "object" && !roomInstances[i].content[k].barricaded) {
-								if(roomInstances[i].content[k] instanceof Door && roomInstances[roomInstances[i].content[k].dest].pathScore < roomInstances[i].pathScore) {
-									doorLoc = {x: roomInstances[i].content[k].x, y: roomInstances[i].content[k].y};
-									break doorLoop;
-								}
-							}
-						}
-						if(doorLoc === null) {
-							continue enemyLoop;
-						}
-						doorLoop: for(var k = 0; k < roomInstances[i].content.length; k ++) {
-							if(roomInstances[i].content[k] instanceof Door && typeof roomInstances[i].content[k].dest !== "object") {
-								var door = roomInstances[i].content[k];
-								var enemy = roomInstances[i].content[j];
-								if(enemy.x + enemy.rightX > door.x - 30 && enemy.x + enemy.leftX < door.x + 30 && enemy.y + enemy.bottomY > door.y - 60 && enemy.y + enemy.topY < door.y + 3 && roomInstances[door.dest].pathScore < roomInstances[i].pathScore) {
-									roomInstances[door.dest].content.push(new enemy.constructor());
-									var newIndex = roomInstances[door.dest].content.length - 1;
-									var exitDoorIndex = null;
-									for(var l = 0; l < roomInstances[door.dest].content.length; l ++) {
-										if(roomInstances[door.dest].content[l] instanceof Door && roomInstances[door.dest].content[l].dest === i) {
-											exitDoorIndex = l;
-											break;
-										}
-									}
-									roomInstances[door.dest].content[newIndex].x = roomInstances[door.dest].content[exitDoorIndex].x;
-									roomInstances[door.dest].content[newIndex].y = roomInstances[door.dest].content[exitDoorIndex].y - roomInstances[door.dest].content[newIndex].bottomY;
-									roomInstances[door.dest].content[newIndex].opacity = 0;
-									roomInstances[door.dest].content[newIndex].fadingIn = true;
-									roomInstances[door.dest].content[newIndex].seesPlayer = false;
-									roomInstances[door.dest].content[newIndex].health = enemy.health;
-									roomInstances[i].content.splice(j, 1);
-									continue enemyLoop;
-								}
-							}
-						}
-						roomInstances[i].content[j].update(doorLoc);
-						// roomInstances[i].content[j].display();
-					}
-					else if(roomInstances[i].content[j] instanceof Block || roomInstances[i].content[j] instanceof Platform || roomInstances[i].content[j] instanceof Stairs || roomInstances[i].content[j] instanceof Pulley) {
-						if(roomInstances[i].content[j] instanceof Block || roomInstances[i].content[j] instanceof Platform) {
-							roomInstances[i].content[j].update();
-						}
-						else if(roomInstances[i].content[j] instanceof Stairs) {
-							roomInstances[i].content[j].exist(true);
-						}
-					}
-				}
-			}
-		}
 		//move player into lower room when falling
 		if(p.y + 46 > 900) {
 			p.fallDir = 0.05;
@@ -10302,20 +10574,6 @@ function doByTime() {
 	else {
 		document.getElementById("body").style.cursor = "auto";
 	}
+	window.setTimeout(doByTime, 1000 / fps);
 };
-var realTime = 0;
-function time() {
-	// used for accurate time when in-game time is slowed down (using chaos staff)
-	realTime ++;
-	if(fps < 60 && realTime % 300 === 0) {
-		fps *= 2;
-	}
-	if(fps === 60) {
-		doByTime();
-	}
-	else if(realTime % 4 === 0) {
-		console.log("time slow");
-		doByTime();
-	}
-};
-window.setInterval(time, 1000 / 60);
+window.setTimeout(doByTime, 1000 / fps);
