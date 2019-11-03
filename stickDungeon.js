@@ -3307,6 +3307,7 @@ function Tree(x, y) {
 	this.y = y;
 };
 Tree.prototype.exist = function() {
+	this.update();
 	cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
 	// var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
 	this.display();
@@ -3334,7 +3335,7 @@ Tree.prototype.update = function() {
 	collisionLine(loc.x - 5, loc.y - 170, loc.x - 100, loc.y - 180, {walls: [true, false, false, false]});
 	collisionLine(loc.x + 5, loc.y - 190, loc.x + 100, loc.y - 200, {walls: [true, false, false, false]});
 	collisionLine(loc.x, loc.y - 220, loc.x - 60, loc.y - 230, {walls: [true, false, false, false]});
-	collisionRect(loc.x - 4, loc.y - 350, 8, 2, {walls: [true, false, false, false]});
+	// collisionRect(loc.x - 4, loc.y - 350, 8, 2, {walls: [true, false, false, false]});
 };
 Tree.prototype.display = function() {
 	c.fillStyle = "rgb(139, 69, 19)";
@@ -6056,7 +6057,7 @@ var roomInstances = [
 if(hax) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat2" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "ambient6" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
