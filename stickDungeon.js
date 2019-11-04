@@ -8,7 +8,7 @@ var keys = [];
 var fps = 60;
 const floorWidth = 0.1;
 var frameCount = 0;
-const hax = true;
+const hax = false;
 const showHitboxes = false;
 var frozen = false;
 var hitboxes = [];
@@ -1337,14 +1337,14 @@ Player.prototype.update = function() {
 		if(this.op <= 0 && fading !== "out") {
 			fading = "out";
 			fadeDest = "dead";
-			console.log(this.scores);
+			// console.log(this.scores);
 			this.scores.push({
 				coins: this.gold,
 				rooms: this.roomsExplored,
 				kills: this.enemiesKilled,
 				class: this.class
 			});
-			console.log(this.scores);
+			// console.log(this.scores);
 			var scores = JSON.stringify(this.scores);
 			localStorage.setItem("scores", scores);
 		}
@@ -1446,7 +1446,7 @@ Player.prototype.useItem = function() {
 			}
 		}
 		else if(this.invSlots[this.activeSlot].content instanceof Equipable) {
-			console.log("using an equipable");
+			// console.log("using an equipable");
 			for(var i = 0; i < this.invSlots.length; i ++) {
 				if(this.invSlots[i].type === "equip" && this.invSlots[i].content === "empty") {
 					this.invSlots[i].content = new this.invSlots[this.activeSlot].content.constructor();
@@ -8399,7 +8399,7 @@ Spider.prototype.display = function() {
 	c.fill();
 };
 Spider.prototype.update = function(dest) {
-	console.log("dest is: " + dest);
+	// console.log("dest is: " + dest);
 	if(dest === "player") {
 		if(this.timePurified < 0) {
 			if(this.x + p.worldX < p.x) {
@@ -9343,12 +9343,12 @@ MagicCharge.prototype.exist = function() {
 				}
 				else if(this.type === "chaos") {
 					var hp = enemy.health;
-					console.log("BEFORE: ");
-					console.log(roomInstances[theRoom].content);
+					// console.log("BEFORE: ");
+					// console.log(roomInstances[theRoom].content);
 					roomInstances[theRoom].content[i] = new RandomEnemy(enemy.x, enemy.y + enemy.bottomY, enemy.constructor);
 					roomInstances[theRoom].content[i].generate();
-					console.log("AFTER: ");
-					console.log(roomInstances[theRoom].content);
+					// console.log("AFTER: ");
+					// console.log(roomInstances[theRoom].content);
 					roomInstances[theRoom].content[i].health = hp;
 					if(roomInstances[theRoom].content[i].health > roomInstances[theRoom].content[i].maxHealth) {
 						roomInstances[theRoom].content[i].health = roomInstances[theRoom].content[i].maxHealth;
