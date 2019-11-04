@@ -23,7 +23,7 @@ var mouseIsPressed = false;
 var pMouseIsPressed;
 var cursorHand = false;
 function resizeCanvas() {
-	return;
+	// return;
 	if(window.innerWidth < window.innerHeight) {
 		canvas.style.width = "100%";
 		canvas.style.height = "";
