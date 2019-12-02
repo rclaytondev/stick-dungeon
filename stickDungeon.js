@@ -1,16 +1,17 @@
 /*
 IO + CONSTANTS
 */
+
 var canvas = document.getElementById("theCanvas");
 var c = canvas.getContext("2d");
 c.textAlign = "center";
-var keys = [];
-var fps = 60;
-const floorWidth = 0.1;
+
+const FPS = 60;
+const FLOOR_WIDTH = 0.1;
+const TESTING_MODE = true;
+const SHOW_HITBOXES = false;
 var frameCount = 0;
-const hax = false;
-const showHitboxes = false;
-var frozen = false;
+
 var hitboxes = [];
 function getMousePos(evt) {
 	var canvasRect = canvas.getBoundingClientRect();
@@ -21,7 +22,8 @@ var mouseX;
 var mouseY;
 var mouseIsPressed = false;
 var pMouseIsPressed;
-var cursorHand = false;
+var keys = [];
+var cursor = "auto";
 function resizeCanvas() {
 	// return;
 	if(window.innerWidth < window.innerHeight) {
@@ -286,6 +288,9 @@ function findPointsLinear(x1, y1, x2, y2) {
 		}
 	}
 	return linearPoints;
+};
+function mouseInRect(x, y, w, h) {
+	return (mouseX > x && mouseX < x + w && mouseY > y && mouseY < y + h);
 };
 var tempVars = {}; // temporary variables (but used between functions)
 /* Parallax graphic utilities */
@@ -703,7 +708,7 @@ function hitboxRect(x, y, w, h) {
 	/*
 	Returns whether or not the player overlaps the rectangle at ('x', 'y') with width 'w' and height 'h'.
 	*/
-	if(showHitboxes) {
+	if(SHOW_HITBOXES) {
 		hitboxes.push({x: x, y: y, w: w, h: h, color: "green"});
 	}
 	return (p.x + 5 > x && p.x - 5 < x + w && p.y + 46 > y && p.y < y + h);
@@ -1478,7 +1483,7 @@ Player.prototype.useItem = function() {
 			}
 			weaponPos.x += this.x;
 			weaponPos.y += this.y + 26 - this.velY;
-			if(showHitboxes) {
+			if(SHOW_HITBOXES) {
 				c.fillStyle = "rgb(0, 255, 0)";
 				c.fillRect(weaponPos.x - 3, weaponPos.y - 3, 6, 6);
 			}
@@ -1574,61 +1579,53 @@ Player.prototype.useItem = function() {
 	}
 	/* Launch projectile when A is released */
 	if(!this.aiming && this.aimingBefore && this.shootReload < 0 && !(this.attackingWith instanceof MechBow)) {
-		if(this.attackingWith instanceof RangedWeapon) {
-			var hasArrows = false;
-			for(var i = 0; i < this.invSlots.length; i ++) {
-				if(this.invSlots[i].content instanceof Arrow) {
-					hasArrows = true;
+		if(this.attackingWith instanceof RangedWeapon && this.hasInInventory(Arrow)) {
+			if(this.attackingWith instanceof LongBow) {
+				this.shootReload = 120;
+			}
+			else {
+				this.shootReload = 60;
+			}
+			if(this.facing === "right") {
+				var velocity = Math.rotate(10, 0, this.aimRot);
+				var velX = velocity.x;
+				var velY = velocity.y;
+				velocity.x += (this.x - this.worldX + 10);
+				velocity.y += (this.y - this.worldY + 26);
+				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
+				if(this.attackingWith instanceof LongBow) {
+					roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].origX = roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].x;
 				}
 			}
-			if(hasArrows) {
+			else {
+				var velocity = Math.rotate(-10, 0, -this.aimRot);
+				var velX = velocity.x;
+				var velY = velocity.y;
+				velocity.x += (this.x - this.worldX + 10);
+				velocity.y += (this.y - this.worldY + 26);
+				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
+				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 				if(this.attackingWith instanceof LongBow) {
-					this.shootReload = 120;
+					roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].origX = roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].x;
 				}
-				else {
-					this.shootReload = 60;
+			}
+			this.arrowEfficiency = 0;
+			for(var i = 0; i < this.invSlots.length; i ++) {
+				if(this.invSlots[i].type === "equip" && this.invSlots[i].content.arrowEfficiency !== undefined) {
+					this.arrowEfficiency += this.invSlots[i].content.arrowEfficiency * 0.01;
 				}
-				if(this.facing === "right") {
-					var velocity = Math.rotate(10, 0, this.aimRot);
-					var velX = velocity.x;
-					var velY = velocity.y;
-					velocity.x += (this.x - this.worldX + 10);
-					velocity.y += (this.y - this.worldY + 26);
-					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-					var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
-					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
-					if(this.attackingWith instanceof LongBow) {
-						roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].origX = roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].x;
-					}
-				}
-				else {
-					var velocity = Math.rotate(-10, 0, -this.aimRot);
-					var velX = velocity.x;
-					var velY = velocity.y;
-					velocity.x += (this.x - this.worldX + 10);
-					velocity.y += (this.y - this.worldY + 26);
-					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-					var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
-					roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
-					if(this.attackingWith instanceof LongBow) {
-						roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].origX = roomInstances[inRoom].content[roomInstances[inRoom].content.length - 1].x;
-					}
-				}
-				this.arrowEfficiency = 0;
+			}
+			if(Math.random() < (1 - this.arrowEfficiency)) {
 				for(var i = 0; i < this.invSlots.length; i ++) {
-					if(this.invSlots[i].type === "equip" && this.invSlots[i].content.arrowEfficiency !== undefined) {
-						this.arrowEfficiency += this.invSlots[i].content.arrowEfficiency * 0.01;
-					}
-				}
-				if(Math.random() < (1 - this.arrowEfficiency)) {
-					for(var i = 0; i < this.invSlots.length; i ++) {
-						if(this.invSlots[i].content instanceof Arrow) {
-							if(this.invSlots[i].content.quantity > 1) {
-								this.invSlots[i].content.quantity --;
-							}
-							else {
-								this.invSlots[i].content = "empty";
-							}
+					if(this.invSlots[i].content instanceof Arrow) {
+						if(this.invSlots[i].content.quantity > 1) {
+							this.invSlots[i].content.quantity --;
+						}
+						else {
+							this.invSlots[i].content = "empty";
 						}
 					}
 				}
@@ -1661,50 +1658,42 @@ Player.prototype.useItem = function() {
 	if(!this.aiming) {
 		this.aimRot = null;
 	}
-	if(this.aiming && this.attackingWith instanceof MechBow && frameCount % 20 === 0) {
-		var hasArrows = false;
+	if(this.aiming && this.attackingWith instanceof MechBow && frameCount % 20 === 0 && this.hasInInventory(Arrow)) {
+		this.shootReload = 60;
+		if(this.facing === "right") {
+			var velocity = Math.rotate(10, 0, this.aimRot);
+			var velX = velocity.x;
+			var velY = velocity.y;
+			velocity.x += (this.x - this.worldX + 10);
+			velocity.y += (this.y - this.worldY + 26);
+			var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+			var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
+			roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
+		}
+		else {
+			var velocity = Math.rotate(-10, 0, -this.aimRot);
+			var velX = velocity.x;
+			var velY = velocity.y;
+			velocity.x += (this.x - this.worldX + 10);
+			velocity.y += (this.y - this.worldY + 26);
+			var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+			var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
+			roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
+		}
+		this.arrowEfficiency = 0;
 		for(var i = 0; i < this.invSlots.length; i ++) {
-			if(this.invSlots[i].content instanceof Arrow) {
-				hasArrows = true;
+			if(this.invSlots[i].type === "equip" && this.invSlots[i].content.arrowEfficiency !== undefined) {
+				this.arrowEfficiency += this.invSlots[i].content.arrowEfficiency * 0.01;
 			}
 		}
-		if(hasArrows) {
-			this.shootReload = 60;
-			if(this.facing === "right") {
-				var velocity = Math.rotate(10, 0, this.aimRot);
-				var velX = velocity.x;
-				var velY = velocity.y;
-				velocity.x += (this.x - this.worldX + 10);
-				velocity.y += (this.y - this.worldY + 26);
-				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
-			}
-			else {
-				var velocity = Math.rotate(-10, 0, -this.aimRot);
-				var velX = velocity.x;
-				var velY = velocity.y;
-				velocity.x += (this.x - this.worldX + 10);
-				velocity.y += (this.y - this.worldY + 26);
-				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
-				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
-				roomInstances[inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
-			}
-			this.arrowEfficiency = 0;
+		if(Math.random() < (1 - this.arrowEfficiency)) {
 			for(var i = 0; i < this.invSlots.length; i ++) {
-				if(this.invSlots[i].type === "equip" && this.invSlots[i].content.arrowEfficiency !== undefined) {
-					this.arrowEfficiency += this.invSlots[i].content.arrowEfficiency * 0.01;
-				}
-			}
-			if(Math.random() < (1 - this.arrowEfficiency)) {
-				for(var i = 0; i < this.invSlots.length; i ++) {
-					if(this.invSlots[i].content instanceof Arrow) {
-						if(this.invSlots[i].content.quantity > 1) {
-							this.invSlots[i].content.quantity --;
-						}
-						else {
-							this.invSlots[i].content = "empty";
-						}
+				if(this.invSlots[i].content instanceof Arrow) {
+					if(this.invSlots[i].content.quantity > 1) {
+						this.invSlots[i].content.quantity --;
+					}
+					else {
+						this.invSlots[i].content = "empty";
 					}
 				}
 			}
@@ -2091,7 +2080,7 @@ Player.prototype.gui = function() {
 		c.restore();
 		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
-			cursorHand = true;
+			cursor = "pointer";
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
@@ -2122,7 +2111,7 @@ Player.prototype.gui = function() {
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
-			cursorHand = true;
+			cursor = "pointer";
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
@@ -2204,7 +2193,7 @@ Player.prototype.gui = function() {
 		c.restore();
 		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
-			cursorHand = true;
+			cursor = "pointer";
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
@@ -2235,7 +2224,7 @@ Player.prototype.gui = function() {
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
-			cursorHand = true;
+			cursor = "pointer";
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
@@ -2317,7 +2306,7 @@ Player.prototype.gui = function() {
 		c.restore();
 		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
-			cursorHand = true;
+			cursor = "pointer";
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
 			if(mouseIsPressed) {
@@ -2349,7 +2338,7 @@ Player.prototype.gui = function() {
 			}
 		}
 		if(mouseX > 500 - 35 && mouseX < 535 && mouseY > 400 - 35 && mouseY < 435) {
-			cursorHand = true;
+			cursor = "pointer";
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
 			if(mouseIsPressed) {
@@ -2534,6 +2523,14 @@ Player.prototype.updatePower = function() {
 		}
 	}
 };
+Player.prototype.hasInInventory = function(constructor) {
+	for(var i = 0; i < this.invSlots.length; i ++) {
+		if(this.invSlots[i].content instanceof constructor) {
+			return true;
+		}
+	}
+	return false;
+};
 var p = new Player();
 p.init();
 if(localStorage.getItem("scores") !== null) {
@@ -2557,8 +2554,8 @@ function CollisionRect(x, y, w, h, settings) {
 	this.settings.player = this.settings.player || (p.onScreen === "play" ? p : howChar);
 };
 CollisionRect.prototype.collide = function() {
-	/* Add a hitbox if 'showHitboxes' is true (for debugging) */
-	if(showHitboxes) {
+	/* Add a hitbox if 'SHOW_HITBOXES' is true (for debugging) */
+	if(SHOW_HITBOXES) {
 		hitboxes.push({x: this.x, y: this.y, w: this.w, h: this.h, color: this.settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
 	}
 	/* Collide with player if in the same room */
@@ -4754,8 +4751,8 @@ function Roof(x, y, w) {
 Roof.prototype.exist = function() {
 	if(this.type === null) {
 		var chooser = Math.random();
-		if(hax) {
-			chooser = 1;
+		if(TESTING_MODE) {
+			// chooser = 1;
 		}
 		if(chooser < 0.25) {
 			this.type = "none";
@@ -5106,7 +5103,7 @@ Room.prototype.exist = function(index) {
 	var boulderIndexes = [];
 	var chargeIndexes = [];
 	p.canUseEarth = true;
-	//hax
+	/* testing */
 	for(var i = 0; i < this.content.length; i ++) {
 		if(this.content[i] instanceof Enemy) {
 			//this.content[i].health = this.content[i].maxHealth;
@@ -5192,13 +5189,13 @@ Room.prototype.exist = function(index) {
 				continue;
 			}
 			//show hitboxes
-			if(showHitboxes) {
+			if(SHOW_HITBOXES) {
 				hitboxes.push({x: this.content[i].x + p.worldX + this.content[i].leftX, y: this.content[i].y + p.worldY + this.content[i].topY, w: (this.content[i].rightX + Math.abs(this.content[i].leftX)), h: (this.content[i].bottomY + Math.abs(this.content[i].topY)), color: "green"});
 			}
 		}
 		else if(this.content[i] instanceof ShotArrow) {
 			this.content[i].exist();
-			if(showHitboxes) {
+			if(SHOW_HITBOXES) {
 				hitboxes.push({x: this.content[i].x + p.worldX - 1, y: this.content[i].y + p.worldY - 1, w: 2, h: 2, color: "green"});
 			}
 			if(this.content[i].opacity <= 0) {
@@ -5328,9 +5325,9 @@ Room.prototype.displayBackground = function() {
 		c.restore();
 	}
 };
-Room.prototype.containsEnemies = function() {
+Room.prototype.contains = function(constructor) {
 	for(var i = 0; i < this.content.length; i ++) {
-		if(this.content[i] instanceof Enemy) {
+		if(this.content[i] instanceof constructor) {
 			return true;
 		}
 	}
@@ -6054,16 +6051,16 @@ var roomInstances = [
 		"?"
 	)
 ];
-if(hax) {
+if(TESTING_MODE) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "ambient6" && rooms[i].name !== "reward1") {
+		if(rooms[i].name !== "combat1" && rooms[i].name !== "reward3") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	enemies = [Skeleton, Wraith];
+	enemies = [Spider];
 	items = [Helmet];
 	// for(var i = 0; i < roomInstances[0].content.length; i ++) {
 	// 	if(roomInstances[0].content[i] instanceof Door) {
@@ -7869,15 +7866,15 @@ Barricade.prototype.getDesc = function() {
 	];
 };
 Barricade.prototype.use = function() {
-	var closeDoor = false;
+	var doorNearby = false;
 	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 		var loc = point3d(roomInstances[inRoom].content[i].x + p.worldX, roomInstances[inRoom].content[i].y + p.worldY, 0.9);
 		if(roomInstances[inRoom].content[i] instanceof Door && Math.dist(loc.x, loc.y, 400, 400) <= 100 && !roomInstances[inRoom].content[i].barricaded) {
-			closeDoor = true;
+			doorNearby = true;
 			break;
 		}
 	}
-	if(!closeDoor) {
+	if(!doorNearby) {
 		return;
 	}
 	var closestDist = null;
@@ -9258,6 +9255,7 @@ function MagicCharge(x, y, velX, velY, type, damage) {
 	this.type = type;
 	this.damage = damage;
 	this.particles = [];
+	this.beingAimed = false;
 };
 MagicCharge.prototype.exist = function() {
 	//graphics
@@ -9884,9 +9882,8 @@ Dragonling.prototype.update = function() {
 	}
 };
 
-//hax
-if(hax) {
-	// p.class = "mage";
+if(TESTING_MODE) {
+	p.class = "archer";
 	// p.reset();
 	p.onScreen = "play";
 	for(var i = 0; i < items.length; i ++) {
@@ -9895,8 +9892,9 @@ if(hax) {
 	// roomInstances = [new Room("parkour", [new Pillar(500, 600, 150), new Platform(600, 450, 200)], 0, -Infinity, "bricks")];
 	// p.addItem(new EnergyStaff());
 	// p.addItem(new Dagger("light"));
-	p.addItem(new WoodBow());
+	p.addItem(new EnergyStaff());
 	p.addItem(new Arrow(Infinity));
+	p.addItem(new Helmet());
 }
 /** MENUS & UI **/
 var warriorClass = new Player();
@@ -9941,10 +9939,10 @@ var btn2 = 0;
 var btn3 = 0;
 /** FRAMES **/
 function doByTime() {
-	if(hax) {
+	if(TESTING_MODE) {
 		p.health = p.maxHealth;
 	}
-	cursorHand = false;
+	cursor = "auto";
 	frameCount ++;
 	resizeCanvas();
 	c.fillStyle = "rgb(100, 100, 100)";
@@ -9954,7 +9952,7 @@ function doByTime() {
 		//load enemies in other rooms
 		var unseenEnemy = false;
 		for(var i = 0; i < roomInstances.length; i ++) {
-			if(roomInstances[i].containsEnemies() && i !== inRoom) {
+			if(roomInstances[i].contains(Enemy) && i !== inRoom) {
 				unseenEnemy = true;
 				break;
 			}
@@ -9962,7 +9960,7 @@ function doByTime() {
 		if(unseenEnemy) {
 			outerLoop: for(var i = 0; i < roomInstances.length; i ++) {
 				theRoom = i;
-				if(i !== inRoom && roomInstances[i].containsEnemies()) {
+				if(i !== inRoom && roomInstances[i].contains(Enemy)) {
 					roomInstances[i].exist(i);
 				}
 				for(var j = 0; j < roomInstances[i].content.length; j ++) {
@@ -10014,7 +10012,7 @@ function doByTime() {
 				theRoom = i;
 				roomInstances[i].exist(i);
 			}
-			if(roomInstances[i].containsEnemies() && false) {
+			if(roomInstances[i].contains(Enemy) && false) {
 				for(var j = 0; j < roomInstances[i].content.length; j ++) {
 					if(roomInstances[i].content[j] instanceof Enemy) {
 						for(var k = 0; k < roomInstances[i].content.length; k ++) {
@@ -10111,7 +10109,7 @@ function doByTime() {
 		//right door text
 		loadBoxFronts();
 		if(Math.dist(mouseX, mouseY, 400, 380) <= 80 || (mouseX > 320 && mouseX < 480 && mouseY > 380 && mouseY < 580)) {
-			cursorHand = true;
+			cursor = "pointer";
 			if(btn1 < 50) {
 				btn1 += 5;
 			}
@@ -10125,7 +10123,7 @@ function doByTime() {
 			btn1 -= 5;
 		}
 		if(Math.dist(mouseX, mouseY, 125, 440) <= 85 || (mouseX > 40 && mouseX < 40 + 170 && mouseY > 380 && mouseY < 580)) {
-			cursorHand = true;
+			cursor = "pointer";
 			if(btn2 < 40) {
 				btn2 += 5;
 			}
@@ -10164,7 +10162,7 @@ function doByTime() {
 			btn2 -= 5;
 		}
 		if(Math.dist(mouseX, mouseY, 675, 440) <= 85 || (mouseX > 590 && mouseX < 590 + 170 && mouseY > 380 && mouseY < 580)) {
-			cursorHand = true;
+			cursor = "pointer";
 			if(btn3 < 40) {
 				btn3 += 5;
 			}
@@ -10295,7 +10293,7 @@ function doByTime() {
 			c.stroke();
 		}
 		if((mouseX > 100 && mouseX < 250 && mouseY > 570 && mouseY < 670) || Math.dist(mouseX, mouseY, 175, 570) <= 75) {
-			cursorHand = true;
+			cursor = "pointer";
 			if(btn1 < 50) {
 				btn1 += 5;
 			}
@@ -10328,7 +10326,7 @@ function doByTime() {
 			c.stroke();
 		}
 		if((mouseX > 550 && mouseX < 700 && mouseY > 570 && mouseY < 670) || Math.dist(625, 570, mouseX, mouseY) <= 75) {
-			cursorHand = true;
+			cursor = "pointer";
 			if(btn2 < 50) {
 				btn2 += 5;
 			}
@@ -10350,7 +10348,7 @@ function doByTime() {
 		theRoom = 0;
 		// keys = [], mouseIsPressed = false, mouseX = -100, mouseY = -100;
 		howChar.update();
-		roomInstances[0].exist();
+		roomInstances[0].exist(0);
 
 		c.fillStyle = "rgb(255, 255, 255)";
 		c.font = "100 20px Germania One";
@@ -10531,7 +10529,7 @@ function doByTime() {
 			c.stroke();
 		}
 		if(mouseX > 30 && mouseX < 100 && mouseY > 30 && mouseY < 100) {
-			cursorHand = true;
+			cursor = "pointer";
 			if(btn1 < 40) {
 				btn1 += 5;
 			}
@@ -10568,12 +10566,7 @@ function doByTime() {
 		c.restore();
 	}
 	pMouseIsPressed = mouseIsPressed;
-	if(cursorHand) {
-		document.getElementById("body").style.cursor = "pointer";
-	}
-	else {
-		document.getElementById("body").style.cursor = "auto";
-	}
-	window.setTimeout(doByTime, 1000 / fps);
+	document.getElementById("body").style.cursor = cursor;
+	window.setTimeout(doByTime, 1000 / FPS);
 };
-window.setTimeout(doByTime, 1000 / fps);
+window.setTimeout(doByTime, 1000 / FPS);
