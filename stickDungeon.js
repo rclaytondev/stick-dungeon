@@ -1776,6 +1776,7 @@ Player.prototype.gui = function() {
 		}
 	};
 	if(this.guiOpen === "inventory") {
+		infoBar.actions.d = "close inventory";
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
@@ -1805,6 +1806,20 @@ Player.prototype.gui = function() {
 			if(mouseX > this.invSlots[i].x && mouseX < this.invSlots[i].x + 70 && mouseY > this.invSlots[i].y && mouseY < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
 				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
 				hoverIndex = i;
+				if(this.invSlots[i].type === "holding") {
+					infoBar.actions.click = "unequip " + this.invSlots[i].content.name;
+				}
+				else if(this.invSlots[i].type === "equip") {
+					infoBar.actions.click = "take off " + this.invSlots[i].content.name;
+				}
+				else if(!(this.invSlots[i].content instanceof Arrow)) {
+					if(this.invSlots[i].content instanceof Equipable) {
+						infoBar.actions.click = "put on " + this.invSlots[i].content.name;
+					}
+					else {
+						infoBar.actions.click = "equip " + this.invSlots[i].content.name;
+					}
+				}
 				break;
 			}
 		}
@@ -1882,6 +1897,10 @@ Player.prototype.gui = function() {
 		}
 	}
 	else if(this.guiOpen === "crystal-infusion") {
+		infoBar.actions.d = "cancel";
+		if(keys[68]) {
+			this.guiOpen = "none";
+		}
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
@@ -1930,15 +1949,19 @@ Player.prototype.gui = function() {
 			/* Display desc of hovered item */
 			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + (this.invSlots[hoverIndex].type === "equip" ? 0 : 70), this.invSlots[hoverIndex].y + 35, this.invSlots[hoverIndex].type === "equip" ? "left" : "right");
 			/* Detect clicks */
-			if(mouseIsPressed && this.invSlots[hoverIndex].content instanceof Weapon && !(this.invSlots[hoverIndex].content instanceof Arrow) && this.invSlots[hoverIndex].content.element !== this.infusedGui && (this.invSlots[hoverIndex].content instanceof ElementalStaff || !(this.invSlots[hoverIndex].content instanceof MagicWeapon))) {
-				this.invSlots[hoverIndex].content.element = this.infusedGui;
-				this.guiOpen = "none";
-				this.invSlots[this.activeSlot].content = "empty";
-				return;
+			if(this.invSlots[hoverIndex].content instanceof Weapon && !(this.invSlots[hoverIndex].content instanceof Arrow) && this.invSlots[hoverIndex].content.element !== this.infusedGui && (this.invSlots[hoverIndex].content instanceof ElementalStaff || !(this.invSlots[hoverIndex].content instanceof MagicWeapon))) {
+				infoBar.actions.click = "infuse " + this.invSlots[hoverIndex].content.name;
+				if(mouseIsPressed) {
+					this.invSlots[hoverIndex].content.element = this.infusedGui;
+					this.guiOpen = "none";
+					this.invSlots[this.activeSlot].content = "empty";
+					return;
+				}
 			}
 		}
 	}
 	else if(this.guiOpen === "reforge-item") {
+		infoBar.actions.d = "cancel";
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
@@ -1982,36 +2005,40 @@ Player.prototype.gui = function() {
 			/* Display desc of hovered item */
 			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + (this.invSlots[hoverIndex].type === "equip" ? 0 : 70), this.invSlots[hoverIndex].y + 35, this.invSlots[hoverIndex].type === "equip" ? "left" : "right");
 			/* Detect clicks */
-			if(mouseIsPressed && (this.invSlots[hoverIndex].content instanceof Weapon || this.invSlots[hoverIndex].content instanceof Equipable) && !(this.invSlots[hoverIndex].content instanceof Arrow)) {
-				/* Find current reforge status of item */
-				this.reforgeIndex = hoverIndex;
-				if(this.invSlots[hoverIndex].content.modifier === "none") {
-					this.guiOpen = "reforge-trait-none";
+			if((this.invSlots[hoverIndex].content instanceof Weapon || this.invSlots[hoverIndex].content instanceof Equipable) && !(this.invSlots[hoverIndex].content instanceof Arrow)) {
+				infoBar.actions.click = "reforge " + this.invSlots[hoverIndex].content.name;
+				if(mouseIsPressed) {
+					/* Find current reforge status of item */
+					this.reforgeIndex = hoverIndex;
+					if(this.invSlots[hoverIndex].content.modifier === "none") {
+						this.guiOpen = "reforge-trait-none";
+					}
+					else if(this.invSlots[hoverIndex].content.modifier === "light" || this.invSlots[hoverIndex].content.modifier === "distant" || this.invSlots[hoverIndex].content.modifier === "efficient" || this.invSlots[hoverIndex].content.modifier === "empowering") {
+						this.guiOpen = "reforge-trait-light";
+					}
+					else if(this.invSlots[hoverIndex].content.modifier === "heavy" || this.invSlots[hoverIndex].content.modifier === "forceful" || this.invSlots[hoverIndex].content.modifier === "arcane" || this.invSlots[hoverIndex].content.modifier === "sturdy") {
+						this.guiOpen = "reforge-trait-heavy";
+					}
+					/* Find type of item */
+					if(this.invSlots[hoverIndex].content instanceof MeleeWeapon) {
+						this.reforgeType = "melee";
+					}
+					else if(this.invSlots[hoverIndex].content instanceof RangedWeapon) {
+						this.reforgeType = "ranged";
+					}
+					else if(this.invSlots[hoverIndex].content instanceof MagicWeapon) {
+						this.reforgeType = "magic";
+					}
+					else if(this.invSlots[hoverIndex].content instanceof Equipable) {
+						this.reforgeType = "equipable";
+					}
+					return;
 				}
-				else if(this.invSlots[hoverIndex].content.modifier === "light" || this.invSlots[hoverIndex].content.modifier === "distant" || this.invSlots[hoverIndex].content.modifier === "efficient" || this.invSlots[hoverIndex].content.modifier === "empowering") {
-					this.guiOpen = "reforge-trait-light";
-				}
-				else if(this.invSlots[hoverIndex].content.modifier === "heavy" || this.invSlots[hoverIndex].content.modifier === "forceful" || this.invSlots[hoverIndex].content.modifier === "arcane" || this.invSlots[hoverIndex].content.modifier === "sturdy") {
-					this.guiOpen = "reforge-trait-heavy";
-				}
-				/* Find type of item */
-				if(this.invSlots[hoverIndex].content instanceof MeleeWeapon) {
-					this.reforgeType = "melee";
-				}
-				else if(this.invSlots[hoverIndex].content instanceof RangedWeapon) {
-					this.reforgeType = "ranged";
-				}
-				else if(this.invSlots[hoverIndex].content instanceof MagicWeapon) {
-					this.reforgeType = "magic";
-				}
-				else if(this.invSlots[hoverIndex].content instanceof Equipable) {
-					this.reforgeType = "equipable";
-				}
-				return;
 			}
 		}
 	}
 	else if(this.guiOpen === "reforge-trait-none") {
+		infoBar.actions.d = "cancel";
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
@@ -2083,6 +2110,7 @@ Player.prototype.gui = function() {
 			cursor = "pointer";
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
+			infoBar.actions.click = "reforge for " + ((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "speed" : "range") : (this.reforgeType === "magic" ? "mana cost" : "bonuses"));
 			if(mouseIsPressed) {
 				/* Update item stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
@@ -2114,6 +2142,7 @@ Player.prototype.gui = function() {
 			cursor = "pointer";
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
+			infoBar.actions.click = "reforge for " + ((this.reforgeType === "equipable") ? "defense" : "damage");
 			if(mouseIsPressed) {
 				/* Update item stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
@@ -2143,6 +2172,7 @@ Player.prototype.gui = function() {
 		}
 	}
 	else if(this.guiOpen === "reforge-trait-light") {
+		infoBar.actions.d = "cancel";
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
@@ -2196,6 +2226,7 @@ Player.prototype.gui = function() {
 			cursor = "pointer";
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
+			infoBar.actions.click = "reforge to balance";
 			if(mouseIsPressed) {
 				/* Update item stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice1.damLow;
@@ -2227,6 +2258,7 @@ Player.prototype.gui = function() {
 			cursor = "pointer";
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
+			infoBar.actions.click = "reforge for " + ((this.reforgeType === "equipable") ? "defense" : "damage");
 			if(mouseIsPressed) {
 				/* Update item stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
@@ -2256,6 +2288,7 @@ Player.prototype.gui = function() {
 		}
 	}
 	else if(this.guiOpen === "reforge-trait-heavy") {
+		infoBar.actions.d = "cancel";
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
@@ -2309,6 +2342,7 @@ Player.prototype.gui = function() {
 			cursor = "pointer";
 			choice1.desc = choice1.getDesc();
 			choice1.displayDesc(335, 400, "right");
+			infoBar.actions.click = "reforge for " + ((this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "speed" : "range") : (this.reforgeType === "magic" ? "mana cost" : "bonuses"));
 			if(mouseIsPressed) {
 				/* Update Item Stats */
 				var theModifier = (this.reforgeType === "melee" || this.reforgeType === "ranged") ? (this.reforgeType === "melee" ? "light" : "distant") : (this.reforgeType === "magic" ? "efficient" : "empowering");
@@ -2341,6 +2375,7 @@ Player.prototype.gui = function() {
 			cursor = "pointer";
 			choice2.desc = choice2.getDesc();
 			choice2.displayDesc(535, 400, "right");
+			infoBar.actions.click = "reforge to balance";
 			if(mouseIsPressed) {
 				/* Update Item Stats */
 				this.invSlots[this.reforgeIndex].content.damLow = choice2.damLow;
@@ -3027,9 +3062,12 @@ Door.prototype.update = function() {
 	/* Room Transition */
 	var topLeft = point3d(this.x + p.worldX - 30, this.y + p.worldY - 60, 0.9);
 	var bottomRight = point3d(this.x + p.worldX + 30, this.y + p.worldY, 0.9);
-	if(p.x - 5 > topLeft.x && p.x + 5 < bottomRight.x && p.y + 46 > topLeft.y && p.y + 46 < bottomRight.y + 10 && p.canJump && keys[83] && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
-		p.enteringDoor = true;
-		this.entering = true;
+	if(p.x - 5 > topLeft.x && p.x + 5 < bottomRight.x && p.y + 46 > topLeft.y && p.y + 46 < bottomRight.y + 10 && p.canJump && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
+		if(keys[83]) {
+			p.enteringDoor = true;
+			this.entering = true;
+		}
+		infoBar.actions.s = "enter door";
 	}
 	if(p.screenOp > 0.95 && this.entering && !this.barricaded) {
 		p.doorType = this.type;
@@ -3425,13 +3463,16 @@ Chest.prototype.update = function() {
 			this.openDir = "left";
 		}
 	}
-	if(p.x + 5 > this.x + p.worldX - 61 && p.x - 5 < this.x + p.worldX + 61 && p.y + 46 >= this.y + p.worldY - 10 && p.y + 46 <= this.y + p.worldY + 10 && keys[83] && p.canJump && !this.opening) {
-		this.opening = true;
-		if(p.x < this.x + p.worldX) {
-			this.openDir = "right";
-		}
-		else {
-			this.openDir = "left";
+	if(p.x + 5 > this.x + p.worldX - 61 && p.x - 5 < this.x + p.worldX + 61 && p.y + 46 >= this.y + p.worldY - 10 && p.y + 46 <= this.y + p.worldY + 10 && p.canJump && !this.opening) {
+		infoBar.actions.s = "open chest";
+		if(keys[83]) {
+			this.opening = true;
+			if(p.x < this.x + p.worldX) {
+				this.openDir = "right";
+			}
+			else {
+				this.openDir = "left";
+			}
 		}
 	}
 	/* Animation */
@@ -3749,8 +3790,11 @@ Forge.prototype.exist = function() {
 		}
 	}
 	//usage
-	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && keys[83] && !this.used) {
-		p.guiOpen = "reforge-item";
+	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && !this.used && p.guiOpen === "none") {
+		infoBar.actions.s = "use forge";
+		if(keys[83]) {
+			p.guiOpen = "reforge-item";
+		}
 	}
 };
 function Pulley(x1, w1, x2, w2, y, maxHeight) {
@@ -6278,6 +6322,7 @@ MeleeWeapon.prototype.attack = function() {
 };
 function Dagger(modifier) {
 	MeleeWeapon.call(this, modifier);
+	this.name = "dagger";
 	this.damLow = p.class === "warrior" ? 60 : 50;
 	this.damHigh = p.class === "warrior" ? 80 : 70;
 	this.range = 30;
@@ -6338,6 +6383,7 @@ Dagger.prototype.display = function(type) {
 };
 function Sword(modifier) {
 	MeleeWeapon.call(this, modifier);
+	this.name = "sword";
 	this.damLow = p.class === "warrior" ? 80 : 70;
 	this.damHigh = p.class === "warrior" ? 110 : 100;
 	this.range = 60;
@@ -6417,6 +6463,7 @@ Sword.prototype.getDesc = function() {
 };
 function Spear(modifier) {
 	MeleeWeapon.call(this, modifier);
+	this.name = "spear";
 	this.damLow = p.class === "warrior" ? 80 : 70;
 	this.damHigh = p.class === "warrior" ? 110 : 100;
 	this.range = 60;
@@ -6478,6 +6525,7 @@ Spear.prototype.getDesc = function() {
 };
 function Mace(modifier) {
 	MeleeWeapon.call(this, modifier);
+	this.name = "mace";
 	this.damLow = 120;
 	this.damHigh = 150;
 	this.attackSpeed = "slow";
@@ -6557,6 +6605,7 @@ function RangedWeapon(modifier) {
 inheritsFrom(RangedWeapon, Weapon);
 function Arrow(quantity) {
 	RangedWeapon.call(this);
+	this.name = "arrow";
 	this.quantity = quantity;
 	this.damLow = "depends on what bow you use";
 	this.damHigh = "depends on what bow you use";
@@ -6608,6 +6657,7 @@ Arrow.prototype.getDesc = function() {
 };
 function WoodBow(modifier) {
 	RangedWeapon.call(this, modifier);
+	this.name = "bow";
 	this.damLow = p.class === "archer" ? 80 : 70;
 	this.damHigh = p.class === "archer" ? 110 : 100;
 	this.range = "long";
@@ -6670,6 +6720,7 @@ WoodBow.prototype.getDesc = function() {
 };
 function MetalBow(modifier) {
 	RangedWeapon.call(this, modifier);
+	this.name = "bow";
 	this.damLow = p.class === "archer" ? 110 : 100;
 	this.damHigh = p.class === "archer" ? 130 : 120;
 	this.range = "long";
@@ -6729,6 +6780,7 @@ MetalBow.prototype.getDesc = function() {
 };
 function MechBow(modifier) {
 	RangedWeapon.call(this, modifier);
+	this.name = "bow";
 	this.attackSpeed = "fast";
 	this.range = "long";
 	this.damLow = (p.class === "archer") ? 70 : 60;
@@ -6826,6 +6878,7 @@ MechBow.prototype.getDesc = function() {
 };
 function LongBow(modifier) {
 	RangedWeapon.call(this, modifier);
+	this.name = "longbow";
 	this.range = "very long";
 	this.damLow = (p.class === "archer") ? 90 : 80;
 	this.damHigh = (p.class === "archer") ? 100 : 90;
@@ -6894,6 +6947,7 @@ function MagicWeapon(modifier) {
 inheritsFrom(MagicWeapon, Weapon);
 function EnergyStaff(modifier) {
 	MagicWeapon.call(this, modifier);
+	this.name = "staff";
 	this.chargeType = "energy";
 	this.manaCost = (this.modifier === "none") ? 40 : (this.modifier === "arcane" ? 50 : 30);
 	this.damLow = (p.class === "mage") ? 80 : 70; // 47.5 damage average with 1/2 damage nerf
@@ -6944,6 +6998,7 @@ EnergyStaff.prototype.getDesc = function() {
 };
 function ElementalStaff(modifier) {
 	MagicWeapon.call(this, modifier);
+	this.name = "staff";
 	this.element = "none";
 	this.manaCost = (this.modifier === "none") ? 30 : (this.modifier === "arcane" ? 40 : 20);
 	this.damLow = (p.class === "mage") ? 60 : 50;
@@ -7130,6 +7185,7 @@ ElementalStaff.prototype.getDesc = function() {
 };
 function ChaosStaff(modifier) {
 	MagicWeapon.call(this, modifier);
+	this.name = "staff";
 	this.hpCost = 30;
 	this.damLow = 0;
 	this.damHigh = 0;
@@ -7188,6 +7244,7 @@ function Equipable(modifier) {
 inheritsFrom(Equipable, Item);
 function WizardHat(modifier) {
 	Equipable.call(this, modifier);
+	this.name = "hat";
 	this.defLow = (this.modifier === "none") ? 5 : (this.modifier === "empowering" ? 0 : 10);
 	this.defHigh = (this.modifier === "none") ? 10 : (this.modifier === "empowering" ? 5 : 15);
 	this.manaRegen = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
@@ -7230,6 +7287,7 @@ WizardHat.prototype.getDesc = function() {
 };
 function MagicQuiver(modifier) {
 	Equipable.call(this, modifier);
+	this.name = "quiver";
 	this.defLow = (this.modifier === "sturdy") ? 5 : 0;
 	this.defHigh = (this.modifier === "none") ? 5 : (this.modifier === "empowering" ? 0 : 10);
 	this.arrowEfficiency = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
@@ -7276,6 +7334,7 @@ MagicQuiver.prototype.getDesc = function() {
 };
 function Helmet(modifier) {
 	Equipable.call(this, modifier);
+	this.name = "helmet";
 	this.defLow = (this.modifier === "none") ? 20 : (this.modifier === "empowering" ? 10 : 30);
 	this.defHigh = (this.modifier === "none") ? 30 : (this.modifier === "empowering" ? 20 : 40);
 	this.healthRegen = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
@@ -9897,6 +9956,307 @@ if(TESTING_MODE) {
 	p.addItem(new Helmet());
 }
 /** MENUS & UI **/
+var infoBar = {
+	/*
+	Top row:
+	 - Click to equip / unequip
+	 - A to use item
+	 - S to interact with object
+	 - Up + Down to aim
+	Bottom row:
+	 - Arrow keys to move
+	 - Up to jump
+	 - D to view items
+	 - 1 / 2 / 3 to switch items
+	*/
+	y: 20,
+	destY: 20,
+	closeButtonY: 0,
+	upButtonY: 0,
+	downButtonY: 0,
+	upButtonDestY: 0,
+	downButtonDestY: 0,
+	upButton: {
+		y: 0,
+		destY: 0
+	},
+	downButton: {
+		y: 0,
+		destY: 0
+	},
+	rowHeight: 20,
+	actions: {
+		click: null,
+		upDown: null,
+		a: null,
+		s: null,
+
+		arrows: "move",
+		up: "jump",
+		d: "view items"
+	},
+	display: function() {
+		c.font = "bold 13.33px monospace";
+		c.lineWidth = 2;
+
+		var pressingUpButton = mouseInRect(770, 800 - infoBar.y - infoBar.upButton.y, 20, 20);
+		c.fillStyle = pressingUpButton ? "rgb(59, 67, 70)" : "rgb(200, 200, 200)";
+		c.strokeStyle = "rgb(59, 67, 70)";
+		c.fillRect(770, 800 - infoBar.y - infoBar.upButton.y, 20, 20);
+		c.strokeRect(770, 800 - infoBar.y - infoBar.upButton.y, 20, 20);
+		displayButtonIcon(770, 800 - infoBar.y - infoBar.upButton.y, "arrow-up", null, pressingUpButton);
+
+		var pressingDownButton = mouseInRect(740, 800 - infoBar.y - infoBar.downButton.y, 20, 20);
+		c.fillStyle = pressingDownButton ? "rgb(59, 67, 70)" : "rgb(200, 200, 200)";
+		c.strokeStyle = "rgb(59, 67, 70)";
+		c.fillRect(740, 800 - infoBar.y - infoBar.downButton.y, 20, 20);
+		c.strokeRect(740, 800 - infoBar.y - infoBar.downButton.y, 20, 20);
+		displayButtonIcon(740, 800 - infoBar.y - infoBar.downButton.y, "arrow-down", null, pressingDownButton);
+
+		c.lineWidth = 5;
+		c.fillStyle = "rgb(200, 200, 200)";
+		c.strokeStyle = "rgb(59, 67, 70)";
+		c.strokeRect(0, 800 - infoBar.y, 800, infoBar.y);
+		c.fillRect(0, 800 - infoBar.y, 800, infoBar.y);
+
+		function displayButtonIcon(x, y, icon, align, invertColors) {
+			if(icon.substr(0, 5) === "arrow") {
+				c.strokeStyle = "rgb(59, 67, 70)";
+				if(invertColors) {
+					c.strokeStyle = "rgb(200, 200, 200)";
+					c.fillStyle = "rgb(59, 67, 70)";
+				}
+				c.save();
+				c.translate(x + 10, y + ((icon === "arrow-up") ? 12 : 8));
+				c.scale(1, (icon === "arrow-down") ? -1 : 1);
+				c.beginPath();
+				c.moveTo(-5, 0);
+				c.lineTo(0, -5);
+				c.lineTo(5, 0);
+				c.stroke();
+				c.restore();
+				return;
+			}
+			c.textAlign = "center";
+			var boxHeight = infoBar.rowHeight - 5;
+			c.lineWidth = 2;
+			c.fillStyle = "rgb(200, 200, 200)";
+			c.strokeStyle = "rgb(59, 67, 70)";
+			if(icon !== "left-click") {
+				c.fillRect(x, y, boxHeight, boxHeight);
+				c.strokeRect(x, y, boxHeight, boxHeight);
+			}
+			c.fillStyle = "rgb(59, 67, 70)";
+			if(icon.length === 1) {
+				c.fillText(icon, x + boxHeight / 2, y + (boxHeight / 2) + 4);
+			}
+			else if(icon.substring(0, 8) === "triangle") {
+				/* filled-in triangle */
+				c.save();
+				c.translate(x + (boxHeight / 2), y + (boxHeight / 2));
+				if(icon === "triangle-left") {
+					c.rotate(Math.rad(-90));
+				}
+				else if(icon === "triangle-down") {
+					c.rotate(Math.rad(-180));
+				}
+				else if(icon === "triangle-right") {
+					c.rotate(Math.rad(-270));
+				}
+				c.beginPath();
+				c.moveTo(-5, 5);
+				c.lineTo(5, 5);
+				c.lineTo(0, -5);
+				c.fill();
+				c.restore();
+			}
+			else if(icon === "left-click") {
+				c.save();
+				c.translate(x + (boxHeight / 2), y + (boxHeight / 2));
+				c.scale(1, 1.2);
+
+				c.beginPath();
+				c.arc(0, 0, 5, 0, 2 * Math.PI);
+				c.stroke();
+
+				c.fillStyle = "rgb(59, 67, 70)";
+				c.beginPath();
+				c.moveTo(0, 0);
+				c.arc(0, 0, 5, 1 * Math.PI, 1.5 * Math.PI);
+				c.lineTo(0, 0);
+				c.fill();
+
+				c.beginPath();
+				c.moveTo(-5, 0);
+				c.lineTo(5, 0);
+				c.stroke();
+
+				c.restore();
+			}
+		};
+		function displayAction(x, y, icon, action, align) {
+			align = align || "left";
+			if(action === null || action === undefined) {
+				return x;
+			}
+			if(align === "left") {
+				var boxHeight = infoBar.rowHeight - 5;
+				if(icon === "triangle-left-right") {
+					displayButtonIcon(x, y, "triangle-left");
+					displayButtonIcon(x + boxHeight + 2.5, y, "triangle-right");
+					c.fillStyle = "rgb(59, 67, 70)";
+					c.textAlign = "left";
+					c.fillText(action, x + (boxHeight * 2) + 7.5, y + (boxHeight / 2) + 4);
+					return (x + (boxHeight * 2)) + c.measureText(action).width + 25;
+				}
+				else {
+					displayButtonIcon(x, y, icon);
+					c.fillStyle = "rgb(59, 67, 70)";
+					c.textAlign = "left";
+					c.fillText(action, x + boxHeight + 5, y + (boxHeight / 2) + 4);
+				}
+				/* Return the x-coordinate at which to draw the next icon */
+				return (x + boxHeight + 5) + c.measureText(action).width + 25;
+			}
+			else {
+				var boxHeight = infoBar.rowHeight - 5;
+				c.textAlign = "right";
+				c.fillStyle = "rgb(59, 67, 70)";
+				c.fillText(action, x, y + (boxHeight / 2) + 4);
+				var textWidth = c.measureText(action).width;
+				if(icon === "triangle-up-down") {
+					displayButtonIcon(x - textWidth - boxHeight - 5, y, "triangle-down");
+					displayButtonIcon(x - textWidth - (boxHeight * 2) - 7.5, y, "triangle-up");
+					return x - textWidth - (boxHeight * 2) - 10 - 25;
+				}
+				else {
+					displayButtonIcon(x - textWidth - boxHeight - 2.5, y, icon);
+					return x - textWidth - boxHeight - 25;
+				}
+			}
+		};
+		var x1 = displayAction(2.5, 800 - infoBar.y + 2.5, "A", infoBar.actions.a);
+		var x2 = displayAction(x1, 800 - infoBar.y + 2.5, "S", infoBar.actions.s);
+
+		var x3 = displayAction(800 - 5, 800 - infoBar.y + 2.5, "triangle-up-down", infoBar.actions.upDown, "right");
+		var x4 = displayAction(x3, 800 - infoBar.y + 2.5, "left-click", infoBar.actions.click, "right");
+
+		var x5 = displayAction(2.5, 800 - infoBar.y + 22.5, "triangle-left-right", infoBar.actions.arrows);
+		var x6 = displayAction(x5, 800 - infoBar.y + 22.5, "triangle-up", infoBar.actions.up);
+
+		var x7 = displayAction(800 - 5, 800 - infoBar.y + 22.5, "D", infoBar.actions.d, "right");
+
+		if(mouseY > 800 - 100) {
+			if(infoBar.destY === 0) {
+				infoBar.upButton.destY = 20;
+				infoBar.downButton.destY = 0;
+			}
+			else if(infoBar.destY === 20) {
+				infoBar.upButton.destY = 20;
+				infoBar.downButton.destY = 20;
+			}
+			else if(infoBar.destY === 40) {
+				infoBar.upButton.destY = 0;
+				infoBar.downButton.destY = 20;
+			}
+		}
+		else {
+			infoBar.upButton.destY = 0;
+			infoBar.downButton.destY = 0;
+		}
+		if(pressingUpButton && mouseIsPressed && infoBar.y === infoBar.destY) {
+			infoBar.destY += 20;
+		}
+		if(pressingDownButton && mouseIsPressed && infoBar.y === infoBar.destY) {
+			infoBar.destY -= 20;
+		}
+		infoBar.upButton.y += (infoBar.upButton.y < infoBar.upButton.destY) ? 2 : 0;
+		infoBar.upButton.y -= (infoBar.upButton.y > infoBar.upButton.destY) ? 2 : 0;
+		infoBar.downButton.y += (infoBar.downButton.y < infoBar.downButton.destY) ? 2 : 0;
+		infoBar.downButton.y -= (infoBar.downButton.y > infoBar.downButton.destY) ? 2 : 0;
+		infoBar.y += (infoBar.y < infoBar.destY) ? 1 : 0;
+		infoBar.y -= (infoBar.y > infoBar.destY) ? 1 : 0;
+		infoBar.y = Math.max(infoBar.y, 0);
+		infoBar.y = Math.min(infoBar.y, 40);
+		infoBar.y = Math.round(infoBar.y);
+	},
+	resetActions: function() {
+		infoBar.actions = {
+			click: null,
+			a: null,
+			s: null,
+			upDown: null,
+
+			arrows: null,
+			up: null,
+			d: null
+		};
+	},
+	calculateActions: function() {
+		/*
+		Some of the buttons' text are calculated in other places
+		*/
+		var item = p.invSlots[p.activeSlot].content;
+		if(p.guiOpen === "none") {
+			if((item instanceof RangedWeapon && !(item instanceof Arrow) && p.hasInInventory(Arrow))) {
+				infoBar.actions.a = "shoot bow";
+			}
+			if(item instanceof MagicWeapon && p.mana > item.manaCost) {
+				infoBar.actions.a = "use magic";
+			}
+			if(item instanceof MeleeWeapon) {
+				infoBar.actions.a = "attack";
+			}
+			if(item instanceof Crystal) {
+				if(p.guiOpen === "crystal-infusion") {
+					infoBar.actions.a = "cancel";
+				}
+				else {
+					infoBar.actions.a = "infuse item";
+				}
+			}
+			if(item instanceof Equipable) {
+				infoBar.actions.a = "put on " + item.name;
+			}
+			if(item instanceof Barricade) {
+				var doorNearby = false;
+				for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+					var loc = point3d(roomInstances[inRoom].content[i].x + p.worldX, roomInstances[inRoom].content[i].y + p.worldY, 0.9);
+					if(roomInstances[inRoom].content[i] instanceof Door && Math.dist(loc.x, loc.y, 400, 400) <= 100 && !roomInstances[inRoom].content[i].barricaded) {
+						doorNearby = true;
+						break;
+					}
+				}
+				if(doorNearby) {
+					infoBar.actions.a = "barricade door";
+				}
+			}
+			if(p.aiming) {
+				infoBar.actions.upDown = "aim";
+				if(item instanceof MagicWeapon) {
+					var containsCharge = false;
+					for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
+						if(roomInstances[inRoom].content[i] instanceof MagicCharge && roomInstances[inRoom].content[i].beingAimed) {
+							containsCharge = true;
+							break;
+						}
+					}
+					if(!containsCharge) {
+						infoBar.actions.upDown = null;
+					}
+				}
+				if(item instanceof RangedWeapon && !p.hasInInventory(Arrow)) {
+					infoBar.actions.upDown = null;
+				}
+			}
+			infoBar.actions.arrows = "move";
+			if(p.canJump && infoBar.actions.upDown === null) {
+				infoBar.actions.up = "jump";
+			}
+			infoBar.actions.d = "view items";
+		}
+	}
+};
 var warriorClass = new Player();
 warriorClass.x = 175;
 warriorClass.y = 504;
@@ -10027,6 +10387,9 @@ function doByTime() {
 
 		p.display();
 		p.gui();
+		infoBar.calculateActions();
+		infoBar.display();
+		infoBar.resetActions();
 		//move player into lower room when falling
 		if(p.y + 46 > 900) {
 			p.fallDir = 0.05;
