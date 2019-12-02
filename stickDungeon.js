@@ -5318,7 +5318,12 @@ Room.prototype.exist = function(index) {
 	// console.log("Room #" + index);
 	// console.log(collisions);
 	if(inRoom === index) {
-		p.canJump = false;
+		if(p.onScreen === "play") {
+			p.canJump = false;
+		}
+		else {
+			howChar.canJump = false;
+		}
 	}
 	for(var i = 0; i < collisions.length; i ++) {
 		collisions[i].collide();
