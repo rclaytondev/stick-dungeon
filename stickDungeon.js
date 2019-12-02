@@ -1732,7 +1732,7 @@ Player.prototype.gui = function() {
 		/*
 		Display 4 triangles on 'invSlot'
 		*/
-		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(59, 67, 70)";
 		c.beginPath();
 		c.moveTo(invSlot.x + 10, invSlot.y + 35);
 		c.lineTo(invSlot.x, invSlot.y + 25);
@@ -1777,7 +1777,7 @@ Player.prototype.gui = function() {
 	};
 	if(this.guiOpen === "inventory") {
 		/* Background */
-		c.strokeStyle = "rgb(100, 100, 100)";
+		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
 		/* Display Items */
@@ -1883,13 +1883,13 @@ Player.prototype.gui = function() {
 	}
 	else if(this.guiOpen === "crystal-infusion") {
 		/* Background */
-		c.strokeStyle = "rgb(100, 100, 100)";
+		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
 		/* GUI Title */
 		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
-		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(59, 67, 70)";
 		c.beginPath();
 		c.fillText("Select a weapon to infuse", 400, 165);
 		c.fill();
@@ -1940,13 +1940,13 @@ Player.prototype.gui = function() {
 	}
 	else if(this.guiOpen === "reforge-item") {
 		/* Background */
-		c.strokeStyle = "rgb(100, 100, 100)";
+		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
 		/* Text */
 		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
-		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(59, 67, 70)";
 		c.beginPath();
 		c.fillText("Select a weapon to reforge", 400, 165);
 		c.fill();
@@ -2013,11 +2013,11 @@ Player.prototype.gui = function() {
 	}
 	else if(this.guiOpen === "reforge-trait-none") {
 		/* Background */
-		c.strokeStyle = "rgb(100, 100, 100)";
+		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
 		/* Text */
-		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(59, 67, 70)";
 		c.textAlign = "center";
 		c.font = "bold 20pt monospace";
 		c.fillText("Choose a trait to reforge for", 400, 200);
@@ -2144,11 +2144,11 @@ Player.prototype.gui = function() {
 	}
 	else if(this.guiOpen === "reforge-trait-light") {
 		/* Background */
-		c.strokeStyle = "rgb(100, 100, 100)";
+		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
 		/* Text */
-		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(59, 67, 70)";
 		c.textAlign = "center";
 		c.font = "bold 20pt monospace";
 		c.fillText("Choose a trait to reforge for", 400, 200);
@@ -2257,11 +2257,11 @@ Player.prototype.gui = function() {
 	}
 	else if(this.guiOpen === "reforge-trait-heavy") {
 		/* Background */
-		c.strokeStyle = "rgb(100, 100, 100)";
+		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.fillRect(0, 0, 800, 800);
 		/* Text */
-		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(59, 67, 70)";
 		c.textAlign = "center";
 		c.font = "bold 20pt monospace";
 		c.fillText("Choose a trait to reforge for", 400, 200);
@@ -2374,7 +2374,7 @@ Player.prototype.gui = function() {
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			this.invSlots[i].content.opacity += 0.05;
 			if(this.invSlots[i].type === "holding") {
-				c.strokeStyle = "rgb(100, 100, 100)";
+				c.strokeStyle = "rgb(59, 67, 70)";
 				c.fillStyle = "rgb(150, 150, 150)";
 				c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
 				c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
@@ -6188,7 +6188,7 @@ Item.prototype.displayDesc = function(x, y, dir) {
 	actualY = (actualY + (descHeight / 2) < 780) ? actualY : 780 - (descHeight / 2);
 	if(dir === "right") {
 		//text box
-		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(59, 67, 70)";
 		c.beginPath();
 		c.moveTo(x, y);
 		c.lineTo(x + 10, y - 10);
@@ -6206,7 +6206,7 @@ Item.prototype.displayDesc = function(x, y, dir) {
 	}
 	else {
 		//text box
-		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillStyle = "rgb(59, 67, 70)";
 		c.beginPath();
 		c.moveTo(x, y);
 		c.lineTo(x - 10, y - 10);
