@@ -93,6 +93,23 @@ Math.rotate = function(x, y, deg) {
 		y: x * Math.sin(deg) + y * Math.cos(deg)
 	};
 };
+Math.scale = function(x, y, factor, scaleX, scaleY) {
+	/*
+	Returns ('x', 'y') scaled by 'factor', optionally about ('scaleX', 'scaleY').
+	*/
+	scaleX = scaleX || 0;
+	scaleY = scaleY || 0;
+	x -= scaleX;
+	y -= scaleY;
+	x *= factor;
+	y *= factor;
+	x += scaleX;
+	y += scaleY;
+	return {
+		x: x,
+		y: y
+	};
+};
 Array.prototype.min = function(func) {
 	/*
 	Returns the lowest item, or the item for which func() returns the lowest value.
@@ -3295,6 +3312,7 @@ Torch.prototype.exist = function() {
 	/* Request graphics */
 	cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95, null, null, { noFrontExtended: true });
 	cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97, null, null, { noFrontExtended: true });
+
 	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
 		this.lit = true;
 	}
@@ -4679,6 +4697,7 @@ function Banner(x, y, color) {
 	this.x = x;
 	this.y = y;
 	this.color = color;
+	this.graphic = null;
 };
 Banner.prototype.exist = function() {
 	if(this.color === undefined || this.color === "?") {
@@ -4689,41 +4708,94 @@ Banner.prototype.exist = function() {
 			}
 		}
 		if(this.color === undefined || this.color === "?") {
-			// var chooser = Math.random();
-			// if(chooser < 0.33) {
-			// 	this.color = "rgb(128, 0, 0)";
-			// }
-			// else if(chooser < 0.66) {
-			// 	this.color = "rgb(0, 0, 128)";
-			// }
-			// else {
-			// 	this.color = "rgb(0, 128, 0)";
-			// }
-			if(roomInstances[theRoom].colorScheme === "red") {
-				this.color = "rgb(128, 0, 0)";
-			}
-			else if(roomInstances[theRoom].colorScheme === "blue") {
-				this.color = "rgb(0, 0, 128)";
-			}
-			else {
-				this.color = "rgb(0, 128, 0)";
-			}
+			this.color = roomInstances[theRoom].colorScheme;
 		}
 	}
-	c.fillStyle = this.color;
-	var p1 = point3d(this.x + p.worldX - 40, this.y + p.worldY - 95, 0.91);
-	var p2 = point3d(this.x + p.worldX - 40, this.y + p.worldY, 0.9);
-	var p3 = point3d(this.x + p.worldX, this.y + p.worldY - 10, 0.9);
-	var p4 = point3d(this.x + p.worldX + 40, this.y + p.worldY, 0.9);
-	var p5 = point3d(this.x + p.worldX + 40, this.y + p.worldY - 95, 0.9);
-	c.beginPath();
-	c.moveTo(p1.x, p1.y);
-	c.lineTo(p2.x, p2.y);
-	c.lineTo(p3.x, p3.y);
-	c.lineTo(p4.x, p4.y);
-	c.lineTo(p5.x, p5.y);
-	c.fill();
-	cube(this.x + p.worldX - 50, this.y + p.worldY - 100, 100, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", { noFrontExtended: true });
+	if(this.graphic === null) {
+		for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
+			if(roomInstances[theRoom].content[i] instanceof Banner && roomInstances[theRoom].content[i].graphic !== null) {
+				this.graphic = roomInstances[theRoom].content[i].graphic;
+				break;
+			}
+		}
+		if(this.graphic === null) {
+			var chooser = Math.random();
+			if(chooser < 0.5) {
+				this.graphic = "gradient";
+			}
+			else {
+				this.graphic = "border";
+			}
+		}
+		if(TESTING_MODE) {
+			this.graphic = "border";
+		}
+	}
+	var p1 = point3d(this.x + p.worldX - 20, this.y + p.worldY - 40, 0.9);
+	var p2 = point3d(this.x + p.worldX - 20, this.y + p.worldY + 45, 0.9);
+	var p3 = point3d(this.x + p.worldX, this.y + p.worldY + 35, 0.9);
+	var p4 = point3d(this.x + p.worldX + 20, this.y + p.worldY + 45, 0.9);
+	var p5 = point3d(this.x + p.worldX + 20, this.y + p.worldY - 40, 0.9);
+	var color1, color2;
+	if(this.color === "green") {
+		color1 = "rgb(0, 150, 0)";
+		color2 = "rgb(50, 201, 50)";
+	}
+	else if(this.color === "blue") {
+		color1 = "rgb(46, 102, 255)";
+		color2 = "rgb(106, 152, 255)";
+	}
+	else if(this.color === "red") {
+		color1 = "rgb(128, 0, 0)";
+		color2 = "rgb(178, 50, 50)";
+	}
+	if(this.graphic === "gradient") {
+		c.save();
+
+		c.beginPath();
+		c.moveTo(p1.x, p1.y);
+		c.lineTo(p2.x, p2.y);
+		c.lineTo(p3.x, p3.y);
+		c.lineTo(p4.x, p4.y);
+		c.lineTo(p5.x, p5.y);
+		c.clip();
+
+		var center = point3d(this.x, this.y - 50, 0.9)
+		var gradient = c.createLinearGradient(center.x, p1.y, center.x, p3.y);
+		gradient.addColorStop(0, color1);
+		gradient.addColorStop(1, color2);
+		c.fillStyle = gradient;
+		c.fillRect(0, 0, canvas.width, canvas.height);
+
+		c.restore();
+	}
+	else if(this.graphic === "border") {
+		c.fillStyle = color1;
+		c.beginPath();
+		c.moveTo(p1.x, p1.y);
+		c.lineTo(p2.x, p2.y);
+		c.lineTo(p3.x, p3.y);
+		c.lineTo(p4.x, p4.y);
+		c.lineTo(p5.x, p5.y);
+		c.fill();
+
+		var center = point3d(this.x + p.worldX, this.y + p.worldY, 0.9);
+		p1 = Math.scale(p1.x, p1.y, 0.7, center.x, center.y);
+		p2 = Math.scale(p2.x, p2.y, 0.7, center.x, center.y);
+		p3 = Math.scale(p3.x, p3.y, 0.7, center.x, center.y);
+		p4 = Math.scale(p4.x, p4.y, 0.7, center.x, center.y);
+		p5 = Math.scale(p5.x, p5.y, 0.7, center.x, center.y);
+
+		c.fillStyle = color2;
+		c.beginPath();
+		c.moveTo(p1.x, p1.y);
+		c.lineTo(p2.x, p2.y);
+		c.lineTo(p3.x, p3.y);
+		c.lineTo(p4.x, p4.y);
+		c.lineTo(p5.x, p5.y);
+		c.fill();
+	}
+	cube(this.x + p.worldX - 30, this.y + p.worldY - 95 + offset, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", { noFrontExtended: true });
 };
 function GlassWindow(x, y, color) {
 	this.x = x;
