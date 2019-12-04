@@ -4795,7 +4795,7 @@ Banner.prototype.exist = function() {
 		c.lineTo(p5.x, p5.y);
 		c.fill();
 	}
-	cube(this.x + p.worldX - 30, this.y + p.worldY - 95 + offset, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", { noFrontExtended: true });
+	cube(this.x + p.worldX - 30, this.y + p.worldY - 50, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", { noFrontExtended: true });
 };
 function GlassWindow(x, y, color) {
 	this.x = x;
@@ -5453,6 +5453,14 @@ Room.prototype.contains = function(constructor) {
 		}
 	}
 	return false;
+};
+Room.prototype.displayShadowEffect = function() {
+	var gradient = c.createRadialGradient(400, 400, 0, 400, 400, 600);
+	c.globalAlpha = 1;
+	gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+	gradient.addColorStop(1, "rgba(0, 0, 0, 255)");
+	c.fillStyle = gradient;
+	c.fillRect(0, 0, 800, 800);
 };
 var rooms = [
 	{
@@ -10462,15 +10470,18 @@ function doByTime() {
 			}
 		}
 
+		//move player into lower room when falling
+		if(p.y + 46 > 900) {
+			p.fallDir = 0.05;
+		}
+
+		roomInstances[inRoom].displayShadowEffect();
+
 		p.display();
 		p.gui();
 		infoBar.calculateActions();
 		infoBar.display();
 		infoBar.resetActions();
-		//move player into lower room when falling
-		if(p.y + 46 > 900) {
-			p.fallDir = 0.05;
-		}
 	}
 	else if(p.onScreen === "home") {
 		boxFronts = [];
