@@ -5396,9 +5396,9 @@ Room.prototype.exist = function(index) {
 		else {
 			howChar.canJump = false;
 		}
-	}
-	for(var i = 0; i < collisions.length; i ++) {
-		collisions[i].collide();
+		for(var i = 0; i < collisions.length; i ++) {
+			collisions[i].collide();
+		}
 	}
 	//show hitboxes
 	for(var i = 0; i < hitboxes.length; i ++) {
