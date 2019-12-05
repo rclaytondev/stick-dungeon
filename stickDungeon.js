@@ -866,7 +866,6 @@ function Player() {
 	this.roomsExplored = 0;
 	this.enemiesKilled = 0;
 	this.deathCause = null;
-	this.secretsFound = 0;
 	this.dead = false;
 	this.power = 0;
 	this.scores = [
@@ -10717,8 +10716,7 @@ function doByTime() {
 		c.fillText("You collected " + p.gold + " coins.", 400, 300);
 		c.fillText("You explored " + p.roomsExplored + " rooms.", 400, 340);
 		c.fillText("You defeated " + p.enemiesKilled + " monsters.", 400, 380);
-		c.fillText("You discovered " + p.secretsFound + " new secrets.", 400, 420);
-		c.fillText("You were killed by " + p.deathCause, 400, 460);
+		c.fillText("You were killed by " + p.deathCause, 400, 420);
 		p.worldX = 0;
 		p.worldY = 0;
 		new Block(-100, 700, 1000, 200).display();
