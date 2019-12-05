@@ -1997,7 +1997,7 @@ Player.prototype.gui = function() {
 			if(this.invSlots[i].content !== "empty") {
 				display(this.invSlots[i]);
 				/* Gray out invalid choices */
-				if(!(this.invSlots[i].content instanceof Weapon || this.invSlots[i].content instanceof Equipable)) {
+				if(!(this.invSlots[i].content instanceof Weapon || this.invSlots[i].content instanceof Equipable) || this.invSlots[i].content instanceof Arrow) {
 					c.globalAlpha = 0.75;
 					c.fillStyle = "rgb(150, 150, 150)";
 					c.fillRect(this.invSlots[i].x + 2, this.invSlots[i].y + 2, 66, 66);
