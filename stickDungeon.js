@@ -1595,7 +1595,7 @@ Player.prototype.useItem = function() {
 		}
 	}
 	/* Launch projectile when A is released */
-	if(!this.aiming && this.aimingBefore && this.shootReload < 0 && !(this.attackingWith instanceof MechBow)) {
+	if(!this.aiming && this.aimingBefore && this.shootReload < 0 && !(this.attackingWith instanceof MechBow) && ((this.invSlots[this.activeSlot].content instanceof RangedWeapon && !(this.invSlots[this.activeSlot].content instanceof Arrow)) || this.attackingWith instanceof MagicWeapon)) {
 		if(this.attackingWith instanceof RangedWeapon && this.hasInInventory(Arrow)) {
 			if(this.attackingWith instanceof LongBow) {
 				this.shootReload = 120;
