@@ -10084,14 +10084,14 @@ var infoBar = {
 		c.font = "bold 13.33px monospace";
 		c.lineWidth = 2;
 
-		var pressingUpButton = mouseInRect(770, 800 - infoBar.y - infoBar.upButton.y, 20, 20);
+		var pressingUpButton = mouseInRect(770, 800 - infoBar.y - infoBar.upButton.y, 20, 20) && infoBar.destY < 40;
 		c.fillStyle = pressingUpButton ? "rgb(59, 67, 70)" : "rgb(200, 200, 200)";
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillRect(770, 800 - infoBar.y - infoBar.upButton.y, 20, 20);
 		c.strokeRect(770, 800 - infoBar.y - infoBar.upButton.y, 20, 20);
 		displayButtonIcon(770, 800 - infoBar.y - infoBar.upButton.y, "arrow-up", null, pressingUpButton);
 
-		var pressingDownButton = mouseInRect(740, 800 - infoBar.y - infoBar.downButton.y, 20, 20);
+		var pressingDownButton = mouseInRect(740, 800 - infoBar.y - infoBar.downButton.y, 20, 20) && infoBar.destY > 0;
 		c.fillStyle = pressingDownButton ? "rgb(59, 67, 70)" : "rgb(200, 200, 200)";
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillRect(740, 800 - infoBar.y - infoBar.downButton.y, 20, 20);
@@ -10234,25 +10234,25 @@ var infoBar = {
 		if(mouseY > 800 - 100) {
 			if(infoBar.destY === 0) {
 				infoBar.upButton.destY = 20;
-				infoBar.downButton.destY = 0;
+				infoBar.downButton.destY = 5;
 			}
 			else if(infoBar.destY === 20) {
 				infoBar.upButton.destY = 20;
 				infoBar.downButton.destY = 20;
 			}
 			else if(infoBar.destY === 40) {
-				infoBar.upButton.destY = 0;
+				infoBar.upButton.destY = 5;
 				infoBar.downButton.destY = 20;
 			}
 		}
 		else {
-			infoBar.upButton.destY = 0;
-			infoBar.downButton.destY = 0;
+			infoBar.upButton.destY = 5;
+			infoBar.downButton.destY = 5;
 		}
-		if(pressingUpButton && mouseIsPressed && infoBar.y === infoBar.destY) {
+		if(pressingUpButton && mouseIsPressed && infoBar.y === infoBar.destY && infoBar.destY < 40) {
 			infoBar.destY += 20;
 		}
-		if(pressingDownButton && mouseIsPressed && infoBar.y === infoBar.destY) {
+		if(pressingDownButton && mouseIsPressed && infoBar.y === infoBar.destY && infoBar.destY > 0) {
 			infoBar.destY -= 20;
 		}
 		infoBar.upButton.y += (infoBar.upButton.y < infoBar.upButton.destY) ? 2 : 0;
