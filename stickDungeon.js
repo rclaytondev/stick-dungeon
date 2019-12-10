@@ -4,11 +4,10 @@ IO + CONSTANTS
 
 var canvas = document.getElementById("theCanvas");
 var c = canvas.getContext("2d");
-c.textAlign = "center";
 
 const FPS = 60;
 const FLOOR_WIDTH = 0.1;
-const TESTING_MODE = true;
+const TESTING_MODE = false;
 const SHOW_HITBOXES = false;
 var frameCount = 0;
 
@@ -49,6 +48,152 @@ function resizeCanvas() {
 UTILITIES
 */
 /* Generic utilities */
+CanvasRenderingContext2D.prototype.line = function() {
+	/*
+	Can be used to draw a line or a series of lines.
+
+	Possible parameters:
+	 - Numbers (alternating x and y values)
+	 - Objects with x and y properties for each point
+	 - Array of objects with x and y properties
+	*/
+	if(Array.isArray(arguments[0])) {
+		/* assume the input is an array of objects */
+		this.polygon.apply(this, arguments[0]);
+	}
+	else if(typeof arguments[0] === "object") {
+		/* assume each of the arguments is an object */
+		this.moveTo(arguments[0].x, arguments[0].y);
+		for(var i = 0; i < arguments.length; i ++) {
+			this.lineTo(arguments[i].x, arguments[i].y);
+		}
+	}
+	else if(typeof arguments[0] === "number") {
+		/* assume all inputs are numbers */
+		this.moveTo(arguments[0], arguments[1]);
+		for(var i = 2; i < arguments.length; i += 2) {
+			this.lineTo(arguments[i], arguments[i + 1]);
+		}
+	}
+};
+CanvasRenderingContext2D.prototype.strokeLine = function() {
+	/*
+	Can be used to stroke a line or a series of lines. Similar to polygon() but it doesn't automatically close the path (and it outlines the path).
+	*/
+	this.beginPath();
+	this.line.apply(this, arguments);
+	this.stroke();
+};
+CanvasRenderingContext2D.prototype.polygon = function() {
+	/* draw lines connecting all vertices + close path to form polygon */
+	this.line.apply(this, arguments);
+	this.closePath();
+};
+CanvasRenderingContext2D.prototype.fillPoly = function() {
+	/*
+	Arguments can be objects with 'x' and 'y' properties or numbers with each argument being either the x or the y, starting with x.
+	*/
+	this.beginPath();
+	this.polygon.apply(this, arguments);
+	this.fill();
+};
+CanvasRenderingContext2D.prototype.strokePoly = function() {
+	this.beginPath();
+	this.polygon.apply(this, arguments);
+	this.stroke();
+};
+CanvasRenderingContext2D.prototype.fillCircle = function(x, y, r) {
+	this.beginPath();
+	this.arc(x, y, r, 0, 2 * Math.PI);
+	this.fill();
+};
+CanvasRenderingContext2D.prototype.strokeCircle = function(x, y, r) {
+	this.beginPath();
+	this.arc(x, y, r, 0, 2 * Math.PI);
+	this.stroke();
+};
+CanvasRenderingContext2D.prototype.circle = function(x, y, r) {
+	this.arc(x, y, r, 0, 2 * Math.PI);
+};
+CanvasRenderingContext2D.prototype.fillArc = function(x, y, r, start, end, antiClockwise) {
+	/*
+	Unlike strokeArc(), this function draws an arc like a pie shape instead of an arc outline.
+	*/
+	this.beginPath();
+	this.moveTo(x, y);
+	this.arc(x, y, r, start, end, antiClockwise);
+	this.closePath();
+	this.fill();
+};
+CanvasRenderingContext2D.prototype.strokeArc = function(x, y, r, start, end, antiClockwise) {
+	this.beginPath();
+	this.arc(x, y, r, start, end, antiClockwise);
+	this.stroke();
+};
+CanvasRenderingContext2D.prototype.invertPath = function() {
+	/*
+	Inverts the canvas path. Drawing a line on each of the canvas boundaries will, for any point on the canvas, increase the number of lines crossed by 1. When using the "evenodd" fill rule, this will toggle whether the point is in the path or not.
+
+	Calling this multiple times on the same path does not work for some reason.
+
+	The evenodd fillrule MUST be used in order for this function to work as intended.
+	*/
+	this.moveTo(-8000, -8000);
+	this.lineTo(8000, 0);
+	this.lineTo(8000, 8000);
+	this.lineTo(-8000, 8000);
+	this.lineTo(-8000, -8000);
+};
+CanvasRenderingContext2D.prototype.fillCanvas = function() {
+	/*
+	Fills the entire canvas with the current fillStyle.
+	*/
+	this.save();
+	this.resetTransform();
+	this.fillRect(0, 0, this.canvas.width, this.canvas.height);
+	this.restore();
+};
+CanvasRenderingContext2D.prototype.resetTransform = function() {
+	this.setTransform(1, 0, 0, 1, 0, 0);
+};
+CanvasRenderingContext2D.prototype.displayTextOverLines = function(text, x, y, maxWidth, lineSpacing) {
+	var test = c.globalAlpha;
+	lineSpacing = lineSpacing || 15;
+	var lines = [text];
+	for(var i = 0; i < lines.length; i ++) {
+		var width = c.measureText(lines[i]).width;
+		while(width > maxWidth) {
+			var foundNonWhitespace = false;
+			for(var j = lines[i].length - 2; j > 0; j --) {
+				if(lines[i].substring(j, j + 1) === " " && foundNonWhitespace) {
+					var removedWord = lines[i].substring(j, Infinity);
+					lines[i] = lines[i].substring(0, j);
+					if(lines[i + 1] === undefined) {
+						/* add the removed word on a new line */
+						lines.push(removedWord);
+					}
+					else {
+						/* add the removed word to the beginning of the next line */
+						lines[i + 1] = removedWord + lines[i + 1];
+					}
+					foundNonWhitespace = false;
+					break;
+				}
+				if(lines[i].substring(j, j + 1) !== " ") {
+					foundNonWhitespace = true;
+				}
+			}
+			width = c.measureText(lines[i]).width;
+		}
+	}
+	for(var i = 0; i < lines.length; i ++) {
+		lines[i] = lines[i].trim();
+		this.fillText(lines[i], x, y + (i * lineSpacing));
+		if(i === lines.length - 1) {
+			return y + (i * lineSpacing);
+		}
+	}
+};
 Math.dist = function(x1, y1, x2, y2) {
 	/*
 	Returns the distance between ('x1', 'y1') and ('x2', 'y2')
@@ -60,6 +205,11 @@ Math.distSq = function(x1, y1, x2, y2) {
 	Returns the distance between ('x1', 'y1') and ('x2', 'y2') squared for better performance
 	*/
 	return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
+};
+Math.constrain = function(num, min, max) {
+	num = Math.min(num, max);
+	num = Math.max(num, min);
+	return num;
 };
 Math.normalize = function(x, y) {
 	/*
@@ -109,6 +259,15 @@ Math.scale = function(x, y, factor, scaleX, scaleY) {
 		x: x,
 		y: y
 	};
+};
+Number.prototype.mod = function(divisor) {
+	/*
+	This is used instead of the % operator because % returns negatives for negative numbers. (ex: -5 % 10 === -5)
+
+	This is on the number prototype instead of Math since it seems more like an arithmetic operation than the Math functions.
+	*/
+
+	return ((this % divisor) + divisor) % divisor;
 };
 Array.prototype.min = function(func) {
 	/*
@@ -165,6 +324,14 @@ Array.prototype.max = function(func) {
 		}
 		return highestValue;
 	}
+};
+Array.prototype.containsInstanceOf = function(constructor) {
+	for(var i = 0; i < this.length; i ++) {
+		if(this[i] instanceof constructor) {
+			return true;
+		}
+	}
+	return false;
 };
 function deepClone(obj) {
 	/*
@@ -329,38 +496,7 @@ function line3d(x1, y1, x2, y2, startDepth, endDepth, col) {
 	var p3 = point3d(x2, y2, endDepth);
 	var p4 = point3d(x2, y2, startDepth);
 	c.fillStyle = col;
-	c.beginPath();
-	c.moveTo(p1.x, p1.y);
-	c.lineTo(p2.x, p2.y);
-	c.lineTo(p3.x, p3.y);
-	c.lineTo(p4.x, p4.y);
-	c.fill();
-	// thingsToBeRendered.push(new RenderingPoly(
-	// 	col,
-	// 	[p1, p2, p3, p4],
-	// 	[
-	// 		{
-	// 			x: x1,
-	// 			y: y1,
-	// 			z: startDepth
-	// 		},
-	// 		{
-	// 			x: x1,
-	// 			y: y1,
-	// 			z: endDepth
-	// 		},
-	// 		{
-	// 			x: x2,
-	// 			y: y2,
-	// 			z: endDepth
-	// 		},
-	// 		{
-	// 			x: x2,
-	// 			y: y2,
-	// 			z: startDepth
-	// 		}
-	// 	]
-	// ));
+	c.fillPoly(p1, p2, p3, p4);
 };
 function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 	/*
@@ -378,42 +514,26 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 	}
 	/* Calculate back face coordinates */
 	var topLeftB = point3d(x, y, startDepth);
+	var topRightB = point3d(x + w, y, startDepth);
+	var bottomLeftB = point3d(x, y + h, startDepth);
 	var bottomRightB = point3d(x + w, y + h, startDepth);
 	/* Calculate front face coordinates */
 	var topLeftF = point3d(x, y, endDepth);
+	var topRightF = point3d(x + w, y, endDepth);
+	var bottomLeftF = point3d(x, y + h, endDepth);
 	var bottomRightF = point3d(x + w, y + h, endDepth);
 	/* Top face */
 	c.fillStyle = settings.sideColors.top;
-	c.beginPath();
-	c.moveTo(topLeftF.x, topLeftF.y);
-	c.lineTo(bottomRightF.x, topLeftF.y);
-	c.lineTo(bottomRightB.x, topLeftB.y);
-	c.lineTo(topLeftB.x, topLeftB.y);
-	c.fill();
+	c.fillPoly(topLeftF, topRightF, topRightB, topLeftB);
 	/* Bottom face */
 	c.fillStyle = settings.sideColors.bottom;
-	c.beginPath();
-	c.moveTo(topLeftF.x, bottomRightF.y);
-	c.lineTo(bottomRightF.x, bottomRightF.y);
-	c.lineTo(bottomRightB.x, bottomRightB.y);
-	c.lineTo(topLeftB.x, bottomRightB.y);
-	c.fill();
+	c.fillPoly(bottomLeftF, bottomRightF, bottomRightB, bottomLeftB);
 	/* Left face */
 	c.fillStyle = settings.sideColors.left;
-	c.beginPath();
-	c.moveTo(topLeftF.x, topLeftF.y);
-	c.lineTo(topLeftF.x, bottomRightF.y);
-	c.lineTo(topLeftB.x, bottomRightB.y);
-	c.lineTo(topLeftB.x, topLeftB.y);
-	c.fill();
+	c.fillPoly(topLeftF, bottomLeftF, bottomLeftB, topLeftB);
 	/* Right face */
 	c.fillStyle = settings.sideColors.right;
-	c.beginPath();
-	c.moveTo(bottomRightF.x, topLeftF.y);
-	c.lineTo(bottomRightF.x, bottomRightF.y);
-	c.lineTo(bottomRightB.x, bottomRightB.y);
-	c.lineTo(bottomRightB.x, topLeftB.y);
-	c.fill();
+	c.fillPoly(topRightF, bottomRightF, bottomRightB, topRightB);
 	if(!settings.noFrontExtended) {
 		/* Front face */
 		boxFronts.push({
@@ -425,208 +545,6 @@ function cube(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 	else {
 		c.fillStyle = frontCol;
 		c.fillRect(topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y);
-		// /* Top face */
-		// thingsToBeRendered.push(new RenderingPoly(
-		// 	settings.sideColors.top,
-		// 	[
-		// 		topLeftF,
-		// 		{
-		// 			x: bottomRightF.x,
-		// 			y: topLeftF.y
-		// 		},
-		// 		{
-		// 			x: bottomRightB.x,
-		// 			y: topLeftB.y
-		// 		},
-		// 		topLeftB
-		// 	],
-		// 	[
-		// 		{
-		// 			x: x,
-		// 			y: y,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y,
-		// 			z: startDepth
-		// 		},
-		// 		{
-		// 			x: x,
-		// 			y: y,
-		// 			z: startDepth
-		// 		}
-		// 	]
-		// ));
-		// /* Bottom face */
-		// thingsToBeRendered.push(new RenderingPoly(
-		// 	settings.sideColors.bottom,
-		// 	[
-		// 		{
-		// 			x: topLeftF.x,
-		// 			y: bottomRightF.y
-		// 		},
-		// 		bottomRightF,
-		// 		bottomRightB,
-		// 		{
-		// 			x: topLeftB.x,
-		// 			y: bottomRightB.y
-		// 		}
-		// 	],
-		// 	[
-		// 		{
-		// 			x: x,
-		// 			y: y + h,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y + h,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y + h,
-		// 			z: startDepth
-		// 		},
-		// 		{
-		// 			x: x,
-		// 			y: y + h,
-		// 			z: startDepth
-		// 		}
-		// 	]
-		// ));
-		// /* Left face */
-		// thingsToBeRendered.push(new RenderingPoly(
-		// 	settings.sideColors.left,
-		// 	[
-		// 		topLeftF,
-		// 		{
-		// 			x: topLeftF.x,
-		// 			y: bottomRightF.y
-		// 		},
-		// 		{
-		// 			x: topLeftB.x,
-		// 			y: bottomRightB.y
-		// 		},
-		// 		topLeftB
-		// 	],
-		// 	[
-		// 		{
-		// 			x: x,
-		// 			y: y,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x,
-		// 			y: y + h,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x,
-		// 			y: y + h,
-		// 			z: startDepth
-		// 		},
-		// 		{
-		// 			x: x,
-		// 			y: y,
-		// 			z: startDepth
-		// 		}
-		// 	]
-		// ));
-		// /* Right face */
-		// thingsToBeRendered.push(new RenderingPoly(
-		// 	settings.sideColors.right,
-		// 	[
-		// 		{
-		// 			x: bottomRightF.x,
-		// 			y: topLeftF.y,
-		// 		},
-		// 		{
-		// 			x: bottomRightF.x,
-		// 			y: bottomRightF.y
-		// 		},
-		// 		{
-		// 			x: bottomRightB.x,
-		// 			y: bottomRightB.y
-		// 		},
-		// 		{
-		// 			x: bottomRightB.x,
-		// 			y: topLeftB.y
-		// 		}
-		// 	],
-		// 	[
-		// 		{
-		// 			x: x + w,
-		// 			y: y,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y + h,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y + h,
-		// 			z: startDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y + h,
-		// 			z: startDepth
-		// 		}
-		// 	]
-		// ));
-		// /* Front face */
-		// thingsToBeRendered.push(new RenderingPoly(
-		// 	frontCol,
-		// 	[
-		// 		{
-		// 			x: topLeftF.x,
-		// 			y: topLeftF.y
-		// 		},
-		// 		{
-		// 			x: bottomRightF.x,
-		// 			y: topLeftF.y
-		// 		},
-		// 		{
-		// 			x: bottomRightF.x,
-		// 			y: bottomRightF.y
-		// 		},
-		// 		{
-		// 			x: topLeftF.x,
-		// 			y: bottomRightF.y
-		// 		}
-		// 	],
-		// 	[
-		// 		{
-		// 			x: x,
-		// 			y: y,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x + w,
-		// 			y: y + h,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: x,
-		// 			y: y + h,
-		// 			z: endDepth
-		// 		}
-		// 	]
-		// ));
 	}
 };
 function polygon3d(frontCol, sideCol, startDepth, endDepth, points, settings) {
@@ -650,73 +568,11 @@ function polygon3d(frontCol, sideCol, startDepth, endDepth, points, settings) {
 	c.fillStyle = sideCol;
 	for(var i = 0; i < frontVertices.length; i ++) {
 		var next = (i === frontVertices.length - 1) ? 0 : i + 1;
-		c.beginPath();
-		c.moveTo(frontVertices[i].x, frontVertices[i].y);
-		c.lineTo(frontVertices[next].x, frontVertices[next].y);
-		c.lineTo(backVertices[next].x, backVertices[next].y);
-		c.lineTo(backVertices[i].x, backVertices[i].y);
-		c.fill();
-		// thingsToBeRendered.push(new RenderingPoly(
-		// 	sideCol,
-		// 	[
-		// 		{
-		// 			x: frontVertices[i].x,
-		// 			y: frontVertices[i].y
-		// 		},
-		// 		{
-		// 			x: frontVertices[next].x,
-		// 			y: frontVertices[next].y
-		// 		},
-		// 		{
-		// 			x: backVertices[next].x,
-		// 			y: backVertices[next].y
-		// 		},
-		// 		{
-		// 			x: backVertices[i].x,
-		// 			y: backVertices[i].y
-		// 		}
-		// 	],
-		// 	[
-		// 		{
-		// 			x: points[i].x,
-		// 			y: points[i].y,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: points[next].x,
-		// 			y: points[next].y,
-		// 			z: endDepth
-		// 		},
-		// 		{
-		// 			x: points[next].x,
-		// 			y: points[next].y,
-		// 			z: startDepth
-		// 		},
-		// 		{
-		// 			x: points[i].x,
-		// 			y: points[i].y,
-		// 			z: startDepth
-		// 		}
-		// 	]
-		// ));
+		c.fillPoly(frontVertices[i], frontVertices[next], backVertices[next], backVertices[i]);
 	}
 	/* front face */
 	c.fillStyle = frontCol;
-	c.beginPath();
-	for(var i = 0; i < frontVertices.length; i ++) {
-		if(i === 0) {
-			c.moveTo(frontVertices[i].x, frontVertices[i].y);
-		}
-		else {
-			c.lineTo(frontVertices[i].x, frontVertices[i].y);
-		}
-	}
-	c.fill();
-	// thingsToBeRendered.push(new RenderingPoly(
-	// 	frontCol,
-	// 	frontVertices,
-	// 	arr
-	// ));
+	c.fillPoly(frontVertices);
 };
 var boxFronts = [];//for 3d-ish rendering
 var extraGraphics = [];
@@ -789,14 +645,6 @@ function inheritsFrom(child, parent) {
 	*/
 	child.prototype = Object.create(parent.prototype);
 	child.prototype.constructor = child;
-};
-function circle(x, y, r) {
-	/*
-	Draws a circle at ('x', 'y') with radius 'r'.
-	*/
-	c.beginPath();
-	c.arc(x, y, r, 0, 2 * Math.PI);
-	c.fill();
 };
 
 /*
@@ -927,26 +775,17 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	/* head */
 	c.globalAlpha = this.op;
 	c.fillStyle = "rgb(0, 0, 0)";
-	c.save();
-	c.translate(this.x, this.y);
-	c.scale(1, 1.2);
-	c.beginPath();
-	c.arc(0, 12, 10, 0, 2 * Math.PI);
-	c.fill();
-	c.restore();
+	c.save(); {
+		c.translate(this.x, this.y);
+		c.scale(1, 1.2);
+		c.fillCircle(0, 12, 10);
+	} c.restore();
 	/* Body */
 	c.strokeStyle = "rgb(0, 0, 0)";
-	c.beginPath();
-	c.moveTo(this.x, this.y + 12);
-	c.lineTo(this.x, this.y + 36);
-	c.stroke();
+	c.strokeLine(this.x, this.y + 12, this.x, this.y + 36);
 	/* Legs */
-	c.beginPath();
-	c.moveTo(this.x, this.y + 36);
-	c.lineTo(this.x - this.legs, this.y + 46);
-	c.moveTo(this.x, this.y + 36);
-	c.lineTo(this.x + this.legs, this.y + 46);
-	c.stroke();
+	c.strokeLine(this.x, this.y + 36, this.x - this.legs, this.y + 46);
+	c.strokeLine(this.x, this.y + 36, this.x + this.legs, this.y + 46);
 	/* Leg Animations */
 	if(keys[37] || keys[39]) {
 		this.legs += this.legDir;
@@ -964,29 +803,25 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	}
 	/* Standard Arms (no item held) */
 	if(((!this.attacking && !this.aiming) || this.facing === "left") && !(this.attackingWith instanceof Spear && this.attacking)) {
-		c.beginPath();
-		c.moveTo(this.x, this.y + 26);
-		c.lineTo(this.x + (straightArm ? 15 : 10), this.y + (straightArm ? 16 : 36));
-		c.stroke();
+		c.strokeLine(
+			this.x,
+			this.y + 26,
+			this.x + (straightArm ? 15 : 10),
+			this.y + (straightArm ? 16 : 36)
+		);
 	}
 	if(((!this.attacking && !this.aiming) || this.facing === "right") && !(this.attackingWith instanceof Spear && this.attacking)) {
-		c.beginPath();
-		c.moveTo(this.x, this.y + 26);
-		c.lineTo(this.x - 10, this.y + 36);
-		c.stroke();
+		c.strokeLine(this.x, this.y + 26, this.x - 10, this.y + 36);
 	}
 	/* Attacking Arms (holding a standard weapon like sword, dagger) */
 	if(this.attacking && this.facing === "left" && !(this.attackingWith instanceof Spear) && !(this.attackingWith instanceof Mace)) {
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.rotate(-this.attackArm / 180 * Math.PI);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(-10, 0);
-		c.stroke();
-		c.translate(-10, 2);
-		this.attackingWith.display("attacking");
-		c.restore();
+		c.save(); {
+			c.translate(this.x, this.y + 26);
+			c.rotate(Math.rad(-this.attackArm));
+			c.strokeLine(0, 0, -10, 0)/
+			c.translate(-10, 2);
+			this.attackingWith.display("attacking");
+		} c.restore();
 		if(this.attackArm > 75) {
 			this.attackArmDir = -this.attackSpeed;
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
@@ -1001,16 +836,13 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		}
 	}
 	if(this.attacking && this.facing === "right" && !(this.attackingWith instanceof Spear) && !(this.attackingWith instanceof Mace)) {
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.rotate(this.attackArm / 180 * Math.PI);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(10, 0);
-		c.stroke();
-		c.translate(10, 2);
-		this.attackingWith.display("attacking");
-		c.restore();
+		c.save(); {
+			c.translate(this.x, this.y + 26);
+			c.rotate(Math.rad(this.attackArm));
+			c.strokeLine(0, 0, 10, 0);
+			c.translate(10, 2);
+			this.attackingWith.display("attacking");
+		} c.restore();
 		if(this.attackArm > 75) {
 			this.attackArmDir = -this.attackSpeed;
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
@@ -1026,29 +858,27 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	}
 	/* Arms when holding a Spear*/
 	if(this.attacking && this.facing === "left" && this.attackingWith instanceof Spear) {
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(-10, 10);
-		c.stroke();
-		c.restore();
-			c.save();
+		c.save(); {
+			c.translate(this.x, this.y + 26);
+			c.strokeLine(0, 0, -10, 10);
+		} c.restore();
+
+		c.save(); {
 			c.translate(this.x + this.attackArm, this.y + 31);
-			c.rotate(-90 / 180 * Math.PI);
+			c.rotate(Math.rad(-90));
 			this.attackingWith.display("attacking");
-			c.restore();
+		} c.restore();
+
 		c.lineJoin = "round";
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.beginPath();
-		c.moveTo(-10, 10);
-		c.lineTo(this.attackArm, 5);
-		c.moveTo(0, 0);
-		c.lineTo(10, -5);
-		c.lineTo(this.attackArm + 15, 5);
-		c.stroke();
-		c.restore();
+		c.save(); {
+			c.translate(this.x, this.y + 26);
+			c.strokeLine(-10, 10, this.attackArm, 5);
+			c.strokePoly(
+				{ x: 0, y: 0 },
+				{ x: 10, y: -5 },
+				{ x: this.attackArm + 15, y: 5 }
+			);
+		} c.restore();
 		if(this.attackArm < -20) {
 			this.attackArmDir = 1 * (this.attackSpeed / 5);
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
@@ -1063,29 +893,27 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		}
 	}
 	if(this.attacking && this.facing === "right" && this.attackingWith instanceof Spear) {
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(10, 10);
-		c.stroke();
-		c.restore();
-			c.save();
+		c.save(); {
+			c.translate(this.x, this.y + 26);
+			c.strokeLine(0, 0, 10, 10);
+		} c.restore();
+
+		c.save(); {
 			c.translate(this.x + this.attackArm, this.y + 31);
-			c.rotate(90 / 180 * Math.PI);
+			c.rotate(Math.rad(90));
 			this.attackingWith.display("attacking");
-			c.restore();
+		} c.restore();
+
 		c.lineJoin = "round";
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.beginPath();
-		c.moveTo(10, 10);
-		c.lineTo(this.attackArm, 5);
-		c.moveTo(0, 0);
-		c.lineTo(-10, -5);
-		c.lineTo(this.attackArm - 15, 5);
-		c.stroke();
-		c.restore();
+		c.save(); {
+			c.translate(this.x, this.y + 26);
+			c.strokeLine(10, 10, this.attackArm, 5);
+			c.strokeLine(
+				{ x: 0, y: 0 },
+				{ x: -10, y: -5 },
+				{ x: this.attackArm - 15, y: 5 }
+			);
+		} c.restore();
 		if(this.attackArm < 0) {
 			this.attackArmDir = 4 * (this.attackSpeed / 5);
 			if(this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
@@ -1101,20 +929,18 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	}
 	/* Arms when holding a Mace [WIP] */
 	if(this.attacking && this.facing === "right" && this.attackingWith instanceof Mace) {
-		c.save();
-		c.translate(this.x, this.y + 26);
-		c.rotate(Math.rad(this.attackArm));
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(10, 10);
-		c.stroke();
-		c.fillStyle = "rgb(60, 60, 60)";
-		c.save();
-		c.translate(10, 10);
-		c.rotate(Math.rad(45));
-		c.fillRect(-2, -15, 4, 15);
-		c.restore();
-		c.restore();
+		c.save(); {
+			c.translate(this.x, this.y + 26);
+			c.rotate(Math.rad(this.attackArm));
+			c.strokeLine(0, 0, 10, 10);
+			c.fillStyle = "rgb(60, 60, 60)";
+
+			c.save(); {
+				c.translate(10, 10);
+				c.rotate(Math.rad(45));
+				c.fillRect(-2, -15, 4, 15);
+			} c.restore();
+		} c.restore();
 	}
 	/* Arm Movement */
 	this.attackArm += this.attackArmDir;
@@ -1124,25 +950,20 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	/* Arms when aiming a Ranged Weapon */
 	if(this.aiming && this.facing === "right") {
 		if(this.attackingWith instanceof RangedWeapon) {
-			c.save();
-			c.translate(this.x, this.y + 26);
-			c.rotate(this.aimRot / 180 * Math.PI);
-			c.beginPath();
-			c.moveTo(0, 0);
-			c.lineTo(10, 0);
-			c.stroke();
-			c.translate(10, 0);
-			this.attackingWith.display("aiming");
-			c.restore();
+			c.save(); {
+				c.translate(this.x, this.y + 26);
+				c.rotate(Math.rad(this.aimRot));
+				c.strokeLine(0, 0, 10, 0);
+				c.translate(10, 0);
+				this.attackingWith.display("aiming");
+			} c.restore();
 		}
 		else {
-			c.save();
-			c.moveTo(this.x, this.y + 26);
-			c.lineTo(this.x + 13, this.y + 26);
-			c.stroke();
-			c.translate(this.x + 14, this.y + 16);
-			this.attackingWith.display("attacking");
-			c.restore();
+			c.save(); {
+				c.strokeLine(this.x, this.y + 26, this.x + 13, this.y + 26);
+				c.translate(this.x + 14, this.y + 16);
+				this.attackingWith.display("attacking");
+			} c.restore();
 			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 				if(roomInstances[inRoom].content[i] instanceof MagicCharge && roomInstances[inRoom].content[i].beingAimed) {
 					roomInstances[inRoom].content[i].x = this.x + this.chargeLoc.x - this.worldX;
@@ -1154,28 +975,23 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 	}
 	if(this.aiming && this.facing === "left") {
 		if(this.attackingWith instanceof RangedWeapon) {
-			c.save();
-			c.translate(this.x, this.y + 26);
-			c.rotate(this.aimRot / -180 * Math.PI);
-			c.beginPath();
-			c.moveTo(0, 0);
-			c.lineTo(-10, 0);
-			c.stroke();
-			c.translate(-10, 0);
-			c.scale(-1, 1);
-			this.attackingWith.display("aiming");
-			c.restore();
+			c.save(); {
+				c.translate(this.x, this.y + 26);
+				c.rotate(this.aimRot / -180 * Math.PI);
+				c.strokeLine(0, 0, -10, 0);
+				c.translate(-10, 0);
+				c.scale(-1, 1);
+				this.attackingWith.display("aiming");
+			} c.restore();
 		}
 		else {
-			c.save();
-			c.moveTo(this.x, this.y + 26);
-			c.lineTo(this.x - 13, this.y + 26);
-			c.stroke();
-			c.translate(this.x, this.y + 16);
-			c.scale(-1, 1); //mirror the item graphic
-			c.translate(14, 0);
-			this.attackingWith.display("attacking");
-			c.restore();
+			c.save(); {
+				c.strokeLine(this.x, this.y + 26, this.x - 13, this.y + 26);
+				c.translate(this.x, this.y + 16);
+				c.scale(-1, 1); //mirror the item graphic
+				c.translate(14, 0);
+				this.attackingWith.display("attacking");
+			} c.restore();
 			for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
 				if(roomInstances[inRoom].content[i] instanceof MagicCharge && roomInstances[inRoom].content[i].beingAimed) {
 					roomInstances[inRoom].content[i].x = this.x + this.chargeLoc.x - this.worldX;
@@ -1209,18 +1025,14 @@ Player.prototype.displayHealthBar = function(x, y, txt, num, max, col, percentFu
 	c.fillStyle = "rgb(150, 150, 150)";
 	c.fillRect(x, y, 225, 25);
 	/* Rounded Corners (gray background) */
-	c.beginPath();
-	c.arc(x, y + 12, 12, 0, 2 * Math.PI);
-	c.arc(x + 225, y + 12, 12, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(x, y + 12, 12);
+	c.fillCircle(x + 225, y + 12, 12);
 	/* Health Bar (colored part) */
 	c.fillStyle = col;
 	c.fillRect(x, y, percentFull * 225, 25);
 	/* Rounded Corners (colored part) */
-	c.beginPath();
-	c.arc(x, y + 12, 12, 0, 2 * Math.PI);
-	c.arc(x + (percentFull * 225), y + 12, 12, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(x, y + 12, 12);
+	c.fillCircle(x + (percentFull * 225), y + 12, 12);
 	/* Text */
 	c.fillStyle = "rgb(100, 100, 100)";
 	c.textAlign = "center";
@@ -1749,26 +1561,18 @@ Player.prototype.gui = function() {
 		Display 4 triangles on 'invSlot'
 		*/
 		c.fillStyle = "rgb(59, 67, 70)";
-		c.beginPath();
-		c.moveTo(invSlot.x + 10, invSlot.y + 35);
-		c.lineTo(invSlot.x, invSlot.y + 25);
-		c.lineTo(invSlot.x, invSlot.y + 45);
-		c.fill();
-		c.beginPath();
-		c.moveTo(invSlot.x + 35, invSlot.y + 10);
-		c.lineTo(invSlot.x + 25, invSlot.y);
-		c.lineTo(invSlot.x + 45, invSlot.y);
-		c.fill();
-		c.beginPath();
-		c.moveTo(invSlot.x + 60, invSlot.y + 35);
-		c.lineTo(invSlot.x + 70, invSlot.y + 25);
-		c.lineTo(invSlot.x + 70, invSlot.y + 45);
-		c.fill();
-		c.beginPath();
-		c.moveTo(invSlot.x + 35, invSlot.y + 60);
-		c.lineTo(invSlot.x + 25, invSlot.y + 70);
-		c.lineTo(invSlot.x + 45, invSlot.y + 70);
-		c.fill();
+		c.save(); {
+			c.translate(invSlot.x + 35, invSlot.y + 35);
+			for(var i = 0; i < 4; i ++) {
+				c.rotate(Math.rad(90));
+				c.fillPoly(
+					{ x: 0, y: -25 },
+					{ x: -10, y: -35 },
+					{ x: 10, y: -35 }
+				);
+			}
+		} c.restore();
+		return;
 	};
 	function display(invSlot) {
 		/*
@@ -1777,18 +1581,18 @@ Player.prototype.gui = function() {
 		if(invSlot.content === "empty" || invSlot.content === undefined) {
 			return;
 		}
-		c.save();
-		c.translate(invSlot.x + 35, invSlot.y + 35);
-		c.globalAlpha = invSlot.content.opacity;
-		invSlot.content.display("holding");
-		c.restore();
+		c.save(); {
+			c.translate(invSlot.x + 35, invSlot.y + 35);
+			c.globalAlpha = invSlot.content.opacity;
+			invSlot.content.display("holding");
+		} c.restore();
 		invSlot.content.opacity += 0.05;
 		/* Weapon Particles */
 		if(invSlot.content instanceof Weapon) {
-			c.save();
-			c.translate(invSlot.x - p.worldX, invSlot.y - p.worldY);
-			invSlot.content.displayParticles();
-			c.restore();
+			c.save(); {
+				c.translate(invSlot.x - p.worldX, invSlot.y - p.worldY);
+				invSlot.content.displayParticles();
+			} c.restore();
 		}
 	};
 	if(this.guiOpen === "inventory") {
@@ -1906,10 +1710,7 @@ Player.prototype.gui = function() {
 			c.fillStyle = "rgb(255, 255, 255)";
 			c.strokeStyle = "rgb(255, 255, 255)";
 			c.lineWidth = 5;
-			c.beginPath();
-			c.moveTo(20, 110);
-			c.lineTo(20, 150);
-			c.stroke();
+			c.strokeLine(20, 110, 20, 150);
 		}
 	}
 	else if(this.guiOpen === "crystal-infusion") {
@@ -1925,9 +1726,7 @@ Player.prototype.gui = function() {
 		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
 		c.fillStyle = "rgb(59, 67, 70)";
-		c.beginPath();
 		c.fillText("Select a weapon to infuse", 400, 165);
-		c.fill();
 		var hoverIndex = null;
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			c.fillStyle = "rgb(150, 150, 150)";
@@ -1986,9 +1785,7 @@ Player.prototype.gui = function() {
 		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
 		c.fillStyle = "rgb(59, 67, 70)";
-		c.beginPath();
 		c.fillText("Select a weapon to reforge", 400, 165);
-		c.fill();
 		var hoverIndex = null;
 		for(var i = 0; i < this.invSlots.length; i ++) {
 			c.fillStyle = "rgb(150, 150, 150)";
@@ -2090,10 +1887,10 @@ Player.prototype.gui = function() {
 				choice1.range = "super long";
 			}
 		}
-		c.save();
-		c.translate(300, 400);
-		choice1.display("holding");
-		c.restore();
+		c.save(); {
+			c.translate(300, 400);
+			choice1.display("holding");
+		} c.restore();
 		/* Choice 2 */
 		c.fillRect(500 - 35, 400 - 35, 70, 70);
 		c.strokeRect(500 - 35, 400 - 35, 70, 70);
@@ -2117,10 +1914,10 @@ Player.prototype.gui = function() {
 				choice2.range = "long";
 			}
 		}
-		c.save();
-		c.translate(500, 400);
-		choice2.display("holding");
-		c.restore();
+		c.save(); {
+			c.translate(500, 400);
+			choice2.display("holding");
+		} c.restore();
 		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursor = "pointer";
@@ -2206,10 +2003,10 @@ Player.prototype.gui = function() {
 		c.strokeRect(300 - 35, 400 - 35, 70, 70);
 		var choice1 = new this.invSlots[this.reforgeIndex].content.constructor("none");
 		choice1.element = this.invSlots[this.reforgeIndex].content.element;
-		c.save();
-		c.translate(300, 400);
-		choice1.display("holding");
-		c.restore();
+		c.save(); {
+			c.translate(300, 400);
+			choice1.display("holding");
+		} c.restore();
 		/* Choice 2 */
 		c.fillRect(500 - 35, 400 - 35, 70, 70);
 		c.strokeRect(500 - 35, 400 - 35, 70, 70);
@@ -2233,10 +2030,10 @@ Player.prototype.gui = function() {
 				choice2.range = "long";
 			}
 		}
-		c.save();
-		c.translate(500, 400);
-		choice2.display("holding");
-		c.restore();
+		c.save(); {
+			c.translate(500, 400);
+			choice2.display("holding");
+		} c.restore();
 		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursor = "pointer";
@@ -2340,19 +2137,19 @@ Player.prototype.gui = function() {
 				choice1.range = "super long";
 			}
 		}
-		c.save();
-		c.translate(300, 400);
-		choice1.display("holding");
-		c.restore();
+		c.save(); {
+			c.translate(300, 400);
+			choice1.display("holding");
+		} c.restore();
 		/* Choice 2 */
 		c.fillRect(500 - 35, 400 - 35, 70, 70);
 		c.strokeRect(500 - 35, 400 - 35, 70, 70);
 		var choice2 = new this.invSlots[this.reforgeIndex].content.constructor("none");
 		choice2.element = this.invSlots[this.reforgeIndex].content.element;
-		c.save();
-		c.translate(500, 400);
-		choice2.display("holding");
-		c.restore();
+		c.save(); {
+			c.translate(500, 400);
+			choice2.display("holding");
+		} c.restore();
 		/* Detect hovering */
 		if(mouseX > 300 - 35 && mouseX < 335 && mouseY > 400 - 35 && mouseY < 435) {
 			cursor = "pointer";
@@ -2824,69 +2621,42 @@ Block.prototype.display = function() {
 };
 function loadBoxFronts() {
 	for(var i = 0; i < boxFronts.length; i ++) {
+		var boxFront = boxFronts[i];
 		if(boxFronts[i].type === "boulder void") {
-			c.globalAlpha = (boxFronts[i].opacity <= 0) ? 0 : boxFronts[i].opacity;
+			c.globalAlpha = Math.min(boxFront.opacity, 0);
 			c.fillStyle = "rgb(150, 150, 150)";
-			c.beginPath();
-			c.moveTo(boxFronts[i].pos1.x, boxFronts[i].pos1.y);
-			c.lineTo(boxFronts[i].pos2.x, boxFronts[i].pos2.y);
-			c.lineTo(boxFronts[i].pos3.x, boxFronts[i].pos3.y);
-			c.lineTo(boxFronts[i].pos4.x, boxFronts[i].pos4.y);
-			c.fill();
+			c.fillPoly(boxFront.pos1, boxFront.pos2, boxFront.pos3, boxFront.pos4);
 			c.globalAlpha = 1;
 		}
 		if(boxFronts[i].type === "rect") {
-			c.fillStyle = boxFronts[i].col;
-			c.fillRect(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3]);
+			c.fillStyle = boxFront.col;
+			c.fillRect(boxFront.loc[0], boxFront.loc[1], boxFront.loc[2], boxFront.loc[3]);
 		}
-		else if(boxFronts[i].type === "polygon") {
-			c.fillStyle = boxFronts[i].col;
-			c.beginPath();
-			for(var j = 0; j < boxFronts[i].loc.length; j ++) {
-				if(j === 0) {
-					c.moveTo(boxFronts[i].loc[j].x, boxFronts[i].loc[j].y);
-				}
-				else {
-					c.lineTo(boxFronts[i].loc[j].x, boxFronts[i].loc[j].y);
-				}
-			}
-			c.fill();
+		else if(boxFront.type === "polygon") {
+			c.fillStyle = boxFront.col;
+			c.fillPoly(boxFront.loc);
 		}
-		else if(boxFronts[i].type === "circle") {
-			c.fillStyle = boxFronts[i].col;
-			c.beginPath();
-			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], 0, 2 * Math.PI);
-			c.fill();
+		else if(boxFront.type === "circle") {
+			c.fillStyle = boxFront.col;
+			c.fillCircle(boxFront.loc[0], boxFront.loc[1], boxFront.loc[2]);
 		}
 		else if(boxFronts[i].type === "arc") {
-			c.fillStyle = boxFronts[i].col;
-			c.strokeStyle = boxFronts[i].col;
-			c.beginPath();
-			c.moveTo(boxFronts[i].loc[0], boxFronts[i].loc[1]);
-			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3], boxFronts[i].loc[4]);
-			c.closePath();
-			c.fill();
-			c.beginPath();
-			c.arc(boxFronts[i].loc[0], boxFronts[i].loc[1], boxFronts[i].loc[2], boxFronts[i].loc[3], boxFronts[i].loc[4]);
-			c.stroke();
+			c.fillStyle = boxFront.col;
+			c.strokeStyle = boxFront.col;
+			c.fillArc(boxFront.loc[0], boxFront.loc[1], boxFront.loc[2], boxFront.loc[3], boxFront.loc[4]);
+			c.strokeArc(boxFront.loc[0], boxFront.loc[1], boxFront.loc[2], boxFront.loc[3], boxFront.loc[4]);
 		}
 	}
 	//extra graphics
-	c.save();
-	for(var i = 0; i < extraGraphics.length; i ++) {
-		if(extraGraphics[i].type === "polygon") {
-			c.globalAlpha = 0.5;
-			c.fillStyle = extraGraphics[i].col;
-			c.beginPath();
-			c.moveTo(extraGraphics[i].loc[0].x, extraGraphics[i].loc[0].y);
-			for(var j = 0; j < extraGraphics[i].loc.length; j ++) {
-				c.lineTo(extraGraphics[i].loc[j].x, extraGraphics[i].loc[j].y);
+	c.save(); {
+		for(var i = 0; i < extraGraphics.length; i ++) {
+			if(extraGraphics[i].type === "polygon") {
+				c.globalAlpha = 0.5;
+				c.fillStyle = extraGraphics[i].col;
+				c.fillPoly(extraGraphics[i].loc);
 			}
-			c.lineTo(extraGraphics[i].loc[0].x, extraGraphics[i].loc[0].y);
-			c.fill();
 		}
-	}
-	c.restore();
+	} c.restore();
 };
 function Platform(x, y, w) {
 	this.x = x;
@@ -2962,26 +2732,7 @@ Door.prototype.getInfo = function() {
 	return "x";
 };
 Door.prototype.exist = function() {
-	/* Display graphics */
 	this.display();
-	// var loc = point3d(this.x + p.worldX, this.y + p.worldY);
-	// thingsToBeRendered.push(new RenderingObject(
-	// 	this,
-	// 	{
-	// 		x: loc.x - 30,
-	// 		y: loc.y - 60,
-	// 		w: 60,
-	// 		h: 60
-	// 	},
-	// 	{
-	// 		x: this.x + p.worldX - 30,
-	// 		y: this.y + p.worldY - 60,
-	// 		w: 60,
-	// 		h: 60,
-	// 		z: 0.9
-	// 	}
-	// ));
-	/* Update */
 	this.update();
 };
 Door.prototype.display = function() {
@@ -2991,56 +2742,43 @@ Door.prototype.display = function() {
 	if(this.type === "arch") {
 		c.fillStyle = "rgb(20, 20, 20)";
 		c.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
-		c.beginPath();
-		c.arc(topLeft.x + ((bottomRight.x - topLeft.x) / 2), topLeft.y, 27, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(topLeft.x + (bottomRight.x - topLeft.x) / 2, topLeft.y, 27);
 	}
 	if(this.barricaded) {
-		c.save();
-		c.fillStyle = "rgb(139, 69, 19)";
-		c.strokeStyle = "rgb(255, 255, 255)";
-		c.lineWidth = 2;
-		function woodBoard() {
-			c.fillRect(-40, -10, 80, 20);
-			c.fillStyle = "rgb(200, 200, 200)";
-			circle(-30, 0, 5);
-			circle(30, 0, 5);
-			c.beginPath();
-			c.moveTo(-35, 0);
-			c.lineTo(-25, 0);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(-30, -5);
-			c.lineTo(-30, 5);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(35, 0);
-			c.lineTo(25, 0);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(30, -5);
-			c.lineTo(30, 5);
-			c.stroke();
-		};
-		c.save();
-		c.translate(topLeft.x + (bottomRight.x - topLeft.x) / 2, bottomRight.y - 60);
-		c.rotate(22 / 180 * Math.PI);
-		woodBoard();
-		c.restore();
+		c.save(); {
+			c.fillStyle = "rgb(139, 69, 19)";
+			c.strokeStyle = "rgb(255, 255, 255)";
+			c.lineWidth = 2;
+			function displayWoodenBoard() {
+				c.fillRect(-40, -10, 80, 20);
+				c.fillStyle = "rgb(200, 200, 200)";
+				c.fillCircle(-30, 0, 5);
+				c.fillCircle(30, 0, 5);
+				c.strokeLine(-35, 0, -25, 0);
+				c.strokeLine(-30, -5, -30, 5);
+				c.strokeLine(35, 0, 25, 0);
+				c.strokeLine(30, -5, 30, 5);
+			};
+			var doorWidth = (bottomRight.x - topLeft.x) / 2;
+			c.save(); {
+				c.translate(topLeft.x + (doorWidth / 2), bottomRight.y - 60);
+				c.rotate(Math.rad(22));
+				displayWoodenBoard();
+			} c.restore();
 
-		c.save();
-		c.translate(topLeft.x + (bottomRight.x - topLeft.x) / 2, bottomRight.y - 40);
-		c.rotate(-22 / 180 * Math.PI);
-		woodBoard();
-		c.restore();
+			c.save(); {
+				c.translate(topLeft.x + (doorWidth / 2), bottomRight.y - 40);
+				c.rotate(Math.rad(-22));
+				displayWoodenBoard();
+			} c.restore();
 
-		c.save();
-		c.translate(topLeft.x + (bottomRight.x - topLeft.x) / 2, bottomRight.y - 20);
-		c.rotate(22 / 180 * Math.PI);
-		woodBoard();
-		c.restore();
+			c.save(); {
+				c.translate(topLeft.x + (doorWidth / 2), bottomRight.y - 20);
+				c.rotate(Math.rad(22));
+				displayWoodenBoard();
+			} c.restore();
 
-		c.restore();
+		} c.restore();
 
 	}
 	if(this.type === "lintel") {
@@ -3361,24 +3099,7 @@ function Tree(x, y) {
 Tree.prototype.exist = function() {
 	this.update();
 	cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
-	// var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
 	this.display();
-	// thingsToBeRendered.push(new RenderingObject(
-	// 	this,
-	// 	{
-	// 		x: loc.x - 150,
-	// 		y: loc.y - 230,
-	// 		w: 300,
-	// 		h: 230
-	// 	},
-	// 	{
-	// 		x: this.x + p.worldX - 150,
-	// 		y: this.y + p.worldY - 230,
-	// 		w: 300,
-	// 		h: 230,
-	// 		z: 0.95
-	// 	}
-	// ));
 };
 Tree.prototype.update = function() {
 	var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
@@ -3392,42 +3113,21 @@ Tree.prototype.update = function() {
 Tree.prototype.display = function() {
 	c.fillStyle = "rgb(139, 69, 19)";
 	var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.95);
-	/* Tree trunk */
-	c.beginPath();
-	c.moveTo(loc.x - 10, loc.y - 40);
-	c.lineTo(loc.x + 10, loc.y - 40);
-	c.lineTo(loc.x, loc.y - 350);
-	c.fill();
-	/* 1st branch on left */
-	c.beginPath();
-	c.moveTo(loc.x - 5, loc.y - 80);
-	c.lineTo(loc.x - 6, loc.y - 100);
-	c.lineTo(loc.x - 150, loc.y - 100);
-	c.fill();
-	//1st branch on right
-	c.beginPath();
-	c.moveTo(loc.x + 7, loc.y - 100);
-	c.lineTo(loc.x + 6, loc.y - 120);
-	c.lineTo(loc.x + 150, loc.y - 120);
-	c.fill();
-	//2nd branch on left
-	c.beginPath();
-	c.moveTo(loc.x - 6, loc.y - 150);
-	c.lineTo(loc.x - 5, loc.y - 170);
-	c.lineTo(loc.x - 100, loc.y - 180);
-	c.fill();
-	//2nd branch on right
-	c.beginPath();
-	c.moveTo(loc.x + 6, loc.y - 170);
-	c.lineTo(loc.x + 5, loc.y - 190);
-	c.lineTo(loc.x + 100, loc.y - 200);
-	c.fill();
-	//3rd branch on left
-	c.beginPath();
-	c.moveTo(loc.x, loc.y - 200);
-	c.lineTo(loc.x, loc.y - 220);
-	c.lineTo(loc.x - 60, loc.y - 230);
-	c.fill();
+	c.save(); {
+		c.translate(loc.x, loc.y);
+		/* Tree trunk */
+		c.fillPoly(-10, -40, 10, -40, 0, -350);
+		/* 1st branch on left */
+		c.fillPoly(-5, -80, -6, -100, -150, -100);
+		//1st branch on right
+		c.fillPoly(7, -100, 6, -120, 150, -120);
+		//2nd branch on left
+		c.fillPoly(-6, -150, -5, -170, -100, -180);
+		//2nd branch on right
+		c.fillPoly(6, -170, 5, -190, 100, -200);
+		//3rd branch on left
+		c.fillPoly(0, -200, 0, -220, -60, -230);
+	} c.restore();
 };
 function Chest(x, y) {
 	this.x = x;
@@ -3603,58 +3303,37 @@ FallBlock.prototype.exist = function() {
 	c.fillStyle = "rgb(150, 150, 150)";
 	var shakeX = Math.random() * (this.timeShaking * 2) - this.timeShaking;
 	var shakeY = Math.random() * (this.timeShaking * 2) - this.timeShaking;
-	c.save();
-	c.translate(shakeX, shakeY);
-	/* Top face */
-	c.beginPath();
-	c.moveTo(topLeftF.x, topLeftF.y);
-	c.lineTo(topLeftB.x, topLeftB.y);
-	c.lineTo(topRightB.x, topRightB.y);
-	c.lineTo(topRightF.x, topRightF.y);
-	c.fill();
-	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
-	/* left face */
-	c.beginPath();
-	c.moveTo(topLeftF.x, topLeftF.y);
-	c.lineTo(topLeftB.x, topLeftB.y);
-	c.lineTo(bottomB.x, bottomB.y);
-	c.lineTo(bottomF.x, bottomF.y);
-	c.fill();
-	collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
-	/* right face */
-	c.beginPath();
-	c.moveTo(topRightF.x, topRightF.y);
-	c.lineTo(topRightB.x, topRightB.y);
-	c.lineTo(bottomB.x, bottomB.y);
-	c.lineTo(bottomF.x, bottomF.y);
-	c.fill();
-	collisionLine(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
-	/* front face */
-	// c.fillStyle = "rgb(110, 110, 110)";
-	// c.beginPath();
-	// c.moveTo(topLeftF.x, topLeftF.y);
-	// c.lineTo(topRightF.x, topRightF.y);
-	// c.lineTo(bottomF.x, bottomF.y);
-	// c.fill();
-	boxFronts.push({
-		type: "polygon",
-		col: "rgb(110, 110, 110)",
-		loc: [
-			{
-				x: + topLeftF.x + shakeX,
-				y: + topLeftF.y + shakeY,
-			},
-			{
-				x: + topRightF.x + shakeX,
-				y: + topRightF.y + shakeY
-			},
-			{
-				x: + bottomF.x + shakeX,
-				y: + bottomF.y + shakeY
-			}
-		]
-	});
-	c.restore();
+	c.save(); {
+		c.translate(shakeX, shakeY);
+		/* Top face */
+		c.fillPoly(topLeftF, topLeftB, topRightB, topRightF);
+		collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
+		/* left face */
+		c.fillPoly(topLeftF, topLeftB, bottomB, bottomF);
+		collisionLine(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
+		/* right face */
+		c.fillPoly(topRightF, topRightB, bottomB, bottomF);
+		collisionLine(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
+		/* front face */
+		boxFronts.push({
+			type: "polygon",
+			col: "rgb(110, 110, 110)",
+			loc: [
+				{
+					x: + topLeftF.x + shakeX,
+					y: + topLeftF.y + shakeY,
+				},
+				{
+					x: + topRightF.x + shakeX,
+					y: + topRightF.y + shakeY
+				},
+				{
+					x: + bottomF.x + shakeX,
+					y: + bottomF.y + shakeY
+				}
+			]
+		});
+	} c.restore();
 	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 100 >= this.y + p.worldY && p.canJump && !this.allDone) {
 		this.steppedOn = true;
 	}
@@ -3878,30 +3557,20 @@ function Window(x, y) {
 	this.y = y;
 };
 Window.prototype.exist = function() {
-	c.save();
-	var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.9);
-	c.translate(loc.x, loc.y);
-	c.scale(0.75, 1);
-	c.fillStyle = "rgb(20, 20, 20)";
-	c.beginPath();
-	c.arc(0, 0, 50, Math.PI, 2 * Math.PI);
-	c.fill();
-	c.fillRect(-50, -1, 100, 20);
-	c.strokeStyle = "rgb(150, 150, 150)";
-	c.lineCap = "round";
-	c.beginPath();
-	c.moveTo(10, -47);
-	c.lineTo(10, 17);
-	c.moveTo(-10, -47);
-	c.lineTo(-10, 17);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(30, -37);
-	c.lineTo(30, 17);
-	c.moveTo(-30, -37);
-	c.lineTo(-30, 17);
-	c.stroke();
-	c.restore();
+	c.save(); {
+		var loc = point3d(this.x + p.worldX, this.y + p.worldY, 0.9);
+		c.translate(loc.x, loc.y);
+		c.scale(0.75, 1);
+		c.fillStyle = "rgb(20, 20, 20)";
+		c.fillCircle(0, 0, 50);
+		c.fillRect(-50, -1, 100, 20);
+		c.strokeStyle = "rgb(150, 150, 150)";
+		c.lineCap = "round";
+		c.strokeLine(10, -47, 10, -17);
+		c.strokeLine(-10, -47, -10, 17);
+		c.strokeLine(30, -37, 30, 17);
+		c.strokeLine(-30, -37, -30, 17);
+	} c.restore();
 };
 function Pillar(x, y, h) {
 	this.x = x;
@@ -3953,110 +3622,103 @@ Statue.prototype.exist = function() {
 	//item in hands
 	if(this.itemHolding instanceof MeleeWeapon && this.pose === "standing" && !this.itemStolen) {
 		if(this.facing === "left") {
-			c.save();
-			c.translate(this.x + p.worldX - 20, this.y + p.worldY + 72);
-			c.rotate(-45 / 180 * Math.PI);
-			this.itemHolding.display("attacking");
-			c.restore();
+			c.save(); {
+				c.translate(this.x + p.worldX - 20, this.y + p.worldY + 72);
+				c.rotate(Math.rad(-45));
+				this.itemHolding.display("attacking");
+			} c.restore();
 		}
 		else {
-			c.save();
-			c.translate(this.x + p.worldX + 20, this.y + p.worldY + 72);
-			c.rotate(45 / 180 * Math.PI);
-			this.itemHolding.display("attacking");
-			c.restore();
+			c.save(); {
+				c.translate(this.x + p.worldX + 20, this.y + p.worldY + 72);
+				c.rotate(Math.rad(45));
+				this.itemHolding.display("attacking");
+			} c.restore();
 		}
 	}
 	else if(this.itemHolding instanceof MeleeWeapon && this.pose === "kneeling" && !this.itemStolen) {
 		if(this.facing === "left") {
-			c.save();
-			c.translate(this.x + p.worldX - 24, this.y + p.worldY + 52);
-			// c.rotate(-45 / 180 * Math.PI);
-			this.itemHolding.display("attacking");
-			c.restore();
+			c.save(); {
+				c.translate(this.x + p.worldX - 24, this.y + p.worldY + 52);
+				// c.rotate(Math.rad(-45));
+				this.itemHolding.display("attacking");
+			} c.restore();
 		}
 		else {
-			c.save();
-			c.translate(this.x + p.worldX + 24, this.y + p.worldY + 52);
-			// c.rotate(45 / 180 * Math.PI);
-			this.itemHolding.display("attacking");
-			c.restore();
+			c.save(); {
+				c.translate(this.x + p.worldX + 24, this.y + p.worldY + 52);
+				// c.rotate(Math.rad(45));
+				this.itemHolding.display("attacking");
+			} c.restore();
 		}
 	}
 	//pedestal
 	cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 34, 0.95, 1.05, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
-	c.save();
-	c.fillStyle = "rgb(125, 125, 125)";
-	c.lineCap = "round";
-	c.lineWidth = 10;
-	c.translate(p.worldX, p.worldY);
-	c.save();
-	c.translate(this.x, this.y);
-	c.scale(1, 1.2);
-	c.beginPath();
-	c.arc(0, 24, 20, 0, 2 * Math.PI);
-	c.fill();
-	c.restore();
-	//body
-	c.strokeStyle = "rgb(125, 125, 125)";
-	c.beginPath();
-	c.moveTo(this.x, this.y + 24);
-	c.lineTo(this.x, this.y + 72);
-	c.stroke();
-	//legs
-	if(this.pose === "standing") {
-		c.beginPath();
-		c.moveTo(this.x, this.y + 72);
-		c.lineTo(this.x - 10, this.y + 92);
-		c.moveTo(this.x, this.y + 72);
-		c.lineTo(this.x + 10, this.y + 92);
-		c.stroke();
-	}
-	else if(this.facing === "left") {
-		c.beginPath();
-		c.moveTo(this.x, this.y + 72);
-		c.lineTo(this.x - 20, this.y + 72);
-		c.lineTo(this.x - 20, this.y + 92);
-		c.moveTo(this.x, this.y + 72);
-		c.lineTo(this.x, this.y + 92);
-		c.lineTo(this.x + 20, this.y + 92);
-		c.stroke();
-	}
-	else if(this.facing === "right") {
-		c.beginPath();
-		c.moveTo(this.x, this.y + 72);
-		c.lineTo(this.x + 20, this.y + 72);
-		c.lineTo(this.x + 20, this.y + 92);
-		c.moveTo(this.x, this.y + 72);
-		c.lineTo(this.x, this.y + 92);
-		c.lineTo(this.x - 20, this.y + 92);
-		c.stroke();
-	}
-	//arms
-	c.beginPath();
-	c.moveTo(this.x, this.y + 52);
-	c.lineTo(this.x - 20, this.y + ((this.facing === "left" && (!(this.itemHolding instanceof MeleeWeapon) || this.pose === "kneeling")) ? 52 : 72));
-	c.moveTo(this.x, this.y + 52);
-	c.lineTo(this.x + 20, this.y + ((this.facing === "right" && (!(this.itemHolding instanceof MeleeWeapon) || this.pose === "kneeling")) ? 52 : 72));
-	c.stroke();
-	c.restore();
+	c.save(); {
+		c.fillStyle = "rgb(125, 125, 125)";
+		c.lineCap = "round";
+		c.lineWidth = 10;
+		c.translate(p.worldX, p.worldY);
+		c.save(); {
+			c.translate(this.x, this.y);
+			c.scale(1, 1.2);
+			c.fillCircle(0, 24, 20);
+		} c.restore();
+		//body
+		c.strokeStyle = "rgb(125, 125, 125)";
+		c.strokeLine(this.x, this.y + 24, this.x, this.y + 72);
+		//legs
+		if(this.pose === "standing") {
+			c.strokeLine(this.x, this.y + 72, this.x - 10, this.y + 92);
+			c.strokeLine(this.x, this.y + 72, this.x + 10, this.y + 92);
+		}
+		else if(this.facing === "left") {
+			c.strokePoly(
+				this.x, this.y + 72,
+				this.x - 20, this.y + 72,
+				this.x - 20, this.y + 92
+			);
+			c.strokePoly(
+				this.x, this.y + 72,
+				this.x, this.y + 92,
+				this.x + 20, this.y + 92
+			);
+		}
+		else if(this.facing === "right") {
+			c.strokePoly(
+				this.x, this.y + 72,
+				this.x + 20, this.y + 72,
+				this.x + 20, this.y + 92
+			);
+			c.strokePoly(
+				this.x, this.y + 72,
+				this.x, this.y + 92,
+				this.x - 20, this.y + 92
+			);
+		}
+		//arms
+		var leftArmUp = (this.facing === "left" && (!(this.itemHolding instanceof MeleeWeapon) || this.pose === "kneeling"));
+		var rightArmUp = (this.facing === "right" && (!(this.itemHolding instanceof MeleeWeapon) || this.pose === "kneeling"));
+		c.strokeLine(this.x, this.y + 52, this.x - 20, this.y + (leftArmUp ? 52 : 72));
+		c.strokeLine(this.x, this.y + 52, this.x + 20, this.y + (rightArmUp ? 52 : 72));
+	} c.restore();
 	//ranged weapon graphics - drawn after stick figure
 	if(!(this.itemHolding instanceof MeleeWeapon) && !this.itemStolen) {
 		if(this.facing === "left") {
-			c.save();
-			c.translate(this.x + p.worldX - (this.itemHolding instanceof MagicWeapon ? 28 : 20), this.y + p.worldY + (this.itemHolding instanceof MagicWeapon ? 32 : 52));
-			c.scale(-2, 2);
-			// c.rotate(-45 / 180 * Math.PI);
-			this.itemHolding.display("aiming");
-			c.restore();
+			c.save(); {
+				c.translate(this.x + p.worldX - (this.itemHolding instanceof MagicWeapon ? 28 : 20), this.y + p.worldY + (this.itemHolding instanceof MagicWeapon ? 32 : 52));
+				c.scale(-2, 2);
+				// c.rotate(Math.rad(-45));
+				this.itemHolding.display("aiming");
+			} c.restore();
 		}
 		else {
-			c.save();
-			c.translate(this.x + p.worldX + (this.itemHolding instanceof MagicWeapon ? 28 : 20), this.y + p.worldY + (this.itemHolding instanceof MagicWeapon ? 32 : 52));
-			c.scale(2, 2);
-			// c.rotate(45 / 180 * Math.PI);
-			this.itemHolding.display("aiming");
-			c.restore();
+			c.save(); {
+				c.translate(this.x + p.worldX + (this.itemHolding instanceof MagicWeapon ? 28 : 20), this.y + p.worldY + (this.itemHolding instanceof MagicWeapon ? 32 : 52));
+				c.scale(2, 2);
+				// c.rotate(Math.rad(45));
+				this.itemHolding.display("aiming");
+			} c.restore();
 		}
 	}
 	//stealing Weapons
@@ -4093,10 +3755,12 @@ TiltPlatform.prototype.exist = function() {
 			var p3 = point3d(-this.p1.x + this.x + p.worldX, -this.p1.y + this.y + p.worldY, 1.1);
 			var p4 = point3d(-this.p2.x + this.x + p.worldX, -this.p2.y + this.y + p.worldY, 1.1);
 			c.beginPath();
-			c.moveTo(p1.x, -800);
-			c.lineTo(p2.x, -800);
-			c.lineTo(p3.x, p3.y);
-			c.lineTo(p4.x, p4.y);
+			c.polygon(
+				{ x: p1.x, y: -800 },
+				{ x: p2.x, y: -800 },
+				p3,
+				p4
+			);
 			return c.isPointInPath(x, y);
 		};
 		var topL = boxFronts[boxFronts.length - 1].loc[1];
@@ -4192,18 +3856,25 @@ function Bridge(x, y) {
 	this.smallArch = circularPointsTopHalf(0, 0, 50);
 };
 Bridge.prototype.exist = function() {
+	/*
+	For displaying:
+	 - topB and topF are the top surface of the bridge
+	 - lowB and lowF are the smaller arch in the middle
+	 - smallB and smallF are the smaller arches on the sides
+	*/
 	if(!this.init) {
 		//generate 3d arches - top
 		var topB = [];
 		var topF = [];
-		for(var i = 0; i < this.topArch.length; i ++) {
+		for(var i = 0; i < this.topArch.length; i += (this.topArch.length / 36)) {
+			var index = Math.floor(i);
 			topB.push({
-				x: this.topArch[i].x * 0.9,
-				y: this.topArch[i].y * 0.9
+				x: this.topArch[index].x * 0.9,
+				y: this.topArch[index].y * 0.9
 			});
 			topF.push({
-				x: this.topArch[i].x * 1.1,
-				y: this.topArch[i].y * 1.1
+				x: this.topArch[index].x * 1.1,
+				y: this.topArch[index].y * 1.1
 			});
 		}
 		this.topB = topB;
@@ -4211,21 +3882,22 @@ Bridge.prototype.exist = function() {
 		//generate 3d arches - bottom
 		var lowB = [];
 		var lowF = [];
-		for(var i = 0; i < this.lowArch.length; i ++) {
+		for(var i = 0; i < this.lowArch.length; i += (this.lowArch.length / 36)) {
+			var index = Math.floor(i);
 			lowB.push({
-				x: this.lowArch[i].x * 0.9,
-				y: this.lowArch[i].y * 0.9
+				x: this.lowArch[index].x * 0.9,
+				y: this.lowArch[index].y * 0.9
 			});
 			lowF.push({
-				x: this.lowArch[i].x * 1.1,
-				y: this.lowArch[i].y * 1.1
+				x: this.lowArch[index].x * 1.1,
+				y: this.lowArch[index].y * 1.1
 			});
 		}
 		lowB.push({x: 75 * 0.9, y: -20});
 		lowF.push({x: 75 * 1.1, y: -20});
 		this.lowB = lowB;
 		this.lowF = lowF;
-		//generate 3d arches - small left arch
+		//generate 3d arches - small left and right arches
 		var smallB = [];
 		var smallF = [];
 		for(var i = 0; i < this.smallArch.length; i ++) {
@@ -4245,34 +3917,30 @@ Bridge.prototype.exist = function() {
 	//graphics - top arches
 	var topB = point3d(this.x + p.worldX, this.y + p.worldY + 500, 0.9);
 	var topF = point3d(this.x + p.worldX, this.y + p.worldY + 500, 1.1);
-	for(var i = this.topArch.length / 36 + 1; i < this.topArch.length; i += (this.topArch.length / 36)) {
-		var index = Math.floor(i);
-		c.fillStyle = "rgb(150, 150, 150)";
-		c.strokeStyle = "rgb(150, 150, 150)";
-		c.lineWidth = 2;
-		c.beginPath();
-		c.moveTo(topB.x + this.topB[index].x, topB.y + this.topB[index].y);
-		c.lineTo(topF.x + this.topF[index].x, topF.y + this.topF[index].y);
-		c.lineTo(topF.x + this.topF[index - Math.floor(this.topArch.length / 36)].x, topF.y + this.topF[index - Math.floor(this.topArch.length / 36)].y);
-		c.lineTo(topB.x + this.topB[index - Math.floor(this.topArch.length / 36)].x, topB.y + this.topB[index - Math.floor(this.topArch.length / 36)].y);
-		c.fill();
-		c.stroke();
+	c.fillStyle = "rgb(150, 150, 150)";
+	for(var i = 0; i < this.topF.length; i ++) {
+		var current = i;
+		var next = (i + 1) % this.topF.length;
+		c.fillPoly(
+			{ x: topB.x + this.topB[current].x, y: topB.y + this.topB[current].y },
+			{ x: topF.x + this.topF[current].x, y: topF.y + this.topF[current].y },
+			{ x: topF.x + this.topF[next].x, y: topF.y + this.topF[next].y },
+			{ x: topB.x + this.topB[next].x, y: topB.y + this.topB[next].y}
+		);
 	}
 	c.fillStyle = "rgb(110, 110, 110)";
-	c.beginPath();
-	c.arc(topF.x, topF.y, 550, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(topF.x, topF.y, 550);
 	//graphics - lower middle arch
 	var lowB = point3d(this.x + p.worldX, this.y + p.worldY + 200, 0.9);
 	var lowF = point3d(this.x + p.worldX, this.y + p.worldY + 200, 1.1);
 	c.fillStyle = "rgb(150, 150, 150)";
-	for(var i = this.lowArch.length / 18; i < this.lowArch.length; i += this.lowArch.length / 18) {
-		c.beginPath();
-		c.moveTo(lowB.x + this.lowB[Math.floor(i)].x, lowB.y + this.lowB[Math.floor(i)].y);
-		c.lineTo(lowF.x + this.lowF[Math.floor(i)].x, lowF.y + this.lowF[Math.floor(i)].y);
-		c.lineTo(lowF.x + this.lowF[Math.floor(i - this.lowArch.length / 18)].x, lowF.y + this.lowF[Math.floor(i - this.lowArch.length / 18)].y);
-		c.lineTo(lowB.x + this.lowB[Math.floor(i - this.lowArch.length / 18)].x, lowB.y + this.lowB[Math.floor(i - this.lowArch.length / 18)].y);
-		c.fill();
+	for(var i = 1; i < this.lowF.length; i ++) {
+		c.fillPoly(
+			{ x: lowB.x + this.lowB[i].x, y: lowB.y + this.lowB[i].y },
+			{ x: lowF.x + this.lowF[i].x, y: lowF.y + this.lowF[i].y },
+			{ x: lowF.x + this.lowF[i - 1].x, y: lowF.y + this.lowF[i - 1].y },
+			{ x: lowB.x + this.lowB[i - 1].x, y: lowB.y + this.lowB[i - 1].y }
+		);
 	}
 	c.beginPath();
 	c.moveTo(lowF.x + this.lowF[0].x, lowF.y + this.lowF[0].y);
@@ -4361,23 +4029,6 @@ Bridge.prototype.exist = function() {
 	c.stroke();
 	//hitbox
 	collisions.push(new CollisionCircle(this.x, this.y + 500, 500));
-	// while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000 || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY + 500) < 250000) {
-	// 	p.y --;
-	// 	p.canJump = true;
-	// 	p.velY = (p.velY > 3) ? 3 : p.velY;
-	// }
-	// for(var i = 0; i < roomInstances[theRoom].content.length; i ++) {
-	// 	if(roomInstances[theRoom].content[i] instanceof Enemy) {
-	// 		while(Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].leftX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000 || Math.distSq(this.x, this.y + 500, roomInstances[theRoom].content[i].x + roomInstances[theRoom].content[i].rightX, roomInstances[theRoom].content[i].y + roomInstances[theRoom].content[i].bottomY) < 250000) {
-	// 			roomInstances[theRoom].content[i].y --;
-	// 			roomInstances[theRoom].content[i].velY = (roomInstances[theRoom].content[i].velY > 3) ? 3 : roomInstances[theRoom].content[i].velY;
-	// 			if(roomInstances[theRoom].content[i] instanceof Bat && roomInstances[theRoom].content[i].timePurified > 0) {
-	// 				roomInstances[theRoom].content[i].dest = {x: roomInstances[theRoom].content[i].x + (Math.random() * 200 - 100), y: roomInstances[theRoom].content[i].y + (Math.random() * 200 - 100)};
-	// 				roomInstances[theRoom].content[i].velY = 0;
-	// 			}
-	// 		}
-	// 	}
-	// }
 };
 function BookShelf(x, y) {
 	this.x = x;
@@ -4452,10 +4103,10 @@ Chandelier.prototype.exist = function() {
 		}
 	};
 	this.lowDisc = function() {
-		c.save();
-		c.translate(0, 20);
-		this.topDisc();
-		c.restore();
+		c.save(); {
+			c.translate(0, 20);
+			this.topDisc();
+		} c.restore();
 	};
 	this.cords = function() {
 		var indexes = [];
@@ -4591,32 +4242,28 @@ SpikeBall.prototype.exist = function() {
 		if(interval < 1) {
 			interval = 1;
 		}
-		c.save();
-		c.lineWidth = 1;
-		for(var i = 0; i < line.length; i += interval) {
-			c.beginPath();
-			c.arc(line[Math.floor(i)].x, line[Math.floor(i)].y, 5, 0, 2 * Math.PI);
-			c.stroke();
-		}
-		c.restore();
+		c.save(); {
+			c.lineWidth = 1;
+			for(var i = 0; i < line.length; i += interval) {
+				c.fillCircle(line[Math.floor(i)].x, line[Math.floor(i)].y, 5);
+			}
+		} c.restore();
 	}
 	//graphics - spikeball
-	c.save();
-	c.translate(this.x + p.worldX, this.y + p.worldY);
-	c.beginPath();
-	c.arc(0, 0, 10, 0, 2 * Math.PI);
-	c.fill();
-	for(var r = 0; r < 360; r += (360 / 6)) {
-		c.save();
-		c.rotate(Math.rad(r + (this.x + this.y)));
-		c.beginPath();
-		c.moveTo(-5, 0);
-		c.lineTo(5, 0);
-		c.lineTo(0, -20);
-		c.fill();
-		c.restore();
-	}
-	c.restore();
+	c.save(); {
+		c.translate(this.x + p.worldX, this.y + p.worldY);
+		c.fillCircle(0, 0, 10);
+		for(var r = 0; r < 360; r += (360 / 6)) {
+			c.save(); {
+				c.rotate(Math.rad(r + (this.x + this.y)));
+				c.beginPath();
+				c.moveTo(-5, 0);
+				c.lineTo(5, 0);
+				c.lineTo(0, -20);
+				c.fill();
+			} c.restore();
+		}
+	} c.restore();
 	//movement
 	this.x += this.velX;
 	this.y += this.velY;
@@ -4749,34 +4396,16 @@ Banner.prototype.exist = function() {
 		color2 = "rgb(178, 50, 50)";
 	}
 	if(this.graphic === "gradient") {
-		c.save();
-
-		c.beginPath();
-		c.moveTo(p1.x, p1.y);
-		c.lineTo(p2.x, p2.y);
-		c.lineTo(p3.x, p3.y);
-		c.lineTo(p4.x, p4.y);
-		c.lineTo(p5.x, p5.y);
-		c.clip();
-
 		var center = point3d(this.x, this.y - 50, 0.9)
 		var gradient = c.createLinearGradient(center.x, p1.y, center.x, p3.y);
 		gradient.addColorStop(0, color1);
 		gradient.addColorStop(1, color2);
 		c.fillStyle = gradient;
-		c.fillRect(0, 0, canvas.width, canvas.height);
-
-		c.restore();
+		c.fillPoly(p1, p2, p3, p4, p5);
 	}
 	else if(this.graphic === "border") {
 		c.fillStyle = color1;
-		c.beginPath();
-		c.moveTo(p1.x, p1.y);
-		c.lineTo(p2.x, p2.y);
-		c.lineTo(p3.x, p3.y);
-		c.lineTo(p4.x, p4.y);
-		c.lineTo(p5.x, p5.y);
-		c.fill();
+		c.fillPoly(p1, p2, p3, p4, p5);
 
 		var center = point3d(this.x + p.worldX, this.y + p.worldY, 0.9);
 		p1 = Math.scale(p1.x, p1.y, 0.7, center.x, center.y);
@@ -4786,13 +4415,7 @@ Banner.prototype.exist = function() {
 		p5 = Math.scale(p5.x, p5.y, 0.7, center.x, center.y);
 
 		c.fillStyle = color2;
-		c.beginPath();
-		c.moveTo(p1.x, p1.y);
-		c.lineTo(p2.x, p2.y);
-		c.lineTo(p3.x, p3.y);
-		c.lineTo(p4.x, p4.y);
-		c.lineTo(p5.x, p5.y);
-		c.fill();
+		c.fillPoly(p1, p2, p3, p4, p5);
 	}
 	cube(this.x + p.worldX - 30, this.y + p.worldY - 50, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", { noFrontExtended: true });
 };
@@ -4803,59 +4426,55 @@ function GlassWindow(x, y, color) {
 };
 GlassWindow.prototype.exist = function() {
 	roomInstances[theRoom].background = "plain";
-	c.save();
-	var center = point3d(this.x + p.worldX, this.y + p.worldY, 0.9);
-	//delete bricks behind window
-	c.beginPath();
-	c.rect(center.x - 25, center.y - 100, 50, 100);
-	c.arc(center.x, center.y - 100, 25, 0, 2 * Math.PI);
-	c.clip();
-	c.fillStyle = "rgb(100, 100, 100)";
-	c.fillRect(0, 0, 800, 800);
-	//background
-	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
-	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
-	cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, null, null, { noFrontExtended: true });
-	cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
-	cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
-	//cross patterns
-	if(this.color === "red") {
-		c.strokeStyle = "rgb(200, 50, 0)";
-	}
-	else if(this.color === "green") {
-		c.strokeStyle = "rgb(25, 128, 25)";
-	}
-	else if(this.color === "blue") {
-		c.strokeStyle = "rgb(0, 0, 100)";
-	}
-	c.lineWidth = 1;
-	for(var y = -150; y < 0; y += 10) {
+	c.save(); {
+		var center = point3d(this.x + p.worldX, this.y + p.worldY, 0.9);
+		//delete bricks behind window
 		c.beginPath();
-		c.moveTo(center.x - 25, center.y + y);
-		c.lineTo(center.x + 25, center.y + y + 50);
-		c.moveTo(center.x + 25, center.y + y);
-		c.lineTo(center.x - 25, center.y + y + 50);
+		c.rect(center.x - 25, center.y - 100, 50, 100);
+		c.circle(center.x, center.y - 100, 25);
+		c.clip();
+		c.fillStyle = "rgb(100, 100, 100)";
+		c.fillRect(0, 0, 800, 800);
+		//background
+		cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
+		cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
+		cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, null, null, { noFrontExtended: true });
+		cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
+		cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
+		//cross patterns
+		if(this.color === "red") {
+			c.strokeStyle = "rgb(200, 50, 0)";
+		}
+		else if(this.color === "green") {
+			c.strokeStyle = "rgb(25, 128, 25)";
+		}
+		else if(this.color === "blue") {
+			c.strokeStyle = "rgb(0, 0, 100)";
+		}
+		c.lineWidth = 1;
+		for(var y = -150; y < 0; y += 10) {
+			c.strokeLine(center.x - 25, center.y + y, center.x + 25, center.y + y + 50);
+			c.strokeLine(center.x + 25, center.y + y, center.x - 25, center.y + y + 50);
+		}
+		//window
+		c.lineWidth = 4;
+		c.strokeStyle = "rgb(50, 50, 50)";
+		if(this.color === "red") {
+			c.fillStyle = "rgba(255, 20, 0, 0.5)";
+		}
+		else if(this.color === "green") {
+			c.fillStyle = "rgba(0, 128, 20, 0.5)";
+		}
+		else if(this.color === "blue") {
+			c.fillStyle = "rgba(0, 0, 128, 0.5)";
+		}
+		c.fillRect(center.x - 25, center.y - 100, 50, 100);
+		c.strokeRect(center.x - 25, center.y - 100, 50, 100);
+		c.beginPath();
+		c.arc(center.x, center.y - 100, 25, Math.PI, 2 * Math.PI);
+		c.fill();
 		c.stroke();
-	}
-	//window
-	c.lineWidth = 4;
-	c.strokeStyle = "rgb(50, 50, 50)";
-	if(this.color === "red") {
-		c.fillStyle = "rgba(255, 20, 0, 0.5)";
-	}
-	else if(this.color === "green") {
-		c.fillStyle = "rgba(0, 128, 20, 0.5)";
-	}
-	else if(this.color === "blue") {
-		c.fillStyle = "rgba(0, 0, 128, 0.5)";
-	}
-	c.fillRect(center.x - 25, center.y - 100, 50, 100);
-	c.strokeRect(center.x - 25, center.y - 100, 50, 100);
-	c.beginPath();
-	c.arc(center.x, center.y - 100, 25, Math.PI, 2 * Math.PI);
-	c.fill();
-	c.stroke();
-	c.restore();
+	} c.restore();
 };
 function Roof(x, y, w) {
 	this.x = x;
@@ -4975,10 +4594,7 @@ Fountain.prototype.exist = function() {
 			var p2 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, Math.map(bottomY, 0, 100, 0.8, 0.92));
 			c.strokeStyle = "rgb(120, 120, 255)";
 			c.lineWidth = 3;
-			c.beginPath();
-			c.moveTo(p1.x, p1.y);
-			c.lineTo(p2.x, p2.y);
-			c.stroke();
+			c.strokeLine(p1, p2);
 		}
 		else if(this.waterAnimations[i].y > 50 && this.waterAnimations[i].y <= 100) {
 			//runs over the corner - only display the upper section before the waterfall front
@@ -4986,10 +4602,7 @@ Fountain.prototype.exist = function() {
 			var corner = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, 0.92);
 			c.strokeStyle = "rgb(120, 120, 255)";
 			c.lineWidth = 3;
-			c.beginPath();
-			c.moveTo(p1.x, p1.y);
-			c.lineTo(corner.x, corner.y);
-			c.stroke();
+			c.strokeLine(p1, corner);
 		}
 	}
 	//black out sides
@@ -5001,41 +4614,35 @@ Fountain.prototype.exist = function() {
 	if(frameCount % 10 === 0) {
 		this.waterAnimations.push( {x: Math.random() * 100 - 50, y: -50} );
 	}
-	c.save();
-	c.lineCap = "round";
-	for(var i = 0; i < this.waterAnimations.length; i ++) {
-		this.waterAnimations[i].y += 3;
-		var topY = this.waterAnimations[i].y < 0 ? 0 : this.waterAnimations[i].y;
-		var bottomY = this.waterAnimations[i].y + 50;
-		if(topY < 100 && bottomY > 100) {
-			//runs over the corner - only display the lower section after the waterfall front
-			var corner = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, 0.92);
-			var p2 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (bottomY - 100), 0.92);
-			c.strokeStyle = "rgb(120, 120, 255)";
-			c.lineWidth = 3;
-			c.beginPath();
-			c.moveTo(corner.x, corner.y);
-			c.lineTo(p2.x, p2.y);
-			c.stroke();
+	c.save(); {
+		c.lineCap = "round";
+		for(var i = 0; i < this.waterAnimations.length; i ++) {
+			this.waterAnimations[i].y += 3;
+			var topY = this.waterAnimations[i].y < 0 ? 0 : this.waterAnimations[i].y;
+			var bottomY = this.waterAnimations[i].y + 50;
+			if(topY < 100 && bottomY > 100) {
+				//runs over the corner - only display the lower section after the waterfall front
+				var corner = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, 0.92);
+				var p2 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (bottomY - 100), 0.92);
+				c.strokeStyle = "rgb(120, 120, 255)";
+				c.lineWidth = 3;
+				c.strokeLine(corner, p2);
+			}
+			else if(topY > 100) {
+				//all on front of the waterfall
+				var p1 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (topY - 100), 0.92);
+				var p2 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (bottomY - 100), 0.92);
+				c.strokeStyle = "rgb(120, 120, 255)";
+				c.lineWidth = 3;
+				c.strokeLine(p1, p2);
+			}
+			if(topY > 250) {
+				this.waterAnimations.splice(i, 1);
+				i --;
+				continue;
+			}
 		}
-		else if(topY > 100) {
-			//all on front of the waterfall
-			var p1 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (topY - 100), 0.92);
-			var p2 = point3d(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (bottomY - 100), 0.92);
-			c.strokeStyle = "rgb(120, 120, 255)";
-			c.lineWidth = 3;
-			c.beginPath();
-			c.moveTo(p1.x, p1.y);
-			c.lineTo(p2.x, p2.y);
-			c.stroke();
-		}
-		if(topY > 250) {
-			this.waterAnimations.splice(i, 1);
-			i --;
-			continue;
-		}
-	}
-	c.restore();
+	} c.restore();
 	//base
 	cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 10, 50, 0.9, 1);
 	cube(this.x + p.worldX + 90, this.y + p.worldY - 50, 10, 50, 0.9, 1);
@@ -5065,68 +4672,82 @@ Gear.prototype.exist = function() {
 	c.fillStyle = "rgb(150, 150, 150)";
 	for(var r = this.rot; r < this.rot + 360; r += 3) {
 		var rotation = r;
-		while(rotation > 360) {
-			rotation -= 360;
-		}
-		while(rotation < 0) {
-			rotation += 360;
-		}
+		rotation = rotation.mod(360);
 		if((rotation - this.rot) % 30 === 0) {
 			gearType = (gearType === "inside") ? "outside" : "inside";
 		}
 		var next = r + 3;
-		while(next > 360) {
-			next -= 360;
-		}
-		while(next < 0) {
-			next += 360;
-		}
+		next = next.mod(360);
 		if(gearType === "inside") {
 			if((next - this.rot) % 30 !== 0) {
-				var index1 = Math.floor(rotation / 360 * (this.smallArr.length - 1));
-				var index2 = Math.floor(next / 360 * (this.smallArr.length - 1));
-				c.beginPath();
-				c.moveTo(centerF.x + this.smallArr[index1].x, centerF.y + this.smallArr[index1].y);
-				c.lineTo(centerB.x + this.smallArr[index1].x, centerB.y + this.smallArr[index1].y);
-				c.lineTo(centerB.x + this.smallArr[index2].x, centerB.y + this.smallArr[index2].y);
-				c.lineTo(centerF.x + this.smallArr[index2].x, centerF.y + this.smallArr[index2].y);
-				c.fill();
-				collisionLine(this.x + p.worldX + this.smallArr[index1].x, this.y + p.worldY + this.smallArr[index1].y, this.x + p.worldX + this.smallArr[index2].x, this.y + p.worldY + this.smallArr[index2].y, { moving: true });
+				var currentIndex = Math.floor(rotation / 360 * (this.smallArr.length - 1));
+				var nextIndex = Math.floor(next / 360 * (this.smallArr.length - 1));
+				var current = this.smallArr[currentIndex];
+				var next = this.smallArr[nextIndex];
+				c.fillPoly(
+					{ x: centerF.x + current.x, y: centerF.y + current.y },
+					{ x: centerB.x + current.x, y: centerB.y + current.y },
+					{ x: centerB.x + next.x, y: centerB.y + next.y },
+					{ x: centerF.x + next.x, y: centerF.y + next.y }
+				);
+				collisionLine(
+					this.x + p.worldX + current.x, this.y + p.worldY + current.y,
+					this.x + p.worldX + next.x, this.y + p.worldY + next.y,
+					{ moving: true }
+				);
 			}
 			else {
-				var index1 = Math.floor(rotation / 360 * (this.smallArr.length - 1));
-				var index2 = Math.floor(next / 360 * (this.largeArr.length - 1));
-				c.beginPath();
-				c.moveTo(centerF.x + this.smallArr[index1].x, centerF.y + this.smallArr[index1].y);
-				c.lineTo(centerB.x + this.smallArr[index1].x, centerB.y + this.smallArr[index1].y);
-				c.lineTo(centerB.x + this.largeArr[index2].x, centerB.y + this.largeArr[index2].y);
-				c.lineTo(centerF.x + this.largeArr[index2].x, centerF.y + this.largeArr[index2].y);
-				c.fill();
-				collisionLine(this.x + p.worldX + this.smallArr[index1].x, this.y + p.worldY + this.smallArr[index1].y, this.x + p.worldX + this.largeArr[index2].x, this.y + p.worldY + this.largeArr[index2].y, { moving: true, extraBouncy: (this.largeArr[index2].x < this.size * 0.8) });
+				var currentIndex = Math.floor(rotation / 360 * (this.smallArr.length - 1));
+				var nextIndex = Math.floor(next / 360 * (this.largeArr.length - 1));
+				var current = this.smallArr[currentIndex];
+				var next = this.largeArr[nextIndex];
+				c.fillPoly(
+					{ x: centerF.x + current.x, y: centerF.y + current.y },
+					{ x: centerB.x + current.x, y: centerB.y + current.y },
+					{ x: centerB.x + next.x, y: centerB.y + next.y },
+					{ x: centerF.x + next.x, y: centerF.y + next.y }
+				);
+				collisionLine(
+					this.x + p.worldX + current.x, this.y + p.worldY + current.y,
+					this.x + p.worldX + next.x, this.y + p.worldY + next.y,
+					{ moving: true, extraBouncy: (next.x < this.size * 0.8) }
+				);
 			}
 		}
 		else {
 			if((next - this.rot) % 30 !== 0) {
-				var index1 = Math.floor(rotation / 360 * (this.largeArr.length - 1));
-				var index2 = Math.floor(next / 360 * (this.largeArr.length - 1));
-				c.beginPath();
-				c.moveTo(centerF.x + this.largeArr[index1].x, centerF.y + this.largeArr[index1].y);
-				c.lineTo(centerB.x + this.largeArr[index1].x, centerB.y + this.largeArr[index1].y);
-				c.lineTo(centerB.x + this.largeArr[index2].x, centerB.y + this.largeArr[index2].y);
-				c.lineTo(centerF.x + this.largeArr[index2].x, centerF.y + this.largeArr[index2].y);
-				c.fill();
-				collisionLine(this.x + p.worldX + this.largeArr[index1].x, this.y + p.worldY + this.largeArr[index1].y, this.x + p.worldX + this.largeArr[index2].x, this.y + p.worldY + this.largeArr[index2].y, { moving: true });
+				var currentIndex = Math.floor(rotation / 360 * (this.largeArr.length - 1));
+				var nextIndex = Math.floor(next / 360 * (this.largeArr.length - 1));
+				var current = this.largeArr[currentIndex];
+				var next = this.largeArr[nextIndex];
+				c.fillPoly(
+					{ x: centerF.x + current.x, y: centerF.y + current.y },
+					{ x: centerB.x + current.x, y: centerB.y + current.y },
+					{ x: centerB.x + next.x, y: centerB.y + next.y },
+					{ x: centerF.x + next.x, y: centerF.y + next.y }
+				);
+				collisionLine(
+					this.x + p.worldX + current.x, this.y + p.worldY + current.y,
+					this.x + p.worldX + next.x, this.y + p.worldY + next.y,
+					{ moving: true }
+				);
 			}
 			else {
-				var index1 = Math.floor(rotation / 360 * (this.largeArr.length - 1));
-				var index2 = Math.floor(next / 360 * (this.smallArr.length - 1));
-				c.beginPath();
-				c.moveTo(centerF.x + this.largeArr[index1].x, centerF.y + this.largeArr[index1].y);
-				c.lineTo(centerB.x + this.largeArr[index1].x, centerB.y + this.largeArr[index1].y);
-				c.lineTo(centerB.x + this.smallArr[index2].x, centerB.y + this.smallArr[index2].y);
-				c.lineTo(centerF.x + this.smallArr[index2].x, centerF.y + this.smallArr[index2].y);
-				c.fill();
-				collisionLine(this.x + p.worldX + this.largeArr[index1].x, this.y + p.worldY + this.largeArr[index1].y, this.x + p.worldX + this.smallArr[index2].x, this.y + p.worldY + this.smallArr[index2].y, { moving: true, extraBouncy: (this.largeArr[index1].x < this.size * 0.8) });
+				var currentIndex = Math.floor(rotation / 360 * (this.largeArr.length - 1));
+				var nextIndex = Math.floor(next / 360 * (this.smallArr.length - 1));
+				var current = this.largeArr[currentIndex];
+				var next = this.smallArr[currentIndex];
+				c.fillPoly(
+					{ x: centerF.x + current.x, y: centerF.y + current.y },
+					{ x: centerB.x + current.x, y: centerB.y + current.y },
+					{ x: centerB.x + next.x, y: centerB.y + next.y },
+					{ x: centerF.x + next.x, y: centerF.y + next.y }
+				);
+				collisionLine(
+					this.x + p.worldX + current.x, this.y + p.worldY + current.y,
+					this.x + p.worldX + next.x, this.y + p.worldY + next.y,
+					{ moving: true, extraBouncy: (current.x < this.size * 0.8) }
+				);
 			}
 		}
 	}
@@ -5136,12 +4757,7 @@ Gear.prototype.exist = function() {
 	gearType = "inside";
 	for(var r = this.rot; r <= this.rot + 360; r += 3) {
 		var rotation = r;
-		while(rotation > 360) {
-			rotation -= 360;
-		}
-		while(rotation < 0) {
-			rotation += 360;
-		}
+		rotation = rotation.mod(360);
 		if((rotation - this.rot) % 30 === 0) {
 			gearType = (gearType === "inside") ? "outside" : "inside";
 		}
@@ -5185,8 +4801,8 @@ MovingWall.prototype.exist = function() {
 		cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, this.z, "rgb(" + color + ", " + color + ", " + color + ")", "rgb(150, 150, 150)");
 	}
 	this.z += this.zDir;
-	this.z = (this.z < 0.9) ? 0.9 : this.z;
-	this.z = (this.z > 1.1) ? 1.1 : this.z;
+	this.z = Math.max(0.9, this.z);
+	this.z = Math.min(1.1, this.z);
 };
 
 /** ROOM DATA **/
@@ -5248,30 +4864,14 @@ Room.prototype.exist = function(index) {
 					chestIndex = j;
 				}
 			}
-			c.save();
-			c.globalAlpha = (this.content[i].opacity < 0) ? 0 : this.content[i].opacity;
-			c.translate(this.content[i].x + p.worldX, this.content[i].y + p.worldY);
-			c.beginPath();
-			c.rect(this.content[chestIndex].x - 50 - (this.content[i].x), this.content[chestIndex].y - 1000 - (this.content[i].y), 100, 1000);
-			c.clip();
-			this.content[i].display("item");
-			// thingsToBeRendered.push(new RenderingObject(
-			// 	this.content[i],
-			// 	{
-			// 		x: this.content[i].x + p.worldX - 25,
-			// 		y: this.content[i].y + p.worldY - 25,
-			// 		w: 50,
-			// 		h: 50
-			// 	},
-			// 	{
-			// 		x: this.content[i].x + p.worldX - 25,
-			// 		y: this.content[i].y + p.worldY - 25,
-			// 		w: 50,
-			// 		h: 50,
-			// 		z: 1
-			// 	}
-			// ));
-			c.restore();
+			c.save(); {
+				c.globalAlpha = (this.content[i].opacity < 0) ? 0 : this.content[i].opacity;
+				c.translate(this.content[i].x + p.worldX, this.content[i].y + p.worldY);
+				c.beginPath();
+				c.rect(this.content[chestIndex].x - 50 - (this.content[i].x), this.content[chestIndex].y - 1000 - (this.content[i].y), 100, 1000);
+				c.clip();
+				this.content[i].display("item");
+			} c.restore();
 			this.content[i].animate();
 			if(this.content[i].opacity <= 0) {
 				this.content[i].opacity = 1;
@@ -5282,7 +4882,7 @@ Room.prototype.exist = function(index) {
 		else if(this.content[i] instanceof Enemy) {
 			this.content[i].seesPlayer = true;
 			this.content[i].displayStats();
-			c.globalAlpha = this.content[i].opacity > 0 ? this.content[i].opacity : 0;
+			c.globalAlpha = Math.max(0, this.content[i].opacity);
 			this.content[i].exist("player");
 			c.globalAlpha = 1;
 			//simple enemy attack
@@ -5418,40 +5018,26 @@ Room.prototype.exist = function(index) {
 		p.screenOp = 0;
 		p.exitingDoor = false;
 	}
-	c.globalAlpha = (p.screenOp < p.fallOp) ? p.fallOp : p.screenOp;
+	c.globalAlpha = Math.max(p.screenOp, p.fallOp);
 	c.fillRect(0, 0, 800, 800);
 	c.fillStyle = "rgb(255, 0, 0)";
-	c.globalAlpha = (p.damOp > 0) ? p.damOp : 0;
+	c.globalAlpha = Math.max(0, p.damOp);
 	c.fillRect(0, 0, 800, 800);
 };
 Room.prototype.displayBackground = function() {
 	if(this.background === "bricks") {
-		c.save();
-		c.translate((p.worldX * 0.9) % 100, (p.worldY * 0.9) % 100);
-		c.strokeStyle = "rgb(110, 110, 110)";
-		c.lineWidth = 4;
-		for(var y = -100; y < 900; y += 50) {
-			c.beginPath();
-			c.moveTo(-100, y);
-			c.lineTo(900, y);
-			c.stroke();
-			for(var x = (y % 100 === 0) ? -100 : -50; x < 900; x += 100) {
-				c.beginPath();
-				c.moveTo(x, y);
-				c.lineTo(x, y + 50);
-				c.stroke();
+		c.save(); {
+			c.translate((p.worldX * 0.9) % 100, (p.worldY * 0.9) % 100);
+			c.strokeStyle = "rgb(110, 110, 110)";
+			c.lineWidth = 4;
+			for(var y = -100; y < 900; y += 50) {
+				c.strokeLine(-100, y, 900, y);
+				for(var x = (y % 100 === 0) ? -100 : -50; x < 900; x += 100) {
+					c.strokeLine(x, y, x, y + 50);
+				}
 			}
-		}
-		c.restore();
+		} c.restore();
 	}
-};
-Room.prototype.contains = function(constructor) {
-	for(var i = 0; i < this.content.length; i ++) {
-		if(this.content[i] instanceof constructor) {
-			return true;
-		}
-	}
-	return false;
 };
 Room.prototype.displayShadowEffect = function() {
 	var gradient = c.createRadialGradient(400, 400, 0, 400, 400, 600);
@@ -6182,14 +5768,14 @@ var roomInstances = [
 if(TESTING_MODE) {
 	// items = [items[2]];
 	for(var i = 0; i < rooms.length; i ++) {
-		if(rooms[i].name !== "combat1" && rooms[i].name !== "reward3") {
+		if(rooms[i].name !== "combat1" && rooms[i].name !== "reward1") {
 			rooms.splice(i, 1);
 			i --;
 			continue;
 		}
 	}
-	enemies = [Spider];
-	items = [Helmet];
+	enemies = [Dragonling];
+	// items = [Sword];
 	// for(var i = 0; i < roomInstances[0].content.length; i ++) {
 	// 	if(roomInstances[0].content[i] instanceof Door) {
 	// 		roomInstances[0].content[i].dest = ["reward"];
@@ -6235,30 +5821,6 @@ Item.prototype.animate = function() {
 };
 Item.prototype.displayDesc = function(x, y, dir) {
 	dir = dir || "left";
-	//split overflow into multiple lines
-	for(var i = 0; i < this.desc.length; i ++) {
-		c.font = this.desc[i].font;
-		if(c.measureText(this.desc[i].content).width >= 190) {
-			var line1 = this.desc[i].content;
-			var line2 = "";
-			while(c.measureText(line1).width >= 190) {
-				textLoop: for(var j = line1.length; j > 0; j --) {
-					if(line1.substr(j, 1) === " ") {
-						line2 = line1.substr(j, Infinity) + line2;
-						line1 = line1.substr(0, j);
-						break textLoop;
-					}
-				}
-			}
-			this.desc[i].content = line1;
-			this.desc.splice(i + 1, 0, {content: line2, font: this.desc[i].font, color: this.desc[i].color});
-		}
-	}
-	for(var i = 0; i < this.desc.length; i ++) {
-		if(this.desc[i].content.substr(0, 1) === " ") {
-			this.desc[i].content = this.desc[i].content.substr(1, Infinity);
-		}
-	}
 	//add special stat text for elemental weapons
 	if(this instanceof Weapon && this.element !== "none" && !(this instanceof ElementalStaff)) {
 		loop1: for(var i = 1; i < this.desc.length; i ++) {
@@ -6274,12 +5836,7 @@ Item.prototype.displayDesc = function(x, y, dir) {
 			}
 		}
 		this.desc.push({
-			content: "Enhanced with the power",
-			font: "10pt Cursive",
-			color: "rgb(150, 150, 150)"
-		},
-		{
-			content: "of " + ((this.element === "fire" || this.element === "water") ?
+			content: "Enhanced with the power of " + ((this.element === "fire" || this.element === "water") ?
 			((this.element === "fire") ? "flame." : "ice.") :
 			((this.element === "earth") ? "stone." : "wind.")),
 			font: "10pt Cursive",
@@ -6309,46 +5866,46 @@ Item.prototype.displayDesc = function(x, y, dir) {
 			});
 		}
 	}
-	//display description
-	var descHeight = this.desc.length * 12 + 10;
+	//calculate text height for description
+	var textY = 0;
+	c.globalAlpha = 0;
+	for(var i = 0; i < this.desc.length; i ++) {
+		c.font = this.desc[i].font;
+		textY = c.displayTextOverLines(this.desc[i].content, x + 15, textY + 12, 190, 12);
+	}
+	c.globalAlpha = 1;
+	var descHeight = textY + 10;
 	var idealY = y - (descHeight / 2);
-	var actualY = (idealY > 20) ? idealY : 20;
-	actualY = (actualY + (descHeight / 2) < 780) ? actualY : 780 - (descHeight / 2);
+	var textBoxY = Math.constrain(idealY, 20, 780 - (descHeight / 2));
 	if(dir === "right") {
-		//text box
-		c.fillStyle = "rgb(59, 67, 70)";
-		c.beginPath();
-		c.moveTo(x, y);
-		c.lineTo(x + 10, y - 10);
-		c.lineTo(x + 10, y + 10);
-		c.fill();
-		c.fillRect(x + 10, actualY, 200, descHeight);
-		//text
+		/* display text box */
 		c.textAlign = "left";
+		var textY = 0;
+		c.fillStyle = "rgb(59, 67, 70)";
+		c.fillPoly(x, y, x + 10, y - 10, x + 10, y + 10);
+		c.fillRect(x + 10, textBoxY, 190, descHeight);
+
+		textY = textBoxY + 4;
+		/* display the text */
 		for(var i = 0; i < this.desc.length; i ++) {
-			c.fillStyle = this.desc[i].color;
 			c.font = this.desc[i].font;
-			c.fillText(this.desc[i].content, x + 15, actualY + (i * 12) + 15);
+			c.fillStyle = this.desc[i].color;
+			textY = c.displayTextOverLines(this.desc[i].content, x + 15, textY + 12, 190, 12);
 		}
-		c.textAlign = "center";
 	}
 	else {
 		//text box
 		c.fillStyle = "rgb(59, 67, 70)";
-		c.beginPath();
-		c.moveTo(x, y);
-		c.lineTo(x - 10, y - 10);
-		c.lineTo(x - 10, y + 10);
-		c.fill();
-		c.fillRect(x - 210, actualY, 200, descHeight);
+		c.fillPoly(x, y, x - 10, y - 10, x - 10, y + 10);
+		c.fillRect(x - 210, textBoxY, 200, descHeight);
 		//text
 		c.textAlign = "left";
+		textY = textBoxY + 4;
 		for(var i = 0; i < this.desc.length; i ++) {
-			c.fillStyle = this.desc[i].color;
 			c.font = this.desc[i].font;
-			c.fillText(this.desc[i].content, x - 205, actualY + (i * 12) + 15);
+			c.fillStyle = this.desc[i].color;
+			textY = c.displayTextOverLines(this.desc[i].content, x - 205, textY + 12, 190, 12);
 		}
-		c.textAlign = "center";
 	}
 };
 
@@ -6450,20 +6007,22 @@ Dagger.prototype.display = function(type) {
 	c.fillStyle = "rgb(139, 69, 19)";
 	if(type !== "attacking") {
 		c.translate(-13, 13);
-		c.rotate(0.7853);
+		c.rotate(Math.rad(45));
 	}
-	c.beginPath();
-	c.moveTo(-1, -3);
-	c.lineTo(1, -3);
-	c.lineTo(3, -10);
-	c.lineTo(-3, -10);
-	c.fill();
+	c.fillPoly(
+		/* dagger hilt */
+		{ x: -1, y: -3 },
+		{ x: 1, y: -3 },
+		{ x: 3, y: -10 },
+		{ x: -3, y: -10 }
+	);
 	c.fillStyle = "rgb(255, 255, 255)";
-	c.beginPath();
-	c.moveTo(-3, -10);
-	c.lineTo(3, -10);
-	c.lineTo(0, -30);
-	c.fill();
+	c.fillPoly(
+		/* dagger blade */
+		{ x: -3, y: -10 },
+		{ x: 3, y: -10 },
+		{ x: 0, y: -30 }
+	);
 };
 function Sword(modifier) {
 	MeleeWeapon.call(this, modifier);
@@ -6476,42 +6035,28 @@ function Sword(modifier) {
 inheritsFrom(Sword, MeleeWeapon);
 Sword.prototype.display = function(type) {
 	type = type || "item";
-	if(type === "holding" || type === "item") {
-		c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
+	c.save(); {
+		c.globalAlpha = Math.max(this.opacity, 0);
 		c.fillStyle = "rgb(139, 69, 19)";
-		c.translate(-20, 20);
-		c.rotate(0.7853);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(-5, -10);
-		c.lineTo(5, -10);
-		c.lineTo(0, 0);
-		c.fill();
+		if(type === "holding" || type === "item") {
+			c.translate(-20, 20);
+			c.rotate(Math.rad(45));
+		}
+		c.fillPoly(
+			/* sword handle */
+			{ x: 0, y: 0 },
+			{ x: -5, y: -10 },
+			{ x: 5, y: -10 }
+		);
 		c.fillStyle = "rgb(255, 255, 255)";
-		c.beginPath();
-		c.moveTo(-3, -10);
-		c.lineTo(3, -10);
-		c.lineTo(0, -60);
-		c.fill();
+		c.fillPoly(
+			/* sword blade */
+			{ x: -3, y: -10 },
+			{ x: 3, y: -10 },
+			{ x: 0, y: -60 }
+		);
 		c.globalAlpha = 1;
-	}
-	else if(type === "attacking") {
-		c.fillStyle = "rgb(139, 69, 19)";
-		c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(-5, -10);
-		c.lineTo(5, -10);
-		c.lineTo(0, 0);
-		c.fill();
-		c.fillStyle = "rgb(255, 255, 255)";
-		c.beginPath();
-		c.moveTo(-3, -10);
-		c.lineTo(3, -10);
-		c.lineTo(0, -60);
-		c.fill();
-		c.globalAlpha = 1;
-	}
+	} c.restore();
 };
 Sword.prototype.getDesc = function() {
 	var desc = [
@@ -6556,25 +6101,26 @@ function Spear(modifier) {
 inheritsFrom(Spear, MeleeWeapon);
 Spear.prototype.display = function(type) {
 	type = type || "item";
-	c.save();
-	if(type !== "attacking") {
-		c.translate(-5, 5);
-		c.rotate(45 / 180 * Math.PI);
-	}
-	else {
-		c.translate(0, 5);
-		c.scale(1, 1.5);
-	}
-	c.fillStyle = "rgb(139, 69, 19)";
-	c.fillRect(-2, -20, 4, 40);
-	c.fillStyle = "rgb(255, 255, 255)";
-	c.beginPath();
-	c.moveTo(-6, -18);
-	c.lineTo(0, -20);
-	c.lineTo(6, -18);
-	c.lineTo(0, -35);
-	c.fill();
-	c.restore();
+	c.save(); {
+		if(type !== "attacking") {
+			c.translate(-5, 5);
+			c.rotate(Math.rad(45));
+		}
+		else {
+			c.translate(0, 5);
+			c.scale(1, 1.5);
+		}
+		c.fillStyle = "rgb(139, 69, 19)";
+		c.fillRect(-2, -20, 4, 40);
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.fillPoly(
+			/* pointy part of spear */
+			{ x: -6, y: -18 },
+			{ x: 0, y: -20 },
+			{ x: 6, y: -18 },
+			{ x: 0, y: -35 }
+		);
+	} c.restore();
 };
 Spear.prototype.getDesc = function() {
 	return [
@@ -6622,33 +6168,29 @@ Mace.prototype.display = function(type) {
 		c.fillStyle = "rgb(60, 60, 60)";
 		c.strokeStyle = "rgb(60, 60, 60)";
 		//spikeball
-		c.beginPath();
-		c.arc(10, 0, 10, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(10, 0, 10);
 		for(var r = 0; r < 360; r += (360 / 6)) {
-			c.save();
-			c.translate(10, 0);
-			c.rotate(Math.rad(r));
-			c.beginPath();
-			c.moveTo(-5, 0);
-			c.lineTo(5, 0);
-			c.lineTo(0, -20);
-			c.fill();
-			c.restore();
+			c.save(); {
+				c.translate(10, 0);
+				c.rotate(Math.rad(r));
+				c.fillPoly(
+					{ x: -5, y: 0 },
+					{ x: 5, y: 0 },
+					{ x: 0, y: -20 }
+				);
+			} c.restore();
 		}
 		//handle
-		c.save();
-		c.translate(-20, 0);
-		c.rotate(Math.rad(45));
-		c.fillRect(-2, -5, 4, 10);
-		c.restore();
+		c.save(); {
+			c.translate(-20, 0);
+			c.rotate(Math.rad(45));
+			c.fillRect(-2, -5, 4, 10);
+		} c.restore();
 		//chain
 		c.lineWidth = 2;
-		c.beginPath();
-		c.arc(-15, -3, 3, 0, 2 * Math.PI);
-		c.arc(-10, -6, 3, 0, 2 * Math.PI);
-		c.arc(-5, -6, 3, 0, 2 * Math.PI);
-		c.stroke();
+		c.strokeCircle(-15, -3, 3);
+		c.strokeCircle(-10, -6, 3);
+		c.strokeCircle(-5, -6, 3);
 	}
 };
 Mace.prototype.getDesc = function() {
@@ -6701,27 +6243,19 @@ Arrow.prototype.display = function(type) {
 	if(type === "item" || type === "holding") {
 		c.strokeStyle = "rgb(139, 69, 19)";
 		c.lineWidth = 4;
-		c.beginPath();
-		c.moveTo(10, -10);
-		c.lineTo(-10, 10);
-		c.stroke();
+		c.strokeLine(10, -10, -10, 10);
 		c.fillStyle = "rgb(255, 255, 255)";
-		c.moveTo(10, -10);
-		c.lineTo(10, -10 + 8);
-		c.lineTo(20, -20);
-		c.lineTo(10 - 8, -10);
-		c.fill();
+		c.fillPoly(
+			{ x: 10, y: -10 },
+			{ x: 10, y: -10 + 8 },
+			{ x: 20, y: -20 },
+			{ x: 10 - 8, y: -10 }
+		);
 		c.lineWidth = 1;
 		c.strokeStyle = "rgb(139, 69, 19)";
 		for(var x = 0; x < 10; x += 3) {
-			c.beginPath();
-			c.moveTo(-x, x);
-			c.lineTo(-x, x + 8);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(-x, x);
-			c.lineTo(-x - 8, x);
-			c.stroke();
+			c.strokeLine(-x, x, -x, x + 8);
+			c.strokeLine(-x, x, -x - 8, x);
 		}
 	}
 };
@@ -6756,26 +6290,16 @@ WoodBow.prototype.display = function(type) {
 	if(type === "holding" || type === "item") {
 		c.strokeStyle = "rgb(139, 69, 19)";
 		c.lineWidth = 4;
-		c.beginPath();
-		c.arc(-15, 15, 30, 1.5 * Math.PI - 0.2, 2 * Math.PI + 0.2);
-		c.stroke();
+		c.strokeArc(-15, 15, 30, Math.rad(270 - 11), Math.rad(360 + 11));
 		c.lineWidth = 1;
-		c.beginPath();
-		c.moveTo(-20, -17);
-		c.lineTo(17, 20);
-		c.stroke();
+		c.strokeLine(-20, -17, 17, 20);
 	}
 	else if(type === "aiming") {
 		c.strokeStyle = "rgb(139, 69, 19)";
 		c.lineWidth = 4;
-		c.beginPath();
-		c.arc(-25, 0, 30, -0.25 * Math.PI - 0.2, 0.25 * Math.PI + 0.2);
-		c.stroke();
+		c.strokeArc(-25, 0, 30, Math.rad(-45 - 11), Math.rad(45 + 11));
 		c.lineWidth = 1;
-		c.beginPath();
-		c.moveTo(-7, -22);
-		c.lineTo(-7, 22);
-		c.stroke();
+		c.strokeLine(-7, -22, -7, 22);
 	}
 };
 WoodBow.prototype.getDesc = function() {
@@ -6816,26 +6340,16 @@ MetalBow.prototype.display = function(type) {
 	if(type === "holding" || type === "item") {
 		c.strokeStyle = "rgb(200, 200, 200)";
 		c.lineWidth = 4;
-		c.beginPath();
-		c.arc(-15, 15, 30, 1.5 * Math.PI - 0.2, 2 * Math.PI + 0.2);
-		c.stroke();
+		c.strokeArc(-15, 15, 30, Math.rad(270 - 11), Math.rad(360 + 11));
 		c.lineWidth = 1;
-		c.beginPath();
-		c.moveTo(-20, -17);
-		c.lineTo(17, 20);
-		c.stroke();
+		c.strokeLine(-20, -17, 17, 20);
 	}
 	else if(type === "aiming") {
 		c.strokeStyle = "rgb(200, 200, 200)";
 		c.lineWidth = 4;
-		c.beginPath();
-		c.arc(-25, 0, 30, -0.25 * Math.PI - 0.2, 0.25 * Math.PI + 0.2);
-		c.stroke();
+		c.strokeArc(-25, 0, 30, Math.rad(-45 - 11), Math.rad(45 + 11));
 		c.lineWidth = 1;
-		c.beginPath();
-		c.moveTo(-7, -22);
-		c.lineTo(-7, 22);
-		c.stroke();
+		c.strokeLine(-7, -22, -7, 22);
 	}
 };
 MetalBow.prototype.getDesc = function() {
@@ -6874,62 +6388,46 @@ function MechBow(modifier) {
 inheritsFrom(MechBow, RangedWeapon);
 MechBow.prototype.display = function(type) {
 	type = type || "item";
-	c.save();
-	if(type === "aiming") {
-		c.translate(-10, 0);
-		c.scale(0.9, 0.9);
-		c.rotate(Math.rad(45));
-	}
-	c.strokeStyle = "rgb(200, 200, 200)";
-	c.lineWidth = 4;
-	c.beginPath();
-	c.arc(-5, 5, 23, 1.25 * Math.PI - 0.2, 2.25 * Math.PI + 0.2);
-	c.stroke();
-	c.lineWidth = 1;
-	//bowstring
-	c.beginPath();
-	c.moveTo(-22, -13);
-	c.lineTo(13, 22);
-	c.stroke();
-	// bowstring holders
-	c.beginPath();
-	c.moveTo(-5, 5);
-	c.lineTo(5, -17);
-	c.moveTo(-5, 5);
-	c.lineTo(17, -5);
-	c.stroke();
-	c.fillStyle = "rgb(210, 210, 210)";
-	//2nd bowstring
-	c.beginPath();
-	c.moveTo(-13, -15);
-	c.lineTo(15, 13);
-	c.stroke();
-	//gears
-	c.save();
-	c.translate(12, 2);
-	c.beginPath();
-	c.arc(0, 0, 4, 0, 2 * Math.PI);
-	c.fill();
-	for(var r = 0; r <= 360; r += 45) {
-		c.save();
-		c.rotate(Math.rad(r));
-		c.fillRect(-1, -6, 2, 6);
-		c.restore();
-	}
-	c.restore();
-	c.save();
-	c.translate(-2, -12);
-	c.beginPath();
-	c.arc(0, 0, 4, 0, 2 * Math.PI);
-	c.fill();
-	for(var r = 0; r <= 360; r += 45) {
-		c.save();
-		c.rotate(Math.rad(r));
-		c.fillRect(-1, -6, 2, 6);
-		c.restore();
-	}
-	c.restore();
-	c.restore();
+	c.save(); {
+		if(type === "aiming") {
+			c.translate(-10, 0);
+			c.scale(0.9, 0.9);
+			c.rotate(Math.rad(45));
+		}
+		c.strokeStyle = "rgb(200, 200, 200)";
+		c.lineWidth = 4;
+		c.strokeArc(-5, 5, 23, Math.rad(225 - 11), Math.rad(405 + 11));
+		c.lineWidth = 1;
+		//bowstring
+		c.strokeLine(-22, -13, 13, 22);
+		// bowstring holders
+		c.strokeLine(-5, 5, 5, -17);
+		c.strokeLine(-5, 5, 17, -5);
+		c.fillStyle = "rgb(210, 210, 210)";
+		//2nd bowstring
+		c.strokeLine(-13, -15, 15, 13);
+		//gears
+		c.save(); {
+			c.translate(12, 2);
+			c.fillCircle(0, 0, 4);
+			for(var r = 0; r <= 360; r += 45) {
+				c.save(); {
+					c.rotate(Math.rad(r));
+					c.fillRect(-1, -6, 2, 6);
+				} c.restore();
+			}
+		} c.restore();
+		c.save(); {
+			c.translate(-2, -12);
+			c.fillCircle(0, 0, 4);
+			for(var r = 0; r <= 360; r += 45) {
+				c.save(); {
+					c.rotate(Math.rad(r));
+					c.fillRect(-1, -6, 2, 6);
+				} c.restore();
+			}
+		} c.restore();
+	} c.restore();
 };
 MechBow.prototype.getDesc = function() {
 	return [
@@ -6971,29 +6469,21 @@ function LongBow(modifier) {
 inheritsFrom(LongBow, RangedWeapon);
 LongBow.prototype.display = function(type) {
 	type = type || "item";
-	c.save();
-	if(type === "aiming") {
-		c.translate(-10, 0);
-		c.scale(0.9, 0.9);
-		c.rotate(Math.rad(45));
-	}
-	c.strokeStyle = "rgb(139, 69, 19)";
-	c.lineWidth = 4;
-	c.beginPath();
-	c.arc(-5, 5, 23, 1.25 * Math.PI - 0.2, 2.25 * Math.PI + 0.2);
-	c.stroke();
-	c.lineWidth = 1;
-	//bowstring
-	c.beginPath();
-	c.moveTo(-22, -13);
-	c.lineTo(13, 22);
-	c.stroke();
-	//2nd bowstring
-	c.beginPath();
-	c.moveTo(-13, -15);
-	c.lineTo(15, 13);
-	c.stroke();
-	c.restore();
+	c.save(); {
+		if(type === "aiming") {
+			c.translate(-10, 0);
+			c.scale(0.9, 0.9);
+			c.rotate(Math.rad(45));
+		}
+		c.strokeStyle = "rgb(139, 69, 19)";
+		c.lineWidth = 4;
+		c.strokeArc(-5, 5, 23, Math.rad(225 - 11), Math.rad(405 + 11));
+		c.lineWidth = 1;
+		//bowstring
+		c.strokeLine(-22, -13, 13, 22);
+		//2nd bowstring
+		c.strokeLine(-13, -15, 15, 13);
+	} c.restore();
 };
 LongBow.prototype.getDesc = function() {
 	return [
@@ -7042,19 +6532,14 @@ inheritsFrom(EnergyStaff, MagicWeapon);
 EnergyStaff.prototype.display = function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
-	c.save();
-	c.lineWidth = 4;
-	if(type === "holding" || type === "item") {
-		c.rotate(45 / 180 * Math.PI);
-	}
-	c.beginPath();
-	c.moveTo(0, -10);
-	c.lineTo(0, 30);
-	c.stroke();
-	c.beginPath();
-	c.arc(0, -14, 5, 0.5 * Math.PI, 1 * Math.PI, true);
-	c.stroke();
-	c.restore();
+	c.save(); {
+		c.lineWidth = 4;
+		if(type === "holding" || type === "item") {
+			c.rotate(Math.rad(45));
+		}
+		c.strokeLine(0, -10, 0, 30);
+		c.strokeArc(0, -14, 5, Math.rad(90), Math.rad(180), true);
+	} c.restore();
 };
 EnergyStaff.prototype.getDesc = function() {
 	return [
@@ -7094,31 +6579,36 @@ ElementalStaff.prototype.display = function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
 	c.fillStyle = "rgb(139, 69, 19)";
-	c.save();
-	c.lineWidth = 4;
-	if(type === "holding" || type === "item") {
-		c.rotate(45 / 180 * Math.PI);
-	}
-	//staff base
-	c.beginPath();
-	c.moveTo(0, -7);
-	c.lineTo(0, 30);
-	c.stroke();
-	//staff top
-	c.beginPath();
-	c.moveTo(0, -10);
-	c.lineTo(7, -17);
-	c.lineTo(0, -20);
-	c.lineTo(-7, -17);
-	c.lineTo(-7 - 5, -17);
-	c.lineTo(0, -20 - 5);
-	c.lineTo(7 + 5, -17);
-	c.lineTo(0, -10 + 5)
-	c.lineTo(-7 - 5, -17);
-	c.lineTo(-7, -17);
-	c.fill();
-	//crystal
-	if(this.element !== "none") {
+	c.save(); {
+		c.lineWidth = 4;
+		if(type === "holding" || type === "item") {
+			c.rotate(Math.rad(45));
+		}
+		//staff base
+		c.strokeLine(0, -7, 0, 30);
+
+		c.save(); {
+			/* cutout in middle of staff */
+			c.beginPath();
+			c.polygon(
+				0, -10,
+				7, -17,
+				0, -20,
+				-7, -17
+			);
+			c.invertPath();
+			c.clip("evenodd");
+			/* top of staff (with cutout) */
+			c.fillPoly(
+				{ x: -7 - 5, y: -17 },
+				{ x: 0, y: -20 - 5},
+				{ x: 7 + 5, y: -17 },
+				{ x: 0, y: -10 + 5 }
+			);
+		} c.restore();
+
+		//crystal
+		if(this.element !== "none") {
 		if(this.element === "fire") {
 			c.fillStyle = "rgb(255, 100, 0)";
 			c.strokeStyle = "rgb(255, 0, 0)";
@@ -7137,19 +6627,19 @@ ElementalStaff.prototype.display = function(type) {
 		}
 		c.lineWidth = 1;
 		c.beginPath();
-		c.moveTo(0, -10);
-		c.lineTo(7, -17);
-		c.lineTo(0, -20);
-		c.lineTo(-7, -17);
-		c.lineTo(0, -10);
+		c.polygon(
+			0, -10,
+			7, -17,
+			0, -20,
+			-7, -17,
+			0, -10
+		);
 		c.fill();
 		c.stroke();
-		c.beginPath();
-		c.moveTo(0, -10);
-		c.lineTo(0, -20);
-		c.stroke();
+
+		c.strokeLine(0, -10, 0, -20);
 	}
-	c.restore();
+	} c.restore();
 	//update charge type
 	if(this.element !== "none") {
 		this.chargeType = this.element;
@@ -7280,24 +6770,26 @@ inheritsFrom(ChaosStaff, MagicWeapon);
 ChaosStaff.prototype.display = function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
-	c.save();
-	c.lineWidth = 4;
-	if(type === "holding" || type === "item") {
-		c.rotate(45 / 180 * Math.PI);
-	}
-	c.beginPath();
-	c.moveTo(0, -10);
-	c.lineTo(0, 30);
-	c.lineTo(-5, 30);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(0, -10);
-	c.lineTo(-5, -15);
-	c.moveTo(0, -10);
-	c.lineTo(5, -15);
-	c.lineTo(10, -10);
-	c.stroke();
-	c.restore();
+	c.save(); {
+		c.lineWidth = 4;
+		if(type === "holding" || type === "item") {
+			c.rotate(Math.rad(45));
+		}
+		c.strokeLine(
+			0, -10,
+			0, 30,
+			-5, 30
+		);
+		c.strokeLine(
+			0, -10,
+			-5, -15
+		);
+		c.strokeLine(
+			0, -10,
+			5, -15,
+			10, -10
+		);
+	} c.restore();
 };
 ChaosStaff.prototype.getDesc = function() {
 	return [
@@ -7337,13 +6829,13 @@ function WizardHat(modifier) {
 inheritsFrom(WizardHat, Equipable);
 WizardHat.prototype.display = function() {
 	c.fillStyle = "rgb(109, 99, 79)";
-	c.beginPath();
-	c.moveTo(-30, 20);
-	c.lineTo(30, 20);
-	c.lineTo(10, 15);
-	c.lineTo(0, -20);
-	c.lineTo(-10, 15);
-	c.fill();
+	c.fillPoly(
+		-30, 20,
+		30, 20,
+		10, 15,
+		0, -20,
+		-10, 15
+	);
 };
 WizardHat.prototype.getDesc = function() {
 	return [
@@ -7379,18 +6871,16 @@ function MagicQuiver(modifier) {
 };
 inheritsFrom(MagicQuiver, Equipable);
 MagicQuiver.prototype.display = function() {
-	c.save();
-	c.fillStyle = "rgb(139, 69, 19)";
-	c.translate(-5, 5);
-	c.rotate(45 / 180 * Math.PI);
-	c.fillRect(-10, -20, 20, 40);
-	c.beginPath();
-	c.arc(0, 20, 10, 0, 2 * Math.PI);
-	c.fill();
-	c.translate(-p.worldX, -p.worldY);
-	new ShotArrow(-3, -20, 0, -2).exist();
-	new ShotArrow(3, -30, 0, -2).exist();
-	c.restore();
+	c.save(); {
+		c.fillStyle = "rgb(139, 69, 19)";
+		c.translate(-5, 5);
+		c.rotate(Math.rad(45));
+		c.fillRect(-10, -20, 20, 40);
+		c.fillCircle(0, 20, 10);
+		c.translate(-p.worldX, -p.worldY);
+		new ShotArrow(-3, -20, 0, -2).exist();
+		new ShotArrow(3, -30, 0, -2).exist();
+	} c.restore();
 };
 MagicQuiver.prototype.getDesc = function() {
 	return [
@@ -7426,29 +6916,41 @@ function Helmet(modifier) {
 };
 inheritsFrom(Helmet, Equipable);
 Helmet.prototype.display = function() {
-	c.save();
-	c.translate(0, -7);
-	c.scale(0.4, 0.4);
-	c.fillStyle = "rgb(170, 170, 170)";
-	c.fillRect(-40, -10, 80, 70);
-	c.fillStyle = "rgb(200, 200, 200)";
-	c.beginPath();
-	c.moveTo(-60, -40);
-	c.lineTo(-60, 80);
-	c.lineTo(-10, 90);
-	c.lineTo(-10, 40);
-	c.lineTo(-30, 30);
-	c.lineTo(-30, -10);
-	c.lineTo(0, 0);
-	c.lineTo(30, -10);
-	c.lineTo(30, 30);
-	c.lineTo(10, 40);
-	c.lineTo(10, 90);
-	c.lineTo(60, 80);
-	c.lineTo(60, -40);
-	c.lineTo(0, -50);
-	c.fill();
-	c.restore();
+	c.save(); {
+		c.translate(0, -7);
+		c.scale(0.4, 0.4);
+
+		/* helmet background */
+		c.fillStyle = "rgb(170, 170, 170)";
+		c.fillRect(-40, -10, 80, 70);
+		/* cutout for helmet mask */
+		c.beginPath();
+		c.polygon(
+			-10, 90,
+			-10, 40,
+			-30, 30,
+			-30, -10,
+			0, 0,
+			30, -10,
+			30, 30,
+			10, 40,
+			10, 90
+		);
+		c.invertPath();
+		c.clip("evenodd");
+		/* helmet shape */
+		c.fillStyle = "rgb(200, 200, 200)";
+		c.fillPoly(
+			-60, -40,
+			-60, 80,
+			-10, 90,
+			10, 90,
+			60, 80,
+			60, -40,
+			0, -50
+		);
+
+	} c.restore();
 };
 Helmet.prototype.getDesc = function() {
 	return [
@@ -7487,38 +6989,40 @@ function Crystal() {
 inheritsFrom(Crystal, Extra);
 
 Crystal.prototype.graphics = function(type) {
-	//called in the child's method 'display'
+	//called in the subclass's method 'display'
 	if(type === "holding") {
 		c.translate(0, 13);
 	}
 	c.lineWidth = 2;
+
+	/* crystal shape / outline */
 	c.beginPath();
-	c.moveTo(0, 0);
-	c.lineTo(-15, -15);
-	c.lineTo(15, -15);
-	c.lineTo(0, 0);
+	c.polygon(
+		/* lower half of crystal */
+		0, 0,
+		-15, -15,
+		15, -15
+	);
+	c.polygon(
+		/* upper half of crystal */
+		-15, -15,
+		0, -15 - 8,
+		15, -15
+	);
 	c.fill();
 	c.stroke();
-	c.beginPath();
-	c.moveTo(0, 0);
-	c.lineTo(-8, -15);
-	c.lineTo(8, -15);
-	c.lineTo(0, 0);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(-15, -15);
-	c.lineTo(0, -23);
-	c.lineTo(15, -15);
-	c.fill();
-	c.stroke();
-	c.moveTo(-8, -15);
-	c.lineTo(0, -23);
-	c.lineTo(8, -15);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(0, 0);
-	c.lineTo(0, -23);
-	c.stroke();
+	/* inner lines inside crystal */
+	c.strokePoly(
+		0, 0,
+		-8, -15,
+		8, -15
+	);
+	c.strokePoly(
+		-8, -15,
+		0, -15 - 8,
+		8, -15
+	);
+	c.strokeLine(0, 0, 0, -23);
 };
 Crystal.prototype.use = function() {
 	p.guiOpen = "crystal-infusion";
@@ -7628,32 +7132,18 @@ Boulder.prototype.exist = function() {
 	var p1f = point3d(this.x + p.worldX - 40, this.y + p.worldY, 1.1);
 	var p2f = point3d(this.x + p.worldX + 40, this.y + p.worldY, 1.1);
 	var p3f = point3d(this.x + p.worldX, this.y + p.worldY - 100, 1.1);
+
+	/* sides */
+	c.globalAlpha = Math.max(this.opacity, 0);
 	c.fillStyle = "rgb(150, 150, 150)";
-	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
-	c.beginPath();
-	c.moveTo(p1b.x, p1b.y);
-	c.lineTo(p2b.x, p2b.y);
-	c.lineTo(p2f.x, p2f.y);
-	c.lineTo(p1f.x, p1f.y);
-	c.fill();
-	c.beginPath();
-	c.moveTo(p2b.x, p2b.y);
-	c.lineTo(p3b.x, p3b.y);
-	c.lineTo(p3f.x, p3f.y);
-	c.lineTo(p2f.x, p2f.y);
-	c.fill();
-	c.beginPath();
-	c.moveTo(p1b.x, p1b.y);
-	c.lineTo(p3b.x, p3b.y);
-	c.lineTo(p3f.x, p3f.y);
-	c.lineTo(p1f.x, p1f.y);
-	c.fill();
+	c.fillPoly(p1b, p2b, p2f, p1f);
+	c.fillPoly(p2b, p3b, p3f, p2f);
+	c.fillPoly(p1b, p3b, p3f, p1f);
+
+	/* front */
 	c.fillStyle = "rgb(110, 110, 110)";
-	c.beginPath();
-	c.moveTo(p1f.x, p1f.y);
-	c.lineTo(p2f.x, p2f.y);
-	c.lineTo(p3f.x, p3f.y);
-	c.fill();
+	c.fillPoly(p1f, p2f, p3f);
+
 	if(!this.hitSomething) {
 		this.velY += 0.1;
 		this.y += this.velY;
@@ -7691,24 +7181,12 @@ BoulderVoid.prototype.exist = function() {
 	var p1f = point3d(this.x + p.worldX - 40, this.y + p.worldY, 1.1);
 	var p2f = point3d(this.x + p.worldX + 40, this.y + p.worldY, 1.1);
 	var p3f = point3d(this.x + p.worldX, this.y + p.worldY - 100, 1.1);
-	c.save();
-	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
-	c.fillStyle = "rgb(110, 110, 110)";
-	c.beginPath();
-	c.lineTo(p1f.x, p1f.y);
-	c.lineTo(p2f.x, p2f.y);
-	c.lineTo(p2b.x, p2b.y);
-	c.lineTo(p1b.x, p1b.y);
-	c.fill();
-	c.restore();
-	var boulderExists = false;
-	for(var i = 0; i < roomInstances[inRoom].content.length; i ++) {
-		if(roomInstances[inRoom].content[i] instanceof Boulder) {
-			boulderExists = true;
-			break;
-		}
-	}
-	if(!boulderExists) {
+	c.save(); {
+		c.globalAlpha = Math.max(this.opacity, 0);
+		c.fillStyle = "rgb(110, 110, 110)";
+		c.fillPoly(p1f, p2f, p2b, p1b);
+	} c.restore();
+	if(!roomInstances[inRoom].content.containsInstanceOf(Boulder)) {
 		this.opacity -= 0.05;
 	}
 	if(this.opacity < 0) {
@@ -7717,42 +7195,18 @@ BoulderVoid.prototype.exist = function() {
 	boxFronts.push({
 		type: "boulder void",
 		opacity: this.opacity,
-		pos1: {
-			x: p1b.x,
-			y: p1b.y
-		},
-		pos2: {
-			x: p3b.x,
-			y: p3b.y
-		},
-		pos3: {
-			x: p3f.x,
-			y: p3f.y
-		},
-		pos4: {
-			x: p1f.x,
-			y: p1f.y
-		}
+		pos1: p1b,
+		pos2: p3b,
+		pos3: p3f,
+		pos4: p1f
 	});
 	boxFronts.push({
 		type: "boulder void",
 		opacity: this.opacity,
-		pos1: {
-			x: p2b.x,
-			y: p2b.y
-		},
-		pos2: {
-			x: p3b.x,
-			y: p3b.y
-		},
-		pos3: {
-			x: p3f.x,
-			y: p3f.y
-		},
-		pos4: {
-			x: p2f.x,
-			y: p2f.y
-		}
+		pos1: p2b,
+		pos2: p3b,
+		pos3: p3f,
+		pos4: p2f
 	});
 };
 function AirCrystal() {
@@ -7793,22 +7247,6 @@ function WindBurst(x, y, dir, noDisplay) {
 	this.opacity = 1;
 };
 WindBurst.prototype.exist = function() {
-	// thingsToBeRendered.push(new RenderingObject(
-	// 	this,
-	// 	{
-	// 		x: (this.dir == "right") ? this.x + p.worldX : this.x + p.worldX - 49,
-	// 		y: this.y + p.worldY - 34,
-	// 		w: 49,
-	// 		h: 34
-	// 	},
-	// 	{
-	// 		x: (this.dir == "right") ? this.x + p.worldX : this.x + p.worldX - 49,
-	// 		y: this.y + p.worldY - 34,
-	// 		w: 49,
-	// 		h: 34,
-	// 		z: 1
-	// 	}
-	// ));
 	this.display();
 	this.update();
 };
@@ -7816,48 +7254,19 @@ WindBurst.prototype.display = function() {
 	if(this.noDisplay) {
 		return;
 	}
-	c.save();
-	c.globalAlpha = (this.opacity < 0) ? 0 : this.opacity;
-	c.strokeStyle = "rgb(150, 150, 150)";
-	c.lineWidth = 4;
-	c.translate(p.worldX, p.worldY);
-	if(this.dir === "right") {
+	c.save(); {
+		c.globalAlpha = Math.max(this.opacity, 0);
+		c.strokeStyle = "rgb(150, 150, 150)";
+		c.lineWidth = 4;
+		c.translate(this.x + p.worldX, this.y + p.worldY);
+		c.scale(this.dir === "right" ? -1 : 1, 1);
 		//large wind graphic
-		c.beginPath();
-		c.moveTo(this.x, this.y);
-		c.lineTo(this.x + 32, this.y);
-		c.stroke();
-		c.beginPath();
-		c.arc(this.x + 32, this.y - 17, 17, Math.PI, 2.5 * Math.PI);
-		c.stroke();
+		c.strokeLine(0, 0, 32, 0);
+		c.strokeArc(17, 0 - 17, 17, Math.rad(90), Math.rad(360));
 		//small wind graphic
-		c.beginPath();
-		c.moveTo(this.x, this.y - 5);
-		c.lineTo(this.x + 30, this.y - 5);
-		c.stroke();
-		c.beginPath();
-		c.arc(this.x + 30, this.y - 12, 7, Math.PI, 2.5 * Math.PI);
-		c.stroke();
-	}
-	else {
-		//large wind graphic
-		c.beginPath();
-		c.moveTo(this.x, this.y);
-		c.lineTo(this.x - 32, this.y);
-		c.stroke();
-		c.beginPath();
-		c.arc(this.x - 32, this.y - 17, 17, 0.5 * Math.PI, 2 * Math.PI);
-		c.stroke();
-		//small wind graphic
-		c.beginPath();
-		c.moveTo(this.x, this.y - 5);
-		c.lineTo(this.x - 30, this.y - 5);
-		c.stroke();
-		c.beginPath();
-		c.arc(this.x - 30, this.y - 12, 7, 0.5 * Math.PI, 2 * Math.PI);
-		c.stroke();
-	}
-	c.restore();
+		c.strokeLine(0, 0 - 5, 30, 0 - 5);
+		c.strokeArc(17, 0 - 12, 7, Math.rad(90), Math.rad(360));
+	} c.restore();
 };
 WindBurst.prototype.update = function() {
 	this.x += this.velX;
@@ -7885,24 +7294,24 @@ function Map() {
 };
 inheritsFrom(Map, Extra);
 Map.prototype.display = function() {
-	c.save();
+	c.save(); {
 
-	c.fillStyle = "rgb(255, 255, 200)";
-	c.fillRect(-20, -20, 40, 40);
+		c.fillStyle = "rgb(255, 255, 200)";
+		c.fillRect(-20, -20, 40, 40);
 
-	c.fillStyle = "rgb(255, 0, 0)";
-	c.fillText("x", 10, -10);
+		c.fillStyle = "rgb(255, 0, 0)";
+		c.fillText("x", 10, -10);
 
-	c.strokeStyle = "rgb(0, 0, 0)";
-	c.setLineDash([3, 3]);
-	c.lineWidth = 1;
-	c.beginPath();
-	c.moveTo(10, -5);
-	c.lineTo(10, 5);
-	c.lineTo(-5, 5);
-	c.lineTo(-20, 20);
-	c.stroke();
-	c.restore();
+		c.strokeStyle = "rgb(0, 0, 0)";
+		c.setLineDash([3, 3]);
+		c.lineWidth = 1;
+		c.beginPath();
+		c.moveTo(10, -5);
+		c.lineTo(10, 5);
+		c.lineTo(-5, 5);
+		c.lineTo(-20, 20);
+		c.stroke();
+	} c.restore();
 };
 Map.prototype.getDesc = function() {
 	return [
@@ -7931,62 +7340,34 @@ function Barricade() {
 inheritsFrom(Barricade, Extra);
 Barricade.prototype.display = function(type) {
 	type = type || "item";
+	var scaleFactor = (type === "item") ? 0.75 : 1;
 	if(type === "item" || type === "holding") {
-		c.save();
-		c.fillStyle = "rgb(139, 69, 19)";
-		c.strokeStyle = "rgb(150, 150, 150)";
-		c.lineWidth = 2;
+		c.save(); {
+			c.fillStyle = "rgb(139, 69, 19)";
+			c.lineWidth = 2;
 
-		c.save();
-		c.scale(type === "item" ? 0.75 : 1, type === "item" ? 0.75 : 1);
-		c.rotate(22 / 180 * Math.PI);
-		c.fillRect(-30, -10, 60, 20);
-		c.fillStyle = "rgb(200, 200, 200)";
-		circle(-20, 0, 5);
-		circle(20, 0, 5);
-		c.beginPath();
-		c.moveTo(-25, 0);
-		c.lineTo(-15, 0);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(-20, -5);
-		c.lineTo(-20, 5);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(25, 0);
-		c.lineTo(15, 0);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(20, -5);
-		c.lineTo(20, 5);
-		c.stroke();
-		c.restore();
+			function displayWoodBoard() {
+				function displayScrew(x, y) {
+					c.fillStyle = "rgb(200, 200, 200)";
+					c.strokeStyle = "rgb(150, 150, 150)";
+					c.fillCircle(x, y, 5);
+					c.strokeLine(x - 5, y, x + 5, y);
+					c.strokeLine(x, y - 5, x, y + 5);
+				};
+				c.fillRect(-30, -10, 60, 20);
+				displayScrew(-20, 0);
+				displayScrew(20, 0);
+			};
 
-		c.save();
-		c.scale(type === "item" ? 0.75 : 1, type === "item" ? 0.75 : 1);
-		c.rotate(-22 / 180 * Math.PI);
-		c.fillRect(-30, -10, 60, 20);
-		c.fillStyle = "rgb(200, 200, 200)";
-		circle(-20, 0, 5);
-		circle(20, 0, 5);
-		c.beginPath();
-		c.moveTo(-25, 0);
-		c.lineTo(-15, 0);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(-20, -5);
-		c.lineTo(-20, 5);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(25, 0);
-		c.lineTo(15, 0);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(20, -5);
-		c.lineTo(20, 5);
-		c.stroke();
-		c.restore();
-		c.restore();
+			for(var rotation = -22; rotation <= 22; rotation += 44) {
+				/* displays 2 wooden board graphics */
+				c.save(); {
+					c.scale(scaleFactor, scaleFactor);
+					c.rotate(Math.rad(rotation));
+					displayWoodBoard();
+				} c.restore();
+			}
+		} c.restore();
 	}
 };
 Barricade.prototype.getDesc = function() {
@@ -8032,12 +7413,10 @@ Barricade.prototype.use = function() {
 	}
 	var theDoor = roomInstances[inRoom].content[closestIndex];
 	theDoor.barricaded = true;
-	theDoor.timeBarricaded = 0;
 	if(typeof theDoor.dest !== "object") {
 		for(var i = 0; i < roomInstances[theDoor.dest].content.length; i ++) {
 			if(roomInstances[theDoor.dest].content[i] instanceof Door && roomInstances[theDoor.dest].content[i].dest === inRoom) {
 				roomInstances[theDoor.dest].content[i].barricaded = true;
-				roomInstances[theDoor.dest].content[i].timeBarricaded = 0;
 			}
 		}
 	}
@@ -8082,20 +7461,17 @@ Coin.prototype.getDesc = function() {
 };
 Coin.prototype.display = function(type) {
 	type = type || "item";
-	c.save();
+
 	c.lineWidth = 2;
 	c.fillStyle = "rgb(255, 255, 0)";
 	c.strokeStyle = "rgb(255, 128, 0)";
-	c.beginPath();
-	c.arc(0, 0, 15, 0, 2 * Math.PI);
-	c.fill();
-	c.stroke();
+	c.fillCircle(0, 0, 15);
+	c.strokeCircle(0, 0, 15);
+
 	c.fillStyle = "rgb(255, 128, 0)";
-	//c.fillRect(-2, -8, 4, 16);
 	c.font = "bolder 20px monospace";
 	c.textAlign = "center";
 	c.fillText(this.quantity, 0, 7);
-	c.restore();
 };
 function ShotArrow(x, y, velX, velY, damage, shotBy, element, name) {
 	this.x = x;
@@ -8110,37 +7486,33 @@ function ShotArrow(x, y, velX, velY, damage, shotBy, element, name) {
 	this.hitSomething = false;
 };
 ShotArrow.prototype.exist = function() {
-	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
 	var angle = Math.atan2(this.velX, this.velY);
-	c.save();
-	c.translate(this.x + p.worldX, this.y + p.worldY);
-	c.rotate(0.5 * Math.PI - angle);
+	c.save(); {
+		c.globalAlpha = Math.max(0, this.opacity);
+		c.translate(this.x + p.worldX, this.y + p.worldY);
+		c.rotate(Math.rad(90) - angle);
 		c.strokeStyle = "rgb(139, 69, 19)";
 		c.lineWidth = 4;
-		c.beginPath();
-		c.moveTo(-28, 0);
-		c.lineTo(0, 0);
-		c.stroke();
-		c.lineWidth = 1;
+		c.strokeLine(-28, 0, 0, 0);
 		for(var x = 0; x < 10; x += 3) {
-			c.beginPath();
-			c.moveTo(-x - 10, 0);
-			c.lineTo(-x - 10 - 6, -6);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(-x - 10, 0);
-			c.lineTo(-x - 10 - 6, 6);
-			c.stroke();
+			c.lineWidth = 1;
+			c.strokeLine(
+				-x - 10, 0,
+				-x - 16, -6
+			);
+			c.strokeLine(
+				-x - 10, 0,
+				-x - 16, 6
+			);
 		}
 		c.fillStyle = "rgb(255, 255, 255)";
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(-6, -6);
-		c.lineTo(14, 0);
-		c.lineTo(-6, 6);
-		c.fill();
-	c.restore();
-	c.globalAlpha = 1;
+		c.fillPoly(
+			0, 0,
+			-6, -6,
+			14, 0,
+			-6, 6
+		);
+	} c.restore();
 	if(!this.hitSomething) {
 		this.x += this.velX;
 		this.y += this.velY;
@@ -8270,7 +7642,7 @@ Enemy.prototype.displayStats = function() {
 		this.topY = -20;
 	}
 	//healthbar
-	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
+	c.globalAlpha = Math.max(0, this.opacity);
 	this.attackRecharge --;
 	var middle = ((this.x + p.worldX + this.rightX) + (this.x + p.worldX + this.leftX)) / 2;
 	if(this instanceof Dragonling) {
@@ -8278,10 +7650,8 @@ Enemy.prototype.displayStats = function() {
 	}
 	c.fillStyle = "rgb(150, 150, 150)";
 	c.fillRect(middle - 30, this.y + p.worldY + this.topY - 15, 60, 10);
-	c.beginPath();
-	c.arc(middle - 30, this.y + p.worldY + this.topY - 10, 5, 0, 2 * Math.PI);
-	c.arc(middle + 30, this.y + p.worldY + this.topY - 10, 5, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(middle - 30, this.y + p.worldY + this.topY - 10, 5);
+	c.fillCircle(middle + 30, this.y + p.worldY + this.topY - 10, 5);
 	//updating
 	if(this.health <= 0) {
 		this.health = 0;
@@ -8311,40 +7681,14 @@ Enemy.prototype.displayStats = function() {
 	}
 	c.globalAlpha = 1;
 	//velocity cap
-	if(this.velX > 3) {
-		this.velX = 3;
-	}
-	if(this.velX < -3) {
-		this.velX = -3;
-	}
-	if(this.velY > 3) {
-		this.velY = 3;
-	}
-	if(this.velY < -3) {
-		this.velY = -3;
-	}
+	this.velX = Math.constrain(this.velX, -3, 3);
+	this.velY = Math.constrain(this.velY, -3, 3);
 	if(this instanceof Dragonling) {
 		this.topY = topY;
 	}
 };
 Enemy.prototype.exist = function() {
 	this.display();
-	// thingsToBeRendered.push(new RenderingObject(
-	// 	this,
-	// 	{
-	// 		x: this.x + p.worldX + this.leftX,
-	// 		y: this.y + p.worldY + this.topY,
-	// 		w: this.rightX - this.leftX,
-	// 		h: this.bottomY - this.topY
-	// 	},
-	// 	{
-	// 		x: this.x + p.worldX + this.leftX,
-	// 		y: this.y + p.worldY + this.topY,
-	// 		w: this.rightX - this.leftX,
-	// 		h: this.bottomY - this.topY,
-	// 		z: 1
-	// 	}
-	// ));
 	this.timeFrozen --;
 	this.timePurified --;
 	if(!this.fadingIn && (this.timeFrozen < 0 || this instanceof Wraith)) {
@@ -8386,10 +7730,10 @@ Enemy.prototype.exist = function() {
 	}
 	if(!(this instanceof Wraith)) {
 		for(var i = 0; i < this.particles.length; i ++) {
-			c.save();
-			c.translate(this.x + this.leftX, this.y + this.topY);
-			this.particles[i].exist();
-			c.restore();
+			c.save(); {
+				c.translate(this.x + this.leftX, this.y + this.topY);
+				this.particles[i].exist();
+			} c.restore();
 			if(this.particles[i].splicing) {
 				this.particles.splice(i, 1);
 				continue;
@@ -8450,93 +7794,33 @@ Spider.prototype.display = function() {
 	c.lineWidth = 4;
 	c.fillStyle = "rgb(0, 0, 0)";
 	c.strokeStyle = "rgb(0, 0, 0)";
-	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY, 20, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(this.x + p.worldX, this.y + p.worldY, 20);
 
-	c.save();
-	c.translate(this.x + p.worldX - 14, this.y + p.worldY + 14);
-	c.rotate(this.legs / 360 * 2 * Math.PI);
-	c.moveTo(0, 0);
-	c.lineTo(-10, 0);
-	c.lineTo(-10, 10);
-	c.stroke();
-	c.restore();
+	for(var scale = -1; scale <= 1; scale += (1 - (-1)) ) {
+		/* scaling is used to flip the legs (for left + right pairs of legs) */
+		for(var rotation = -this.legs; rotation <= this.legs; rotation += (this.legs === 0 ? Infinity : (this.legs * 2)) ) {
+			for(var legSize = 10; legSize <= 20; legSize += (20 - 10)) {
+				c.save(); {
+					c.translate(
+						this.x + p.worldX + (scale * (legSize === 10 ? 14 : 16)),
+						this.y + p.worldY + (legSize === 10 ? 14 : 4)
+					);
+					c.rotate(Math.rad(rotation));
+					c.scale(scale, 1);
 
-	c.save();
-	c.translate(this.x + p.worldX + 14, this.y + p.worldY + 14);
-	c.rotate(-this.legs / 360 * 2 * Math.PI);
-	c.moveTo(0, 0);
-	c.lineTo(10, 0);
-	c.lineTo(10, 10);
-	c.stroke();
-	c.restore();
-
-	c.save();
-	c.translate(this.x + p.worldX + 16, this.y + p.worldY + 4);
-	c.rotate(this.legs / 360 * 2 * Math.PI);
-	c.moveTo(0, 0);
-	c.lineTo(20, 0);
-	c.lineTo(20, 20);
-	c.stroke();
-	c.restore();
-
-	c.save();
-	c.translate(this.x + p.worldX - 16, this.y + p.worldY + 4);
-	c.rotate(-this.legs / 360 * 2 * Math.PI);
-	c.moveTo(0, 0);
-	c.lineTo(-20, 0);
-	c.lineTo(-20, 20);
-	c.stroke();
-	c.restore();
-
-	//back 4 legs
-
-	c.save();
-	c.translate(this.x + p.worldX - 14, this.y + p.worldY + 14);
-	c.rotate(-this.legs / 360 * 2 * Math.PI);
-	c.moveTo(0, 0);
-	c.lineTo(-10, 0);
-	c.lineTo(-10, 10);
-	c.stroke();
-	c.restore();
-
-	c.save();
-	c.translate(this.x + p.worldX + 14, this.y + p.worldY + 14);
-	c.rotate(this.legs / 360 * 2 * Math.PI);
-	c.moveTo(0, 0);
-	c.lineTo(10, 0);
-	c.lineTo(10, 10);
-	c.stroke();
-	c.restore();
-
-	c.save();
-	c.translate(this.x + p.worldX + 16, this.y + p.worldY + 4);
-	c.rotate(-this.legs / 360 * 2 * Math.PI);
-	c.moveTo(0, 0);
-	c.lineTo(20, 0);
-	c.lineTo(20, 20);
-	c.stroke();
-	c.restore();
-
-	c.save();
-	c.translate(this.x + p.worldX - 16, this.y + p.worldY + 4);
-	c.rotate(this.legs / 360 * 2 * Math.PI);
-	c.moveTo(0, 0);
-	c.lineTo(-20, 0);
-	c.lineTo(-20, 20);
-	c.stroke();
-	c.restore();
-
+					c.strokeLine(
+						0, 0,
+						legSize, 0,
+						legSize, legSize
+					);
+				} c.restore();
+			}
+		}
+	}
 	//eyes
 	c.fillStyle = "rgb(" + (255 - this.purity) + ", 0, " + this.purity + ")";
-	c.beginPath();
-	c.arc(this.x + p.worldX - 10, this.y + p.worldY - 10, 5, 0, 2 * Math.PI);
-	c.fill();
-
-	c.beginPath();
-	c.arc(this.x + p.worldX + 10, this.y + p.worldY - 10, 5, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(this.x + p.worldX - 10, this.y + p.worldY - 10, 5);
+	c.fillCircle(this.x + p.worldX + 10, this.y + p.worldY - 10, 5);
 };
 Spider.prototype.update = function(dest) {
 	// console.log("dest is: " + dest);
@@ -8581,7 +7865,7 @@ Spider.prototype.update = function(dest) {
 			if(this.legs > 15) {
 				this.legDir = -2;
 			}
-			if(this.legs < -15) {
+			if(this.legs <= 0) {
 				this.legDir = 2;
 			}
 		}
@@ -8637,38 +7921,26 @@ function Bat(x, y) {
 inheritsFrom(Bat, Enemy);
 Bat.prototype.display = function() {
 	c.fillStyle = "rgb(0, 0, 0)";
-	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY, 10, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(this.x + p.worldX, this.y + p.worldY, 10);
 
 	c.fillStyle = "rgb(" + (255 - this.purity) + ", 0, " + this.purity + ")";
-	c.beginPath();
-	c.arc(this.x + p.worldX - 2, this.y + p.worldY - 4, 2, 0, 2 * Math.PI);
-	c.arc(this.x + p.worldX + 2, this.y + p.worldY - 4, 2, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(this.x + p.worldX - 2, this.y + p.worldY - 4, 2);
+	c.fillCircle(this.x + p.worldX + 2, this.y + p.worldY - 4, 2);
 
 	c.fillStyle = "rgb(0, 0, 0)";
-	c.save();
-	c.translate(this.x + p.worldX + 5, this.y + p.worldY);
-	c.rotate(this.wings / 180 * Math.PI);
-	c.beginPath();
-	c.moveTo(0, 0);
-	c.lineTo(10, -10);
-	c.lineTo(50, 0);
-	c.lineTo(10, 10);
-	c.fill();
-	c.restore();
-
-	c.save();
-	c.translate(this.x + p.worldX - 5, this.y + p.worldY);
-	c.rotate(-this.wings / 180 * Math.PI);
-	c.beginPath();
-	c.moveTo(0, 0);
-	c.lineTo(-10, -10);
-	c.lineTo(-50, 0);
-	c.lineTo(-10, 10);
-	c.fill();
-	c.restore();
+	for(var scale = -1; scale <= 1; scale += 2) {
+		c.save(); {
+			c.translate(this.x + p.worldX + (5 * scale), this.y + p.worldY);
+			c.rotate(Math.rad(this.wings * scale));
+			c.scale(scale, 1);
+			c.fillPoly(
+				0, 0,
+				10, -10,
+				50, 0,
+				10, 10
+			);
+		} c.restore();
+	}
 };
 Bat.prototype.update = function(dest) {
 	if(dest === "player") {
@@ -8760,50 +8032,42 @@ Skeleton.prototype.display = function() {
 	//head
 	c.fillStyle = "rgb(255, 255, 255)";
 	c.strokeStyle = "rgb(255, 255, 255)";
-	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY + 3, 7, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(this.x + p.worldX, this.y + p.worldY + 3, 7);
 	c.fillRect(this.x + p.worldX - 3, this.y + p.worldY + 3, 6, 10);
 	//body
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY);
-	c.lineTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.stroke();
+	c.strokeLine(this.x + p.worldX, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 36);
 	//legs
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.lineTo(this.x + p.worldX + this.legs, this.y + p.worldY + 43);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.lineTo(this.x + p.worldX - this.legs, this.y + p.worldY + 43);
-	c.stroke();
+	c.strokeLine(
+		this.x + p.worldX, this.y + p.worldY + 36,
+		this.x + p.worldX + this.legs, this.y + p.worldY + 36 + 7
+	);
+	c.strokeLine(
+		this.x + p.worldX, this.y + p.worldY + 36,
+		this.x + p.worldX - this.legs, this.y + p.worldY + 36 + 7
+	);
 	this.legs += this.legDir;
 	this.legDir = (this.legs < -7) ? 0.5 : this.legDir;
 	this.legDir = (this.legs > 7) ? -0.5 : this.legDir;
 	//arms
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY + 15);
-	c.lineTo(this.x + p.worldX + 10, this.y + p.worldY + 15);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(this.x + p.worldX + 8, this.y + p.worldY + 15);
-	c.lineTo(this.x + p.worldX + 8, this.y + p.worldY + 25);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY + 15);
-	c.lineTo(this.x + p.worldX - 10, this.y + p.worldY + 15);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(this.x + p.worldX - 8, this.y + p.worldY + 15);
-	c.lineTo(this.x + p.worldX - 8, this.y + p.worldY + 25);
-	c.stroke();
+	c.strokeLine(
+		this.x + p.worldX     , this.y + p.worldY + 15,
+		this.x + p.worldX + 10, this.y + p.worldY + 15
+	);
+	c.strokeLine(
+		this.x + p.worldX + 8, this.y + p.worldY + 15,
+		this.x + p.worldX + 8, this.y + p.worldY + 15 + 10
+	);
+	c.strokeLine(
+		this.x + p.worldX     , this.y + p.worldY + 15,
+		this.x + p.worldX - 10, this.y + p.worldY + 15
+	);
+	c.strokeLine(
+		this.x + p.worldX - 8, this.y + p.worldY + 15,
+		this.x + p.worldX - 8, this.y + p.worldY + 15 + 10
+	);
 	//ribcage
 	for(var y = this.y + p.worldY + 22; y < this.y + p.worldY + 34; y += 4) {
-		c.beginPath();
-		c.moveTo(this.x + p.worldX - 5, y);
-		c.lineTo(this.x + p.worldX + 5, y);
-		c.stroke();
+		c.strokeLine(this.x + p.worldX - 5, y, this.x + p.worldX + 5, y);
 	}
 };
 Skeleton.prototype.update = function(dest) {
@@ -8812,8 +8076,8 @@ Skeleton.prototype.update = function(dest) {
 		this.x += this.velX;
 		this.y += this.velY;
 		this.velY += 0.1;
-		this.velX = (this.x + p.worldX < p.x) ? this.velX + 0.1 : this.velX;
-		this.velX = (this.x + p.worldX > p.x) ? this.velX - 0.1 : this.velX;
+		this.velX += (this.x + p.worldX < p.x) ? 0.1 : 0;
+		this.velX -= (this.x + p.worldX > p.x) ? 0.1 : 0;
 		this.velX *= 0.96;
 		if(Math.random() <= 0.02 && this.canJump) {
 			this.velY = -(Math.random() * 3 + 2);
@@ -8863,92 +8127,82 @@ SkeletonWarrior.prototype.display = function() {
 	//head
 	c.fillStyle = "rgb(255, 255, 255)";
 	c.strokeStyle = "rgb(255, 255, 255)";
-	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY + 3, 7, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(this.x + p.worldX, this.y + p.worldY + 3, 7);
 	c.fillRect(this.x + p.worldX - 3, this.y + p.worldY + 3, 6, 10);
 	//body
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY);
-	c.lineTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.stroke();
+	c.strokeLine(
+		this.x + p.worldX, this.y + p.worldY,
+		this.x + p.worldX, this.y + p.worldY + 36
+	);
 	//legs
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.lineTo(this.x + p.worldX + this.legs, this.y + p.worldY + 43);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.lineTo(this.x + p.worldX - this.legs, this.y + p.worldY + 43);
-	c.stroke();
+	c.strokeLine(
+		this.x + p.worldX            , this.y + p.worldY + 36,
+		this.x + p.worldX + this.legs, this.y + p.worldY + 36 + 7
+	);
+	c.strokeLine(
+		this.x + p.worldX            , this.y + p.worldY + 36,
+		this.x + p.worldX - this.legs, this.y + p.worldY + 36 + 7
+	);
 	this.legs += this.legDir;
 	this.legDir = (this.legs < -7) ? 0.5 : this.legDir;
 	this.legDir = (this.legs > 7) ? -0.5 : this.legDir;
 	//arms
 	if(this.x + p.worldX > p.x) {
 		//right arm (normal)
-		c.beginPath();
-		c.moveTo(this.x + p.worldX, this.y + p.worldY + 15);
-		c.lineTo(this.x + p.worldX + 10, this.y + p.worldY + 15);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(this.x + p.worldX + 8, this.y + p.worldY + 15);
-		c.lineTo(this.x + p.worldX + 8, this.y + p.worldY + 25);
-		c.stroke();
-		c.beginPath();
+		c.strokeLine(
+			this.x + p.worldX     , this.y + p.worldY + 15,
+			this.x + p.worldX + 10, this.y + p.worldY + 15
+		);
+		c.strokeLine(
+			this.x + p.worldX + 8, this.y + p.worldY + 15,
+			this.x + p.worldX + 8, this.y + p.worldY + 15 + 10
+		);
 		//left shoulder (normal)
-		c.beginPath();
-		c.moveTo(this.x + p.worldX, this.y + p.worldY + 15);
-		c.lineTo(this.x + p.worldX - 10, this.y + p.worldY + 15);
-		c.stroke();
+		c.strokeLine(
+			this.x + p.worldX     , this.y + p.worldY + 15,
+			this.x + p.worldX - 10, this.y + p.worldY + 15
+		);
 		//left arm (attacking)
-		c.save();
-		c.translate(this.x + p.worldX - 8, this.y + p.worldY + 15);
-		c.rotate(this.attackArm / 180 * Math.PI);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(-10, 0);
-		c.stroke();
-		//sword
-		c.translate(-10, 0);
-		new Sword("none").display("attacking");
-		c.restore();
+		c.save(); {
+			c.translate(this.x + p.worldX - 8, this.y + p.worldY + 15);
+			c.rotate(Math.rad(this.attackArm));
+			c.strokeLine(0, 0, -10, 0);
+			//sword
+			c.translate(-10, 0);
+			new Sword("none").display("attacking");
+		} c.restore();
 	}
 	else {
 		//left arm (normal)
-		c.beginPath();
-		c.moveTo(this.x + p.worldX, this.y + p.worldY + 15);
-		c.lineTo(this.x + p.worldX - 10, this.y + p.worldY + 15);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(this.x + p.worldX - 8, this.y + p.worldY + 15);
-		c.lineTo(this.x + p.worldX - 8, this.y + p.worldY + 25);
-		c.stroke();
-		c.beginPath();
+		c.strokeLine(
+			this.x + p.worldX     , this.y + p.worldY + 15,
+			this.x + p.worldX - 10, this.y + p.worldY + 15
+		);
+		c.strokeLine(
+			this.x + p.worldX - 8, this.y + p.worldY + 15,
+			this.x + p.worldX - 8, this.y + p.worldY + 15 + 10
+		);
 		//right shoulder (normal)
-		c.beginPath();
-		c.moveTo(this.x + p.worldX, this.y + p.worldY + 15);
-		c.lineTo(this.x + p.worldX + 10, this.y + p.worldY + 15);
-		c.stroke();
+		c.strokeLine(
+			this.x + p.worldX     , this.y + p.worldY + 15,
+			this.x + p.worldX + 10, this.y + p.worldY + 15
+		);
 		//right arm (attacking)
-		c.save();
-		c.translate(this.x + p.worldX + 8, this.y + p.worldY + 15);
-		c.rotate(-this.attackArm / 180 * Math.PI);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(10, 0);
-		c.stroke();
-		//sword
-		c.translate(10, 0);
-		new Sword("none").display("attacking");
-		c.restore();
+		c.save(); {
+			c.translate(this.x + p.worldX + 8, this.y + p.worldY + 15);
+			c.rotate(Math.rad(-this.attackArm));
+			c.strokeLine(0, 0, 10, 0);
+			//sword
+			c.translate(10, 0);
+			new Sword("none").display("attacking");
+		} c.restore();
 	}
 	//ribcage
 	for(var y = this.y + p.worldY + 22; y < this.y + p.worldY + 34; y += 4) {
-		c.beginPath();
-		c.moveTo(this.x + p.worldX - 5, y);
-		c.lineTo(this.x + p.worldX + 5, y);
-		c.stroke();
+		c.strokeLine(
+			this.x + p.worldX - 5, y,
+			this.x + p.worldX + 5, y
+		);
 	}
 };
 SkeletonWarrior.prototype.update = function(dest) {
@@ -9047,76 +8301,69 @@ SkeletonArcher.prototype.display = function() {
 	//head
 	c.fillStyle = "rgb(255, 255, 255)";
 	c.strokeStyle = "rgb(255, 255, 255)";
-	c.beginPath();
-	c.arc(this.x + p.worldX, this.y + p.worldY + 3, 7, 0, 2 * Math.PI);
-	c.fill();
+	c.fillCircle(this.x + p.worldX, this.y + p.worldY + 3, 7);
 	c.fillRect(this.x + p.worldX - 3, this.y + p.worldY + 3, 6, 10);
 	//body
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY);
-	c.lineTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.stroke();
+	c.strokeLine(
+		this.x + p.worldX, this.y + p.worldY,
+		this.x + p.worldX, this.y + p.worldY + 36
+	);
 	//legs
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.lineTo(this.x + p.worldX + this.legs, this.y + p.worldY + 43);
-	c.stroke();
-	c.beginPath();
-	c.moveTo(this.x + p.worldX, this.y + p.worldY + 36);
-	c.lineTo(this.x + p.worldX - this.legs, this.y + p.worldY + 43);
-	c.stroke();
+	c.strokeLine(
+		this.x + p.worldX            , this.y + p.worldY + 36,
+		this.x + p.worldX + this.legs, this.y + p.worldY + 36 + 7
+	);
+	c.strokeLine(
+		this.x + p.worldX            , this.y + p.worldY + 36,
+		this.x + p.worldX - this.legs, this.y + p.worldY + 36 + 7
+	);
 	//shoulders
-	c.beginPath();
-	c.moveTo(this.x + p.worldX - 10, this.y + p.worldY + 15);
-	c.lineTo(this.x + p.worldX + 10, this.y + p.worldY + 15);
-	c.stroke();
+	c.strokeLine(
+		this.x + p.worldX - 10, this.y + p.worldY + 15,
+		this.x + p.worldX + 10, this.y + p.worldY + 15
+	);
 	//right arm
 	if(this.x + p.worldX < p.x && this.timeSinceAttack > 60) {
-		c.save();
-		c.translate(this.x + p.worldX + 8, this.y + p.worldY + 15);
-		c.rotate(this.aimRot / 180 * Math.PI);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(10, 0);
-		c.stroke();
-		c.translate(10, 0);
-		new WoodBow("none").display("aiming");
-		c.restore();
+		c.save(); {
+			c.translate(this.x + p.worldX + 8, this.y + p.worldY + 15);
+			c.rotate(Math.rad(this.aimRot));
+			c.strokeLine(0, 0, 10, 0);
+			c.translate(10, 0);
+			new WoodBow("none").display("aiming");
+		} c.restore();
 		this.timeAiming ++;
 	}
 	else {
-		c.beginPath();
-		c.moveTo(this.x + p.worldX + 8, this.y + p.worldY + 15);
-		c.lineTo(this.x + p.worldX + 8, this.y + p.worldY + 25);
-		c.stroke();
+		c.strokeLine(
+			this.x + p.worldX + 8, this.y + p.worldY + 15,
+			this.x + p.worldX + 8, this.y + p.worldY + 15 + 10
+		);
 	}
 	//left arm
 	if(this.x + p.worldX > p.x && this.timeSinceAttack > 60) {
-		c.save();
-		c.translate(this.x + p.worldX - 8, this.y + p.worldY + 15);
-		c.rotate(-this.aimRot / 180 * Math.PI);
-		c.beginPath();
-		c.moveTo(0, 0);
-		c.lineTo(-10, 0);
-		c.stroke();
-		c.translate(-10, 0);
-		c.scale(-1, 1);
-		new WoodBow("none").display("aiming");
-		c.restore();
+		c.save(); {
+			c.translate(this.x + p.worldX - 8, this.y + p.worldY + 15);
+			c.rotate(Math.rad(-this.aimRot));
+			c.strokeLine(0, 0, -10, 0);
+
+			c.translate(-10, 0);
+			c.scale(-1, 1);
+			new WoodBow("none").display("aiming");
+		} c.restore();
 		this.timeAiming ++;
 	}
 	else {
-		c.beginPath();
-		c.moveTo(this.x + p.worldX - 8, this.y + p.worldY + 15);
-		c.lineTo(this.x + p.worldX - 8, this.y + p.worldY + 25);
-		c.stroke();
+		c.strokeLine(
+			this.x + p.worldX - 8, this.y + p.worldY + 15,
+			this.x + p.worldX - 8, this.y + p.worldY + 15 + 10
+		);
 	}
 	//ribcage
 	for(var y = this.y + p.worldY + 22; y < this.y + p.worldY + 34; y += 4) {
-		c.beginPath();
-		c.moveTo(this.x + p.worldX - 5, y);
-		c.lineTo(this.x + p.worldX + 5, y);
-		c.stroke();
+		c.strokeLine(
+			this.x + p.worldX - 5, y,
+			this.x + p.worldX + 5, y
+		);
 	}
 };
 SkeletonArcher.prototype.update = function(dest) {
@@ -9278,19 +8525,15 @@ function Particle(color, x, y, velX, velY, size) {
 };
 Particle.prototype.exist = function() {
 	var prevOp = c.globalAlpha;
-	c.globalAlpha = this.opacity > 0 ? this.opacity : 0;
+	c.globalAlpha = Math.max(0, this.opacity);
 	c.fillStyle = "rgb(255, 0, 0)";
 	c.fillStyle = this.color;
 	if(this.z === undefined) {
-		c.beginPath();
-		c.arc(this.x + p.worldX, this.y + p.worldY, this.size, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(this.x + p.worldX, this.y + p.worldY, this.size);
 	}
 	else {
 		var loc = point3d(this.x + p.worldX, this.y + p.worldY, this.z);
-		c.beginPath();
-		c.arc(loc.x, loc.y, this.size * this.z, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(loc.x, loc.y, this.size * this.z);
 	}
 	c.globalAlpha = prevOp;
 	this.x += this.velX;
@@ -9549,60 +8792,115 @@ function Troll(x, y) {
 };
 inheritsFrom(Troll, Enemy);
 Troll.prototype.display = function() {
-	c.save();
-	c.translate(this.x + p.worldX, this.y + p.worldY);
-	c.scale(0.75, 0.75);
-	//rounded shoulders
-	{
-	c.fillStyle = "rgb(0, 128, 0)";
-	circle(0 - 50, 0 - 20, 10);
-	circle(0 + 50, 0 - 20, 10);
-	circle(0 - 20, 0 + 50, 10);
-	circle(0 + 20, 0 + 50, 10);
-	}
-	//body
-	{
-	c.fillRect(0 - 50, 0 - 30, 100, 30);
-	c.beginPath();
-	c.moveTo(0 - 60, 0 - 20);
-	c.lineTo(0 + 60, 0 - 20);
-	c.lineTo(0 + 30, 0 + 50);
-	c.lineTo(0 - 30, 0 + 50);
-	c.fill();
-	c.fillRect(0 - 20, 0 + 10, 40, 50);
-	}
-	//legs
-	{
-	c.fillStyle = "rgb(30, 128, 30)";
-	for(var scale = -1; scale <= 1; scale += 2) {
-		c.save();
-		if(scale === -1) {
-			c.translate(3 * this.leg1, 7 * this.leg1);
+	c.save(); {
+		c.translate(this.x + p.worldX, this.y + p.worldY);
+		c.scale(0.75, 0.75);
+		//rounded shoulders
+		c.fillStyle = "rgb(0, 128, 0)";
+		c.fillCircle(0 - 50, 0 - 20, 10);
+		c.fillCircle(0 + 50, 0 - 20, 10);
+		c.fillCircle(0 - 20, 0 + 50, 10);
+		c.fillCircle(0 + 20, 0 + 50, 10);
+		//body
+		c.fillRect(0 - 50, 0 - 30, 100, 30);
+		c.fillPoly(
+			-60, -20,
+			60, -20,
+			30, 50,
+			-30, 50
+		);
+		c.fillRect(0 - 20, 0 + 10, 40, 50);
+		//legs
+		c.fillStyle = "rgb(30, 128, 30)";
+		for(var scale = -1; scale <= 1; scale += 2) {
+			c.save(); {
+				if(scale === -1) {
+					c.translate(3 * this.leg1, 7 * this.leg1);
+				}
+				else {
+					c.translate(-3 * this.leg2, 7 * this.leg2);
+				}
+				c.scale(scale, 1);
+				c.translate(-5, 0);
+				c.fillCircle(45, 30, 5);
+				c.fillCircle(30, 50, 5);
+				c.fillCircle(60, 30, 5);
+				c.fillCircle(60, 70, 5);
+				c.fillCircle(30, 70, 5);
+				c.fillRect(45, 25, 15, 10);
+				c.fillRect(25, 50, 40, 20);
+				c.fillRect(30, 70, 30, 5);
+				c.fillRect(45, 30, 20, 30);
+				c.fillPoly(
+					40, 30,
+					25, 30,
+					25, 70,
+					40, 70,
+					50, 70,
+					50, 30
+				);
+			} c.restore();
+		}
+		//head
+		c.fillCircle(0, -40, 20);
+	} c.restore();
+	//right arm
+	c.save(); {
+		c.translate(this.x + p.worldX + 40, this.y + p.worldY - 10);
+		if(this.armAttacking === "right") {
+			c.rotate(Math.rad(this.attackArm));
 		}
 		else {
-			c.translate(-3 * this.leg2, 7 * this.leg2);
+			c.rotate(Math.rad(60));
 		}
-		c.scale(scale, 1);
-		c.translate(-5, 0);
-		circle(45, 30, 5);
-		circle(30, 50, 5);
-		circle(60, 30, 5);
-		circle(60, 70, 5);
-		circle(30, 70, 5);
-		c.fillRect(45, 25, 15, 10);
-		c.fillRect(25, 50, 40, 20);
-		c.fillRect(30, 70, 30, 5);
-		c.fillRect(45, 30, 20, 30);
-		c.beginPath();
-		c.moveTo(40, 30);
-		c.lineTo(25, 30);
-		c.lineTo(25, 70);
-		c.lineTo(40, 70);
-		c.lineTo(50, 70);
-		c.lineTo(50, 30);
-		c.fill();
-		c.restore();
-	}
+		if(this.x + p.worldX < p.x && this.currentAction === "melee-attack") {
+			c.fillStyle = "rgb(139, 69, 19)";
+			c.fillPoly(
+				45, 0,
+				50, -70,
+				30, -70,
+				35, 0
+			);
+			c.fillCircle(40, -70, 10);
+		}
+		c.fillStyle = "rgb(0, 128, 0)";
+		c.fillCircle(0, -10, 5);
+		c.fillCircle(0, 10, 5);
+		c.fillCircle(50, -10, 5);
+		c.fillCircle(50, 10, 5);
+		c.fillRect(-5, -10, 60, 20);
+		c.fillRect(0, -15, 50, 30);
+	} c.restore();
+	//left arm
+	c.save(); {
+		c.translate(this.x + p.worldX - 40, this.y + p.worldY - 10);
+		if(this.armAttacking === "left") {
+			c.rotate(Math.rad(-this.attackArm));
+		}
+		else {
+			c.rotate(Math.rad(-60));
+		}
+		if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
+			c.fillStyle = "rgb(139, 69, 19)";
+			c.fillPoly(
+				-45, 0,
+				-50, -70,
+				-30, -70,
+				-35, 0
+			);
+			c.fillCircle(-40, -70, 10);
+		}
+		c.fillStyle = "rgb(0, 128, 0)";
+		c.fillCircle(0, -10, 5);
+		c.fillCircle(0, 10, 5);
+		c.fillCircle(-50, -10, 5);
+		c.fillCircle(-50, 10, 5);
+		c.fillRect(-55, -10, 60, 20);
+		c.fillRect(-50, -15, 50, 30);
+	} c.restore();
+};
+Troll.prototype.update = function() {
+	//animations
 	this.leg1 += this.leg1Dir;
 	this.leg2 += this.leg2Dir;
 	if(this.currentAction === "move") {
@@ -9617,70 +8915,6 @@ Troll.prototype.display = function() {
 		this.leg2Dir = (this.leg2 < 0) ? 0.2 : this.leg2Dir;
 		this.leg2Dir = (this.leg2 > 0) ? -0.2 : this.leg2Dir;
 	}
-	}
-	//head
-	circle(0, -40, 20);
-	c.restore();
-	//right arm
-	{
-	c.save();
-	c.translate(this.x + p.worldX + 40, this.y + p.worldY - 10);
-	if(this.armAttacking === "right") {
-		c.rotate(this.attackArm / 180 * Math.PI);
-	}
-	else {
-		c.rotate(60 / 180 * Math.PI);
-	}
-	if(this.x + p.worldX < p.x && this.currentAction === "melee-attack") {
-		c.fillStyle = "rgb(139, 69, 19)";
-		c.beginPath();
-		c.moveTo(45, 0);
-		c.lineTo(50, -70);
-		c.lineTo(30, -70);
-		c.lineTo(35, 0);
-		c.fill();
-		circle(40, -70, 10);
-	}
-	c.fillStyle = "rgb(0, 128, 0)";
-	circle(0, -10, 5);
-	circle(0, 10, 5);
-	circle(50, -10, 5);
-	circle(50, 10, 5);
-	c.fillRect(-5, -10, 60, 20);
-	c.fillRect(0, -15, 50, 30);
-	c.restore();
-	}
-	//left arm
-	{
-	c.save();
-	c.translate(this.x + p.worldX - 40, this.y + p.worldY - 10);
-	if(this.armAttacking === "left") {
-		c.rotate(-this.attackArm / 180 * Math.PI);
-	}
-	else {
-		c.rotate(-60 / 180 * Math.PI);
-	}
-	if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
-		c.fillStyle = "rgb(139, 69, 19)";
-		c.beginPath();
-		c.moveTo(-45, 0);
-		c.lineTo(-50, -70);
-		c.lineTo(-30, -70);
-		c.lineTo(-35, 0);
-		c.fill();
-		circle(-40, -70, 10);
-	}
-	c.fillStyle = "rgb(0, 128, 0)";
-	circle(0, -10, 5);
-	circle(0, 10, 5);
-	circle(-50, -10, 5);
-	circle(-50, 10, 5);
-	c.fillRect(-55, -10, 60, 20);
-	c.fillRect(-50, -15, 50, 30);
-	c.restore();
-	}
-};
-Troll.prototype.update = function() {
 	//movement
 	this.x += this.velX;
 	this.y += this.velY;
@@ -9786,13 +9020,11 @@ Rock.prototype.exist = function() {
 		this.x += this.velX;
 		this.y += this.velY;
 		this.velY += 0.1;
-		c.save();
-		c.globalAlpha = this.opacity;
-		c.fillStyle = "rgb(140, 140, 140)";
-		c.beginPath();
-		c.arc(this.x + p.worldX, this.y + p.worldY, 20, 0, 2 * Math.PI);
-		c.fill();
-		c.restore();
+		c.save(); {
+			c.globalAlpha = this.opacity;
+			c.fillStyle = "rgb(140, 140, 140)";
+			c.fillCircle(this.x + p.worldX, this.y + p.worldY, 20);
+		} c.restore();
 	}
 	if(!this.hitPlayer && this.x + p.worldX + 20 > p.x - 5 && this.x + p.worldX - 20 < p.x + 5 && this.y + p.worldY + 20 > p.y - 7 && this.y + p.worldY - 20 < p.y + 46) {
 		p.hurt(Math.random() * 10 + 40, "a troll");
@@ -9816,28 +9048,28 @@ Rock.prototype.exist = function() {
 		}
 	}
 	else {
-		c.save();
-		c.fillStyle = "rgb(140, 140, 140)";
-		for(var i = 0; i < this.fragments.length; i ++) {
-			c.globalAlpha = this.fragments[i].opacity;
-			c.beginPath();
-			c.arc(this.fragments[i].x + p.worldX, this.fragments[i].y + p.worldY, 5, 0, 2 * Math.PI);
-			c.fill();
-			this.fragments[i].x += this.fragments[i].velX;
-			this.fragments[i].y += this.fragments[i].velY;
-			this.fragments[i].velY += 0.1;
-			this.fragments[i].opacity -= 0.05;
-			if(this.fragments[i].opacity <= 0) {
-				this.splicing = true;
-			}
-			continue;
-			for(var j = 0; j < roomInstances[theRoom].content.length; j ++) {
-				if(roomInstances[theRoom].content[i] instanceof Block) {
+		c.save(); {
+			c.fillStyle = "rgb(140, 140, 140)";
+			for(var i = 0; i < this.fragments.length; i ++) {
+				c.globalAlpha = this.fragments[i].opacity;
+				c.beginPath();
+				c.arc(this.fragments[i].x + p.worldX, this.fragments[i].y + p.worldY, 5, 0, 2 * Math.PI);
+				c.fill();
+				this.fragments[i].x += this.fragments[i].velX;
+				this.fragments[i].y += this.fragments[i].velY;
+				this.fragments[i].velY += 0.1;
+				this.fragments[i].opacity -= 0.05;
+				if(this.fragments[i].opacity <= 0) {
+					this.splicing = true;
+				}
+				continue;
+				for(var j = 0; j < roomInstances[theRoom].content.length; j ++) {
+					if(roomInstances[theRoom].content[i] instanceof Block) {
 
+					}
 				}
 			}
-		}
-		c.restore();
+		} c.restore();
 	}
 };
 
@@ -9879,55 +9111,28 @@ Dragonling.prototype.display = function() {
 	var p2 = point3d((slope.x * 15) + this.pos[25].x + p.worldX, (slope.y * 15) + this.pos[25].y + p.worldY, 0.9);
 	var p3 = point3d((-slope.x * 15) + this.pos[25].x + p.worldX, (-slope.y * 15) + this.pos[25].y + p.worldY, 0.9);
 	var p4 = point3d(p1.x, p1.y, 0.8);
-	c.beginPath();
-	c.moveTo(p2.x, p2.y),
-	c.lineTo(p4.x, p4.y),
-	c.lineTo(p3.x, p3.y),
-	c.lineTo(p1.x, p1.y);
-	c.fill();
+	c.fillPoly(p2, p4, p3, p1);
 	//mouth
 	c.fillStyle = "rgb(0, 255, 0)";
-	c.save();
-	c.translate(this.x + p.worldX, this.y + p.worldY);
-	c.rotate(Math.rad(this.rot));
-	c.beginPath();
-	c.moveTo(0, -10);
-	c.lineTo(20, -20);
-	c.lineTo(this.mouth, -50);
-	c.lineTo(0, 10);
-	c.lineTo(-this.mouth, -50);
-	c.lineTo(-20, -20);
-	c.fill();
-	c.restore();
-	//bite mouth
-	if((Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 5, p.y - 7) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x - 5, p.y - 7) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 5, p.y + 46) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x - 5, p.y + 46) <= 1600) && this.mouthDir === 0 && this.currentAction === "bite") {
-		this.mouthDir = -1;
-		this.currentAction = "shoot";
-	}
-	if(this.mouth < 0) {
-		this.mouthDir = 1;
-	}
-	if(this.mouth > 20 && this.mouthDir === 1) {
-		this.mouthDir = 0;
-	}
-	this.mouth += this.mouthDir;
+	c.save(); {
+		c.translate(this.x + p.worldX, this.y + p.worldY);
+		c.rotate(Math.rad(this.rot));
+		c.fillPoly(
+			0, -10,
+			20, -20,
+			this.mouth, -50,
+			0, 10,
+			-this.mouth, -50,
+			-20, -20
+		);
+	} c.restore();
 	//tail
 	c.strokeStyle = "rgb(0, 255, 0)";
 	c.lineWidth = 5;
-	c.save();
-	c.translate(p.worldX, p.worldY);
-	for(var i = 0; i < this.pos.length; i ++) {
-		c.beginPath();
-		if(i === this.pos.length - 1) {
-			c.moveTo(this.x, this.y);
-		}
-		else {
-			c.moveTo(this.pos[i + 1].x, this.pos[i + 1].y);
-		}
-		c.lineTo(this.pos[i].x, this.pos[i].y);
-		c.stroke();
-	}
-	c.restore();
+	c.save(); {
+		c.translate(p.worldX, p.worldY);
+		c.strokeLine.apply(c, this.pos);
+	} c.restore();
 	//update tail position
 	this.pos.push({x: this.x, y: this.y});
 	if(this.pos.length > 30) {
@@ -9938,12 +9143,7 @@ Dragonling.prototype.display = function() {
 	var p2 = point3d((slope.x * 15) + this.pos[25].x + p.worldX, (slope.y * 15) + this.pos[25].y + p.worldY, 1.1);
 	var p3 = point3d((-slope.x * 15) + this.pos[25].x + p.worldX, (-slope.y * 15) + this.pos[25].y + p.worldY, 1.1);
 	var p4 = point3d(p1.x, p1.y, 1.2);
-	c.beginPath();
-	c.moveTo(p2.x, p2.y),
-	c.lineTo(p4.x, p4.y),
-	c.lineTo(p3.x, p3.y),
-	c.lineTo(p1.x, p1.y);
-	c.fill();
+	c.fillPoly(p2, p4, p3, p1);
 };
 Dragonling.prototype.update = function() {
 	//move according to rotation
@@ -9982,6 +9182,18 @@ Dragonling.prototype.update = function() {
 			this.destY = this.y;
 		}
 	}
+	//bite mouth
+	if((Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 5, p.y - 7) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x - 5, p.y - 7) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 5, p.y + 46) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x - 5, p.y + 46) <= 1600) && this.mouthDir === 0 && this.currentAction === "bite") {
+		this.mouthDir = -1;
+		this.currentAction = "shoot";
+	}
+	if(this.mouth < 0) {
+		this.mouthDir = 1;
+	}
+	if(this.mouth > 20 && this.mouthDir === 1) {
+		this.mouthDir = 0;
+	}
+	this.mouth += this.mouthDir;
 	//shoot fireballs
 	var idealAngle = calcAngleDegrees(this.x - (p.x - p.worldX), this.y - (p.y - p.worldY)) - 90;
 	if(this.reload > 120 && Math.abs(this.rot - idealAngle) <= 2 && Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x, p.y) >= 10000) {
@@ -10035,9 +9247,10 @@ if(TESTING_MODE) {
 	// roomInstances = [new Room("parkour", [new Pillar(500, 600, 150), new Platform(600, 450, 200)], 0, -Infinity, "bricks")];
 	// p.addItem(new EnergyStaff());
 	// p.addItem(new Dagger("light"));
-	p.addItem(new EnergyStaff());
-	p.addItem(new Arrow(Infinity));
-	p.addItem(new Helmet());
+	// p.addItem(new AirCrystal());
+	// p.addItem(new Arrow(Infinity));
+	// p.addItem(new Helmet());
+	// p.addItem(new Barricade());
 }
 /** MENUS & UI **/
 var infoBar = {
@@ -10110,15 +9323,15 @@ var infoBar = {
 					c.strokeStyle = "rgb(200, 200, 200)";
 					c.fillStyle = "rgb(59, 67, 70)";
 				}
-				c.save();
-				c.translate(x + 10, y + ((icon === "arrow-up") ? 12 : 8));
-				c.scale(1, (icon === "arrow-down") ? -1 : 1);
-				c.beginPath();
-				c.moveTo(-5, 0);
-				c.lineTo(0, -5);
-				c.lineTo(5, 0);
-				c.stroke();
-				c.restore();
+				c.save(); {
+					c.translate(x + 10, y + ((icon === "arrow-up") ? 12 : 8));
+					c.scale(1, (icon === "arrow-down") ? -1 : 1);
+					c.strokePoly(
+						-5, 0,
+						0, -5,
+						5, 0
+					);
+				} c.restore();
 				return;
 			}
 			c.textAlign = "center";
@@ -10136,46 +9349,36 @@ var infoBar = {
 			}
 			else if(icon.substring(0, 8) === "triangle") {
 				/* filled-in triangle */
-				c.save();
-				c.translate(x + (boxHeight / 2), y + (boxHeight / 2));
-				if(icon === "triangle-left") {
-					c.rotate(Math.rad(-90));
-				}
-				else if(icon === "triangle-down") {
-					c.rotate(Math.rad(-180));
-				}
-				else if(icon === "triangle-right") {
-					c.rotate(Math.rad(-270));
-				}
-				c.beginPath();
-				c.moveTo(-5, 5);
-				c.lineTo(5, 5);
-				c.lineTo(0, -5);
-				c.fill();
-				c.restore();
+				c.save(); {
+					c.translate(x + (boxHeight / 2), y + (boxHeight / 2));
+					if(icon === "triangle-left") {
+						c.rotate(Math.rad(-90));
+					}
+					else if(icon === "triangle-down") {
+						c.rotate(Math.rad(-180));
+					}
+					else if(icon === "triangle-right") {
+						c.rotate(Math.rad(-270));
+					}
+					c.fillPoly(
+						-5, 5,
+						5, 5,
+						0, -5
+					);
+				} c.restore();
 			}
 			else if(icon === "left-click") {
-				c.save();
-				c.translate(x + (boxHeight / 2), y + (boxHeight / 2));
-				c.scale(1, 1.2);
+				c.save(); {
+					c.translate(x + (boxHeight / 2), y + (boxHeight / 2));
+					c.scale(1, 1.2);
 
-				c.beginPath();
-				c.arc(0, 0, 5, 0, 2 * Math.PI);
-				c.stroke();
+					c.strokeCircle(0, 0, 5);
 
-				c.fillStyle = "rgb(59, 67, 70)";
-				c.beginPath();
-				c.moveTo(0, 0);
-				c.arc(0, 0, 5, 1 * Math.PI, 1.5 * Math.PI);
-				c.lineTo(0, 0);
-				c.fill();
+					c.fillStyle = "rgb(59, 67, 70)";
+					c.fillArc(0, 0, 5, Math.rad(180), Math.rad(270));
 
-				c.beginPath();
-				c.moveTo(-5, 0);
-				c.lineTo(5, 0);
-				c.stroke();
-
-				c.restore();
+					c.strokeLine(-5, 0, 5, 0);
+				} c.restore();
 			}
 		};
 		function displayAction(x, y, icon, action, align) {
@@ -10383,6 +9586,7 @@ var btn2 = 0;
 var btn3 = 0;
 /** FRAMES **/
 function doByTime() {
+	console.log("---------------");
 	if(TESTING_MODE) {
 		p.health = p.maxHealth;
 	}
@@ -10396,7 +9600,7 @@ function doByTime() {
 		//load enemies in other rooms
 		var unseenEnemy = false;
 		for(var i = 0; i < roomInstances.length; i ++) {
-			if(roomInstances[i].contains(Enemy) && i !== inRoom) {
+			if(roomInstances[i].content.containsInstanceOf(Enemy) && i !== inRoom) {
 				unseenEnemy = true;
 				break;
 			}
@@ -10404,7 +9608,7 @@ function doByTime() {
 		if(unseenEnemy) {
 			outerLoop: for(var i = 0; i < roomInstances.length; i ++) {
 				theRoom = i;
-				if(i !== inRoom && roomInstances[i].contains(Enemy)) {
+				if(i !== inRoom && roomInstances[i].content.containsInstanceOf(Enemy)) {
 					roomInstances[i].exist(i);
 				}
 				for(var j = 0; j < roomInstances[i].content.length; j ++) {
@@ -10456,7 +9660,7 @@ function doByTime() {
 				theRoom = i;
 				roomInstances[i].exist(i);
 			}
-			if(roomInstances[i].contains(Enemy) && false) {
+			if(roomInstances[i].content.containsInstanceOf(Enemy) && false) {
 				for(var j = 0; j < roomInstances[i].content.length; j ++) {
 					if(roomInstances[i].content[j] instanceof Enemy) {
 						for(var k = 0; k < roomInstances[i].content.length; k ++) {
@@ -10498,9 +9702,7 @@ function doByTime() {
 		//left door
 		c.fillStyle = "rgb(20, 20, 20)";
 		c.fillRect(40, 440, 170, 140);
-		c.beginPath();
-		c.arc(125, 440, 85, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(125, 440, 85);
 		//left door text
 		c.lineWidth = 1;
 		c.strokeStyle = "rgb(255, 255, 255)";
@@ -10509,52 +9711,48 @@ function doByTime() {
 		c.fillText("H o w", 125, 492.5);
 		c.fillStyle = "rgb(20, 20, 20)";
 		if(btn2 > 0) {
-			c.beginPath();
-			c.moveTo(125 - btn2, 505);
-			c.lineTo(125 + btn2, 505);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(125 - btn2, 505 - 40);
-			c.lineTo(125 + btn2, 505 - 40);
-			c.stroke();
+			c.strokeLine(
+				125 - btn2, 485 + 20,
+				125 + btn2, 485 + 20
+			);
+			c.strokeLine(
+				125 - btn2, 485 - 20,
+				125 + btn2, 485 - 20
+			);
 		}
 		//middle door
 		c.fillRect(320, 380, 160, 200);
-		c.beginPath();
-		c.arc(400, 380, 80, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(400, 380, 80);
 		//middle door text
 		c.font = "100 20px Germania One";
 		c.fillStyle = "rgb(255, 255, 255)";
 		c.fillText("P l a y", 400, 452.5);
 		if(btn1 > 0) {
-			c.beginPath();
-			c.moveTo(400 - btn1, 465);
-			c.lineTo(400 + btn1, 465);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(400 - btn1, 425);
-			c.lineTo(400 + btn1, 425);
-			c.stroke();
+			c.strokeLine(
+				400 - btn1, 445 + 20,
+				400 + btn1, 445 + 20
+			);
+			c.strokeLine(
+				400 - btn1, 445 - 20,
+				400 + btn1, 445 - 20
+			);
 		}
 		//right door
 		c.fillStyle = "rgb(20, 20, 20)";
 		c.fillRect(590, 440, 170, 140);
-		c.beginPath();
-		c.arc(675, 440, 85, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(675, 440, 85);
 		c.font = "100 20px Germania One";
 		c.fillStyle = "rgb(255, 255, 255)";
 		c.fillText("S c o r e s", 675, 492.5);
 		if(btn3 > 0) {
-			c.beginPath();
-			c.moveTo(675 - btn3, 505);
-			c.lineTo(675 + btn3, 505);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(675 - btn3, 505 - 40);
-			c.lineTo(675 + btn3, 505 - 40);
-			c.stroke();
+			c.strokeLine(
+				675 - btn3, 485 + 20,
+				675 + btn3, 485 + 20
+			);
+			c.strokeLine(
+				675 - btn3, 485 - 20,
+				675 + btn3, 485 - 20
+			);
 		}
 		//right door text
 		loadBoxFronts();
@@ -10636,12 +9834,12 @@ function doByTime() {
 		//warrior
 		warriorClass.y = platHeight1 - 46;
 		warriorClass.display(true, true);
-		c.save();
-		c.translate(190, platHeight1 - 30);
-		c.scale(1, 0.65);
-		c.rotate(Math.PI);
-		new Sword().display("attacking");
-		c.restore();
+		c.save(); {
+			c.translate(190, platHeight1 - 30);
+			c.scale(1, 0.65);
+			c.rotate(Math.PI);
+			new Sword().display("attacking");
+		} c.restore();
 		//archer
 		archerClass.y = platHeight2 - 46;
 		archerClass.aiming = true;
@@ -10710,6 +9908,7 @@ function doByTime() {
 	else if(p.onScreen === "dead") {
 		c.fillStyle = "rgb(150, 150, 150)";
 		c.font = "bolder 80px Arial black";
+		c.textAlign = "center";
 		c.fillText("GAME OVER", 400, 200);
 		c.font = "20px Cursive";
 		c.fillStyle = "rgb(0, 0, 0)";
@@ -10723,23 +9922,21 @@ function doByTime() {
 		//home button
 		c.fillStyle = "rgb(20, 20, 20)";
 		c.fillRect(100, 570, 150, 100);
-		c.beginPath();
-		c.arc(175, 570, 75, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(175, 570, 75);
 		c.fillStyle = "rgb(255, 255, 255)";
 		c.strokeStyle = "rgb(255, 255, 255)";
 		c.font = "100 20px Germania One";
-		c.fillText("H o m e", 175, 617.5);
+		c.fillText("H o m e", 175, 610 + 7.5);
 		c.lineWidth = 1;
 		if(btn1 > 0) {
-			c.beginPath();
-			c.moveTo(175 - btn1, 590);
-			c.lineTo(175 + btn1, 590);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(175 - btn1, 630);
-			c.lineTo(175 + btn1, 630);
-			c.stroke();
+			c.strokeLine(
+				175 - btn1, 610 - 20,
+				175 + btn1, 610 - 20
+			);
+			c.strokeLine(
+				175 - btn1, 610 + 20,
+				175 + btn1, 610 + 20
+			);
 		}
 		if((mouseX > 100 && mouseX < 250 && mouseY > 570 && mouseY < 670) || Math.dist(mouseX, mouseY, 175, 570) <= 75) {
 			cursor = "pointer";
@@ -10757,22 +9954,20 @@ function doByTime() {
 		//retry button
 		c.fillStyle = "rgb(20, 20, 20)";
 		c.fillRect(550, 570, 150, 100);
-		c.beginPath();
-		c.arc(625, 570, 75, 0, 2 * Math.PI);
-		c.fill();
+		c.fillCircle(625, 570, 75);
 		c.fillStyle = "rgb(255, 255, 255)";
 		c.strokeStyle = "rgb(255, 255, 255)";
 		c.fillText("R e t r y", 625, 617.5);
 		c.lineWidth = 1;
 		if(btn2 > 0) {
-			c.beginPath();
-			c.moveTo(626 - btn2, 590);
-			c.lineTo(625 + btn2, 590);
-			c.stroke();
-			c.beginPath();
-			c.moveTo(625 - btn2, 630);
-			c.lineTo(625 + btn2, 630);
-			c.stroke();
+			c.strokeLine(
+				625 - btn2, 610 - 20,
+				625 + btn2, 610 - 20
+			);
+			c.strokeLine(
+				625 - btn2, 610 + 20,
+				625 + btn2, 610 + 20
+			);
 		}
 		if((mouseX > 550 && mouseX < 700 && mouseY > 570 && mouseY < 670) || Math.dist(625, 570, mouseX, mouseY) <= 75) {
 			cursor = "pointer";
@@ -10933,22 +10128,22 @@ function doByTime() {
 			c.fillText("Monsters Killed: " + p.scores[i].kills, 270, y + 55);
 			c.fillText("Rooms Explored: " + p.scores[i].rooms, 270, y + 85);
 			if(p.scores[i].class === "warrior") {
-				c.save();
-				c.translate(550, y + 50);
-				new Sword().display("item");
-				c.restore();
+				c.save(); {
+					c.translate(550, y + 50);
+					new Sword().display("item");
+				} c.restore();
 			}
 			else if(p.scores[i].class === "archer") {
-				c.save();
-				c.translate(550, y + 50);
-				new WoodBow().display("item");
-				c.restore();
+				c.save(); {
+					c.translate(550, y + 50);
+					new WoodBow().display("item");
+				} c.restore();
 			}
 			else if(p.scores[i].class === "mage") {
-				c.save();
-				c.translate(550, y + 50);
-				new EnergyStaff().display("item");
-				c.restore();
+				c.save(); {
+					c.translate(550, y + 50);
+					new EnergyStaff().display("item");
+				} c.restore();
 			}
 		}
 		if(p.scores.length === 0) {
@@ -11008,12 +10203,16 @@ function doByTime() {
 				fading = "none";
 			}
 		}
-		c.save();
-		c.globalAlpha = (fadeOp >= 0) ? fadeOp : 0;
-		c.fillStyle = "rgb(0, 0, 0)";
-		c.fillRect(0, 0, 800, 800);
-		c.restore();
+		c.save(); {
+			c.globalAlpha = Math.max(fadeOp, 0);
+			c.fillStyle = "rgb(0, 0, 0)";
+			c.fillRect(0, 0, 800, 800);
+		} c.restore();
 	}
+
+	c.fillStyle = "rgb(255, 0, 0)";
+	c.textAlign = "left";
+
 	pMouseIsPressed = mouseIsPressed;
 	document.getElementById("body").style.cursor = cursor;
 	window.setTimeout(doByTime, 1000 / FPS);
