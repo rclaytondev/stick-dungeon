@@ -9289,6 +9289,7 @@ var game = {
 				}
 			}
 
+			game.dungeon[game.inRoom].displayShadowEffect();
 			p.display();
 			p.gui();
 
@@ -10118,6 +10119,10 @@ function timer() {
 		c.fillStyle = "rgb(0, 0, 0)";
 		c.fillRect(0, 0, canvas.width, canvas.height);
 	} c.restore();
+
+	if(p.onScreen !== "play" && p.onScreen !== "how") {
+		(new Room()).displayShadowEffect();
+	}
 
 	utilities.pastInputs.update();
 	document.body.style.cursor = io.cursor;
