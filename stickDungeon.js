@@ -57,6 +57,35 @@ CanvasRenderingContext2D.prototype.fillPoly = function() {
 	this.polygon.apply(this, arguments);
 	this.fill();
 };
+CanvasRenderingContext2D.prototype.fillPolyWithoutOrder = function() {
+	/*
+	This function is for when you are unsure of whether the order of the points in the polygon is correct. It will draw the polygon correctly regardless of the order of the points, at the cost of being slightly slower.
+	*/
+	if(typeof arguments[0] === "number") {
+		/* Call it again with objects with x and y properties as parameters */
+		var objects = [];
+		for(var i = 0; i < arguments.length; i ++) {
+			objects.push({
+				x: arguments[i],
+				y: arguments[i + 1]
+			});
+		}
+		this.fillPolyWithoutOrder(arguments);
+	}
+	else if(Array.isArray(arguments[0])) {
+		this.fillPolyWithoutOrder.apply(this, arguments);
+	}
+	else if(typeof arguments[0] === "object") {
+		/* draw overlapping triangles connecting every possible set of 3 vertices (inefficient) */
+		for(var i = 0; i < arguments.length; i ++) {
+			for(var j = i; j < arguments.length; j ++) {
+				for(var k = j; k < arguments.length; k ++) {
+					this.fillPoly(arguments[i], arguments[j], arguments[k]);
+				}
+			}
+		}
+	}
+};
 CanvasRenderingContext2D.prototype.strokePoly = function() {
 	this.beginPath();
 	this.polygon.apply(this, arguments);
@@ -90,6 +119,11 @@ CanvasRenderingContext2D.prototype.strokeArc = function(x, y, r, start, end, ant
 	this.arc(x, y, r, start, end, antiClockwise);
 	this.stroke();
 };
+CanvasRenderingContext2D.prototype.clipRect = function(x, y, w, h) {
+	this.beginPath();
+	this.rect(x, y, w, h);
+	this.clip();
+};
 CanvasRenderingContext2D.prototype.invertPath = function() {
 	/*
 	Inverts the canvas path. Drawing a line on each of the canvas boundaries will, for any point on the canvas, increase the number of lines crossed by 1. When using the "evenodd" fill rule, this will toggle whether the point is in the path or not.
@@ -112,6 +146,15 @@ CanvasRenderingContext2D.prototype.fillCanvas = function() {
 	this.resetTransform();
 	this.fillRect(0, 0, this.canvas.width, this.canvas.height);
 	this.restore();
+};
+CanvasRenderingContext2D.prototype.reset = function() {
+	this.resetTransform();
+	this.fillStyle = "rgb(0, 0, 0)";
+	this.strokeStyle = "rgb(0, 0, 0)";
+	this.font = "10px sans serif";
+	this.lineWidth = 1;
+	this.globalAlpha = 1;
+	this.textAlign = "start";
 };
 CanvasRenderingContext2D.prototype.resetTransform = function() {
 	this.setTransform(1, 0, 0, 1, 0, 0);
@@ -193,32 +236,49 @@ Math.map = function(value, min1, max1, min2, max2) {
 	*/
 	return (value - min1) / (max1 - min1) * (max2 - min2) + min2;
 };
-Math.rotate = function(x, y, deg) {
-	/*
-	Returns new coords of ('x', 'y') after being rotated 'deg' degrees about origin.
-	*/
-	deg = Math.rad(deg);
+Math.translate = function(x, y, translateX, translateY) {
 	return {
+		x: x + translateX,
+		y: y + translateY
+	};
+};
+Math.rotate = function(x, y, deg, centerX, centerY) {
+	/*
+	Returns new coords of ('x', 'y') after being rotated 'deg' degrees about ('centerX', 'centerY').
+	*/
+	centerX = centerX || 0;
+	centerY = centerY || 0;
+	x -= centerX;
+	y -= centerY;
+	deg = Math.rad(deg);
+	var rotated = {
 		x: x * Math.cos(deg) - y * Math.sin(deg),
 		y: x * Math.sin(deg) + y * Math.cos(deg)
 	};
-};
-Math.scale = function(x, y, factor, scaleX, scaleY) {
-	/*
-	Returns ('x', 'y') scaled by 'factor', optionally about ('scaleX', 'scaleY').
-	*/
-	scaleX = scaleX || 0;
-	scaleY = scaleY || 0;
-	x -= scaleX;
-	y -= scaleY;
-	x *= factor;
-	y *= factor;
-	x += scaleX;
-	y += scaleY;
 	return {
-		x: x,
-		y: y
+		x: rotated.x + centerX,
+		y: rotated.y + centerY
 	};
+};
+Math.scale = function(x, y, scaleFactorX, scaleFactorY) {
+	/*
+	Returns ('x', 'y') scaled by 'scaleFactorX' and 'scaleFactorY' about the origin.
+	*/
+	scaleFactorY = scaleFactorY || scaleFactorX;
+	return {
+		x: x * scaleFactorX,
+		y: y * scaleFactorY
+	}
+};
+Math.scaleAboutPoint = function(x, y, pointX, pointY, scaleFactorX, scaleFactorY) {
+	scaleFactorY = scaleFactorY || scaleFactorX;
+	var scaledPoint = { x: x, y: y };
+	scaledPoint.x -= pointX;
+	scaledPoint.y -= pointY;
+	scaledPoint = Math.scale(scaledPoint.x, scaledPoint.y, scaleFactorX, scaleFactorY);
+	scaledPoint.x += pointX;
+	scaledPoint.y += pointY;
+	return scaledPoint;
 };
 Math.findPointsCircular = function(x, y, r, quadrants) {
 	/*
@@ -370,6 +430,9 @@ Math.calculateDegrees = function(x, y) {
 	*/
 	return Math.atan2(y, x) * 180 / Math.PI;
 };
+Math.randomInRange = function(min, max) {
+	return Math.map(Math.random(), 0, 1, min, max);
+};
 Number.prototype.mod = function(divisor) {
 	/*
 	This is used instead of the % operator because % returns negatives for negative numbers. (ex: -5 % 10 === -5)
@@ -443,6 +506,15 @@ Array.prototype.containsInstanceOf = function(constructor) {
 	}
 	return false;
 };
+Array.prototype.lastItem = function() {
+	return this[this.length - 1];
+};
+Array.prototype.randomItem = function() {
+	return this[this.randomIndex()];
+};
+Array.prototype.randomIndex = function() {
+	return Math.floor(Math.random() * this.length);
+};
 Object.prototype.clone = function() {
 	var clone = new this.constructor();
 	for(var i in this) {
@@ -457,10 +529,33 @@ Object.prototype.clone = function() {
 	}
 	return clone;
 };
+Object.typeof = function(value) {
+	/*
+	This function serves to determine the type of a variable better than the default "typeof" operator, which returns strange values for some inputs (see special cases below).
+	*/
+	if(value !== value) {
+		return "NaN"; // fix for (typeof NaN === "number")
+	}
+	else if(value === null) {
+		return "null"; // fix for (typeof null === "object")
+	}
+	else if(Array.isArray(value)) {
+		return "array"; // fix for (typeof array === "object")
+	}
+	else if(typeof value === "object" && Object.getPrototypeOf(value) !== Object.prototype) {
+		return "instance"; // return "instance" for instances of a custom class
+	}
+	else {
+		return typeof value;
+	}
+};
 Function.prototype.extends = function(superclass) {
 	/* copy prototype to inherit methods */
 	window[this.name].prototype = Object.create(superclass.prototype);
 	window[this.name].prototype.constructor = window[this.name];
+};
+String.prototype.startsWith = function(substring) {
+	return this.substring(0, substring.length) === substring;
 };
 
 /* player */
@@ -476,7 +571,6 @@ function Player() {
 	this.legDir = 1;
 	this.enteringDoor = false;
 	this.op = 1;
-	this.screenOp = 0;
 	this.fallOp = 0;
 	this.fallDir = 0;
 	this.fallDmg = 0;
@@ -902,47 +996,19 @@ Player.prototype.update = function() {
 	if(this.enteringDoor) {
 		this.op -= 0.05;
 		if(this.op <= 0) {
-			this.screenOp += 0.05;
-		}
-		if(this.screenOp >= 1) {
-			this.enteringDoor = false;
-			this.exitingDoor = true;
-			this.op = 1;
+			game.transitions.dir = "fade-out";
+			game.transitions.color = "rgb(0, 0, 0)";
 		}
 	}
 	if(this.exitingDoor) {
-		this.screenOp -= 0.05;
+		this.op += 0.05;
+		if(this.op >= 1) {
+			this.exitingDoor = false;
+		}
 	}
+	this.op = Math.constrain(this.op, 0, 1);
 	this.fallOp += this.fallDir;
-	this.fallOp = (this.fallOp < 0) ? 0 : this.fallOp;
 	if(this.fallOp > 1) {
-		this.roomsExplored ++;
-		this.fallDir = -0.05;
-		game.inRoom = game.numRooms;
-		this.worldX = 0;
-		this.worldY = 0;
-		this.x = 500;
-		this.y = -100;
-		this.velY = 2;
-		this.fallDmg = Math.round(Math.random() * 10 + 40);
-		game.dungeon.push(
-			new Room(
-				"ambient1",
-				[
-					new Pillar(200, 500, Math.random() * 100 + 200),
-					new Pillar(400, 500, Math.random() * 100 + 200),
-					new Pillar(600, 500, Math.random() * 100 + 200),
-					new Pillar(800, 500, Math.random() * 100 + 200),
-					new Block(-200, 500, 2000, 600),//floor
-					new Block(-600, -1200, 700, 3000), //left wall
-					new Block(900, -1200, 500, 3000), //right wall
-					new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
-					new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
-					new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
-				],
-				"?"
-			)
-		);
 	}
 	/* Attacking + Item Use */
 	this.useItem();
@@ -982,6 +1048,7 @@ Player.prototype.update = function() {
 		this.op -= 0.05;
 		if(this.op <= 0 && game.transitions.dir !== "out") {
 			game.transitions.dir = "fade-out";
+			game.transitions.color = "rgb(0, 0, 0)";
 			game.transitions.nextScreen = "dead";
 			this.scores.push({
 				coins: this.gold,
@@ -2076,7 +2143,13 @@ Player.prototype.hurt = function(amount, killer, ignoreDef) {
 	Deals 'amount' damage to the player. 'killer' shows up in death message. If 'ignoreDef' is true, the player's defense will be ignored.
 	*/
 	if(amount !== 0) {
-		this.damOp = 1;
+		/* display red flashing screen */
+		game.transitions.color = "rgb(255, 0, 0)";
+		game.transitions.opacity = 1;
+		game.transitions.onScreenChange = function() {
+			game.transitions.color = "rgb(0, 0, 0)";
+		};
+		game.transitions.dir = "fade-in";
 	}
 	/* Calculate defense */
 	this.defLow = 0;
@@ -2420,6 +2493,61 @@ CollisionCircle.prototype.collide = function() {
 	}
 };
 
+/** RENDERING **/
+function RenderingOrderObject(display, depth, zOrder) {
+	this.display = display; // a function to be called when this object is displayed
+	if(Object.typeof(depth) !== "number") {
+		throw new Error("Cannot construct RenderingOrderObject without depth argument; value '" + depth + "' is invalid.");
+	}
+	this.depth = depth; // how far back the polygon is
+	this.zOrder = zOrder || 0; // only used when 2 polygons have the same depth
+};
+function RenderingOrderShape(type, location, color, depth, zOrder) {
+	this.type = type;
+	if(this.type === "poly") {
+		this.type = "polygon";
+	}
+	this.location = location;
+	/*
+	Location: (for types 'rect' and 'circle') object w/ properties:
+	 - 'x', 'y', 'w', and 'h' (or 'width' and 'height') for type 'rect'
+	 - 'x', 'y', 'r' for type 'circle'
+	Array of objects with 'x' and 'y' properties for type 'polygon'
+	*/
+	this.color = color;
+	this.depth = depth;
+	this.zOrder = zOrder || 0; // only used when 2 polygons have the same depth
+};
+RenderingOrderShape.prototype.display = function() {
+	c.fillStyle = this.color;
+	if(this.type === "rect") {
+		if(typeof this.location.w === "number") {
+			c.fillRect(this.location.x, this.location.y, this.location.w, this.location.h);
+		}
+		else if(typeof this.location.width === "number") {
+			c.fillRect(this.location.x, this.location.y, this.location.width, this.location.height);
+		}
+	}
+	else if(this.type === "circle") {
+		c.fillCircle(this.location.x, this.location.y, this.location.r);
+	}
+	else if(this.type === "polygon") {
+		c.fillPoly(this.location);
+	}
+};
+function RenderingOrderGroup(objects, zOrder) {
+	/*
+	Represents a group of objects with the same depth that can be rendered in any order since they're all at the same depth.
+	*/
+	this.objects = objects || [];
+	this.zOrder = zOrder || 0;
+};
+RenderingOrderGroup.prototype.display = function() {
+	for(var i = 0; i < this.objects.length; i ++) {
+		this.objects[i].display();
+	}
+};
+
 /** IN GAME STRUCTURES **/
 function Block(x, y, w, h) {
 	this.x = x;
@@ -2447,6 +2575,9 @@ Platform.prototype.update = function() {
 };
 Platform.prototype.exist = function() {
 	this.update();
+	this.display();
+};
+Platform.prototype.display = function() {
 	graphics3D.cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
 };
 function Door(x, y, dest, noEntry, invertEntries, type) {
@@ -2516,53 +2647,64 @@ Door.prototype.exist = function() {
 };
 Door.prototype.display = function() {
 	/* Graphics */
+	var self = this;
 	var topLeft = graphics3D.point3D(this.x + p.worldX - 30, this.y + p.worldY - 60, 0.9);
 	var bottomRight = graphics3D.point3D(this.x + p.worldX + 30, this.y + p.worldY, 0.9);
-	if(this.type === "arch") {
-		c.fillStyle = "rgb(20, 20, 20)";
-		c.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
-		c.fillCircle(topLeft.x + (bottomRight.x - topLeft.x) / 2, topLeft.y, 27);
-	}
-	if(this.barricaded) {
-		c.save(); {
-			c.fillStyle = "rgb(139, 69, 19)";
-			c.strokeStyle = "rgb(255, 255, 255)";
-			c.lineWidth = 2;
-			function displayWoodenBoard() {
-				c.fillRect(-40, -10, 80, 20);
-				c.fillStyle = "rgb(200, 200, 200)";
-				c.fillCircle(-30, 0, 5);
-				c.fillCircle(30, 0, 5);
-				c.strokeLine(-35, 0, -25, 0);
-				c.strokeLine(-30, -5, -30, 5);
-				c.strokeLine(35, 0, 25, 0);
-				c.strokeLine(30, -5, 30, 5);
-			};
-			var doorWidth = (bottomRight.x - topLeft.x) / 2;
-			c.save(); {
-				c.translate(topLeft.x + (doorWidth / 2), bottomRight.y - 60);
-				c.rotate(Math.rad(22));
-				displayWoodenBoard();
-			} c.restore();
+	var middle = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.9);
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				if(self.type === "arch") {
+					c.fillStyle = "rgb(20, 20, 20)";
+					c.fillRect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+					c.fillCircle(middle.x, topLeft.y, 27);
+				}
+				else if(self.type === "lintel") {
+					c.fillStyle = "rgb(20, 20, 20)";
+					c.fillRect(topLeft.x, topLeft.y - (30 * 0.9), bottomRight.x - topLeft.x, (bottomRight.y - topLeft.y) + (30 * 0.9));
+				}
+				if(self.barricaded) {
+					c.save(); {
+						c.fillStyle = "rgb(139, 69, 19)";
+						c.strokeStyle = "rgb(255, 255, 255)";
+						c.lineWidth = 2;
+						function displayWoodenBoard() {
+							c.fillRect(-40, -10, 80, 20);
+							c.fillStyle = "rgb(200, 200, 200)";
+							c.fillCircle(-30, 0, 5);
+							c.fillCircle(30, 0, 5);
+							c.strokeLine(-35, 0, -25, 0);
+							c.strokeLine(-30, -5, -30, 5);
+							c.strokeLine(35, 0, 25, 0);
+							c.strokeLine(30, -5, 30, 5);
+						};
+						var doorWidth = (bottomRight.x - topLeft.x) / 2;
+						c.save(); {
+							c.translate(middle.x, bottomRight.y - 60);
+							c.rotate(Math.rad(22));
+							displayWoodenBoard();
+						} c.restore();
 
-			c.save(); {
-				c.translate(topLeft.x + (doorWidth / 2), bottomRight.y - 40);
-				c.rotate(Math.rad(-22));
-				displayWoodenBoard();
-			} c.restore();
+						c.save(); {
+							c.translate(middle.x, bottomRight.y - 40);
+							c.rotate(Math.rad(-22));
+							displayWoodenBoard();
+						} c.restore();
 
-			c.save(); {
-				c.translate(topLeft.x + (doorWidth / 2), bottomRight.y - 20);
-				c.rotate(Math.rad(22));
-				displayWoodenBoard();
-			} c.restore();
-
-		} c.restore();
-
-	}
+						c.save(); {
+							c.translate(middle.x, bottomRight.y - 20);
+							c.rotate(Math.rad(22));
+							displayWoodenBoard();
+						} c.restore();
+					} c.restore();
+				}
+			},
+			0.9,
+			-1
+		)
+	);
 	if(this.type === "lintel") {
-		graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - 90, 60, 90, 0.9, 0.9, "rgb(20, 20, 20)", "rgb(20, 20, 20)", { noFrontExtended: true });
-		graphics3D.cube(this.x + p.worldX - 45, this.y + p.worldY - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)", {noFrontExtended: true} );
+		graphics3D.cube(this.x + p.worldX - 45, this.y + p.worldY - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
 	}
 	/* Symbols for maps */
 	var symbol = this.getInfo();
@@ -2602,7 +2744,7 @@ Door.prototype.update = function() {
 		}
 		ui.infoBar.actions.s = "enter door";
 	}
-	if(p.screenOp > 0.95 && this.entering && !this.barricaded) {
+	if(game.transitions.opacity > 0.95 && this.entering && !this.barricaded) {
 		p.doorType = this.type;
 		if(typeof this.dest !== "number") {
 			p.roomsExplored ++;
@@ -2639,10 +2781,7 @@ Door.prototype.update = function() {
 					}
 				}
 				for(var j = 0; j < this.dest.length; j ++) {
-					if(this.dest[j] === game.rooms[i].name.substr(0, 7) && game.rooms[i].name !== game.dungeon[game.inRoom].type) {
-						possibleRooms.push(game.rooms[i]);
-					}
-					if(this.dest[j] === game.rooms[i].name.substr(0, 6) && game.rooms[i].name !== game.dungeon[game.inRoom].type) {
+					if(game.rooms[i].name.startsWith(this.dest[j]) && game.rooms[i].name !== game.dungeon[game.theRoom].type) {
 						possibleRooms.push(game.rooms[i]);
 					}
 				}
@@ -2782,9 +2921,7 @@ Door.prototype.update = function() {
 			p.exitingDoor = true;
 			p.op = 0.95;
 		}
-		p.screenOp = 0.95;
 		this.entering = false;
-		calculatePaths();
 	}
 };
 Door.prototype.isEnemyNear = function(enemy) {
@@ -2806,13 +2943,16 @@ function calculatePaths() {
 	while(!calculated() && timeOut < 20) {
 		timeOut ++;
 		for(var i = 0; i < game.dungeon.length; i ++) {
+			var room = game.dungeon[i];
 			if(i === game.inRoom) {
-				game.dungeon[i].pathScore = 0;
+				room.pathScore = 0;
 			}
-			for(var j = 0; j < game.dungeon[i].content.length; j ++) {
-				if(game.dungeon[i].content[j] instanceof Door && typeof game.dungeon[i].content[j].dest !== "object" && game.dungeon[i].pathScore === null) {
-					if(game.dungeon[game.dungeon[i].content[j].dest].pathScore !== null) {
-						game.dungeon[i].pathScore = game.dungeon[game.dungeon[i].content[j].dest].pathScore + 1;
+			for(var j = 0; j < room.content.length; j ++) {
+				var door = room.content[j];
+				if(door instanceof Door && typeof door.dest !== "object" && room.pathScore === null) {
+					var destinationRoom = game.dungeon[door.dest];
+					if(destinationRoom.pathScore !== null) {
+						room.pathScore = destinationRoom.pathScore + 1;
 					}
 				}
 			}
@@ -2827,27 +2967,25 @@ function Torch(x, y) {
 };
 Torch.prototype.exist = function() {
 	this.update();
-	/* Request graphics */
-	graphics3D.cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95, null, null, { noFrontExtended: true });
-	graphics3D.cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97, null, null, { noFrontExtended: true });
-
-	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
-		this.lit = true;
-	}
-	if(this.lit) {
-		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.random() * -3, Math.random() * 5 + 5));
-		this.fireParticles[this.fireParticles.length - 1].z = Math.random() * 0.02 + 0.94;
-		for(var i = 0; i < this.fireParticles.length; i ++) {
-			this.fireParticles[i].exist();
-			if(this.fireParticles[i].splicing) {
-				this.fireParticles.splice(i, 1);
-				continue;
-			}
-		}
-	}
+	this.display();
+};
+Torch.prototype.display = function() {
+	graphics3D.cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95);
+	graphics3D.cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97);
+	var self = this;
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				for(var i = 0; i < self.fireParticles.length; i ++) {
+					self.fireParticles[i].display(true);
+				}
+			},
+			0.97,
+			1
+		)
+	);
 };
 Torch.prototype.update = function() {
-	/* Resolve color */
 	if(this.color === "?" || this.color === undefined) {
 		if(game.dungeon[game.theRoom].colorScheme === "red") {
 			this.color = "rgb(255, 128, 0)";
@@ -2859,18 +2997,96 @@ Torch.prototype.update = function() {
 			this.color = "rgb(0, 255, 255)";
 		}
 	}
+
+	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
+		this.lit = true;
+	}
+	if(this.lit) {
+		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.random() * -3, Math.random() * 5 + 5));
+		this.fireParticles[this.fireParticles.length - 1].z = Math.random() * 0.02 + 0.94;
+	}
+	for(var i = 0; i < this.fireParticles.length; i ++) {
+		this.fireParticles[i].update();
+		if(this.fireParticles[i].splicing) {
+			this.fireParticles.splice(i, 1);
+			i --;
+			continue;
+		}
+	}
 };
-function LightRay(x, w) {
+function LightRay(x, w, floorY) {
 	this.x = x;
 	this.w = w;
+	this.floorY = floorY; // y-level of floor that light ray hits
 };
 LightRay.prototype.exist = function() {
-	var left = Math.min(graphics3D.point3D(this.x + p.worldX, 0, 0.9).x, graphics3D.point3D(this.x + p.worldX, 0, 1.1).x);
-	var right = Math.max(graphics3D.point3D(this.x + p.worldX + this.w, 0, 0.9).x, graphics3D.point3D(this.x + p.worldX + this.w, 0, 1.1).x);
-	c.fillStyle = "rgb(255, 255, 255)";
-	c.globalAlpha = 0.5;
-	c.fillRect(left, 0, right - left, 800);
-	c.globalAlpha = 1;
+	var self = this;
+	var leftBack = graphics3D.point3D(this.x + p.worldX, 0, 0.9).x;
+	var rightBack = graphics3D.point3D(this.x + p.worldX + this.w, 0, 0.9).x;
+	var leftFront = graphics3D.point3D(this.x + p.worldX, 0, 1.1).x;
+	var rightFront = graphics3D.point3D(this.x + p.worldX + this.w, 0, 1.1).x;
+	var floorBack = graphics3D.point3D(0, this.floorY + p.worldY, 0.9).y;
+	var floorFront = graphics3D.point3D(0, this.floorY + p.worldY, 1.1).y;
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderShape(
+			"rect",
+			{
+				x: leftBack,
+				y: 0,
+				width: rightBack - leftBack,
+				height: floorBack
+			},
+			"rgba(255, 255, 255, 0.5)",
+			0.9,
+			-1
+		)
+	);
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderShape(
+			"polygon",
+			[
+				leftBack, floorBack,
+				leftFront, floorFront,
+				rightFront, floorFront,
+				rightBack, floorBack
+			],
+			"rgba(255, 255, 255, 0.5)",
+			0.9,
+			1
+		)
+	);
+	if(leftBack < 400) {
+		game.dungeon[game.theRoom].render(
+			new RenderingOrderShape(
+				"polygon",
+				[
+					leftBack, floorBack,
+					leftFront, floorFront,
+					leftFront, 0,
+					leftBack, 0
+				],
+				"rgba(255, 255, 255, 0.4)",
+				1.1,
+				-1
+			)
+		);
+	}
+	if(rightBack > 400) {
+		game.dungeon[game.theRoom].render(
+			new RenderingOrderShape(
+				"polygon",
+				[
+					rightBack, floorBack,
+					rightFront, floorFront,
+					rightFront, 0,
+					rightBack, 0
+				],
+				"rgba(255, 255, 255, 0.4)",
+				1.1,
+				-1
+			)
+		);
+	}
 };
 function Tree(x, y) {
 	/*
@@ -2881,7 +3097,6 @@ function Tree(x, y) {
 };
 Tree.prototype.exist = function() {
 	this.update();
-	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
 	this.display();
 };
 Tree.prototype.update = function() {
@@ -2893,23 +3108,31 @@ Tree.prototype.update = function() {
 	collisions.line(loc.x, loc.y - 220, loc.x - 60, loc.y - 230, {walls: [true, false, false, false]});
 };
 Tree.prototype.display = function() {
-	c.fillStyle = "rgb(139, 69, 19)";
 	var loc = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
-	c.save(); {
-		c.translate(loc.x, loc.y);
-		/* Tree trunk */
-		c.fillPoly(-10, -40, 10, -40, 0, -350);
-		/* 1st branch on left */
-		c.fillPoly(-5, -80, -6, -100, -150, -100);
-		/* 1st branch on right */
-		c.fillPoly(7, -100, 6, -120, 150, -120);
-		/* 2nd branch on left */
-		c.fillPoly(-6, -150, -5, -170, -100, -180);
-		/* 2nd branch on right */
-		c.fillPoly(6, -170, 5, -190, 100, -200);
-		/* 3rd branch on left */
-		c.fillPoly(0, -200, 0, -220, -60, -230);
-	} c.restore();
+		game.dungeon[game.theRoom].render(
+			new RenderingOrderObject(
+				function() {
+					c.fillStyle = "rgb(139, 69, 19)";
+					c.save(); {
+						c.translate(loc.x, loc.y);
+						/* Tree trunk */
+						c.fillPoly(-10, -40, 10, -40, 0, -350);
+						/* 1st branch on left */
+						c.fillPoly(-5, -80, -6, -100, -150, -100);
+						/* 1st branch on right */
+						c.fillPoly(7, -100, 6, -120, 150, -120);
+						/* 2nd branch on left */
+						c.fillPoly(-6, -150, -5, -170, -100, -180);
+						/* 2nd branch on right */
+						c.fillPoly(6, -170, 5, -190, 100, -200);
+						/* 3rd branch on left */
+						c.fillPoly(0, -200, 0, -220, -60, -230);
+					} c.restore();
+				},
+				0.95
+			)
+		);
+	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
 };
 function Chest(x, y) {
 	this.x = x;
@@ -2923,6 +3146,8 @@ function Chest(x, y) {
 };
 Chest.prototype.exist = function() {
 	this.update();
+	this.display();
+	return;
 	/* Square part of chest */
 	c.fillStyle = "rgb(139, 69, 19)";
 	graphics3D.cube(this.x + p.worldX - 20, this.y + p.worldY - 30, 40, 30, 0.95, 1.05, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
@@ -3068,6 +3293,113 @@ Chest.prototype.update = function() {
 		}
 	}
 };
+Chest.prototype.display = function() {
+	// openDir is which corner the chest is rotating around
+	var self = this;
+	var centerOfRotation = {
+		x: -20,
+		y: -40
+	};
+	var scaleFactor = (this.openDir === "left" ? -1 : 1);
+	var rotationDegrees = this.r;
+
+	var centerMiddle = { x: this.x + p.worldX, y: this.y + p.worldY };
+	var centerBack = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
+	var centerFront = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 1.05);
+	var cornerMiddle = { x: this.x + p.worldX + 20, y: this.y + p.worldY - 30 };
+	var cornerBack = graphics3D.point3D(this.x + p.worldX + 20, this.y + p.worldY - 30, 0.95);
+	var cornerFront = graphics3D.point3D(this.x + p.worldX + 20, this.y + p.worldY - 30, 0.95);
+
+	function displayChestLid(color) {
+		/* clip out rest of circle for chest lid */
+		c.beginPath();
+		c.rect(-1000, 0, 2000, 1000);
+		c.invertPath();
+		c.clip("evenodd");
+
+		/* draw circle for chest lid */
+		var radius = 25;
+		c.fillStyle = color;
+		c.fillCircle(
+			-20, // centered on chest
+			/*
+			Circle passes through corner of chest (0, 0) and is centered at x=-20
+			20^2 + y^2 = radius^2
+			y^2 = (radius^2 - 20^2)
+			y = Math.sqrt(radius^2 - 20^2)
+			*/
+			Math.sqrt(radius * radius - 20 * 20),   //
+			radius
+		);
+	};
+	/* draw back of chest lid */
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				c.save(); {
+					c.translate(centerBack.x, centerBack.y); // translate to chest location
+					c.scale(0.95, 0.95);                     // scale for perspective
+					c.scale(scaleFactor, 1);                 // flip so it can open from both sides
+					c.translate(20, -30);                    // translate to upper-right corner
+					c.rotate(Math.rad(-rotationDegrees));    // rotate according to how much the chest is open
+					displayChestLid("rgb(159, 89, 39)");
+				} c.restore();
+			},
+			0.95
+		)
+	);
+	/* draw front of chest lid */
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				c.save(); {
+					c.translate(centerFront.x, centerFront.y); // translate to chest location
+					c.scale(1.05, 1.05);                       // scale for perspective
+					c.scale(scaleFactor, 1);                   // flip so it can open from both sides
+					c.translate(20, -30);                      // translate to upper-right corner
+					c.rotate(Math.rad(-rotationDegrees));      // rotate according to how much the chest is open
+					displayChestLid("rgb(139, 69, 19)");
+				} c.restore();
+			},
+			1.05
+		)
+	);
+	/* draw underside of chest lid */
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				var p1 = graphics3D.point3D(
+					self.x + p.worldX + (self.openDir === "left" ? -20 : 20),
+					self.y + p.worldY - 30,
+					0.95
+				);
+				var p2 = graphics3D.point3D(
+					self.x + p.worldX + (self.openDir === "left" ? -20 : 20),
+					self.y + p.worldY - 30,
+					1.05
+				);
+				var chestSide = { x: self.x + p.worldX - 20, y: self.y + p.worldY - 30 };
+				chestSide = Math.rotate(
+					chestSide.x, chestSide.y,
+					-rotationDegrees,
+					cornerMiddle.x, cornerMiddle.y
+				);
+				chestSide = Math.scaleAboutPoint(
+					chestSide.x, chestSide.y,
+					centerMiddle.x, centerMiddle.y,
+					scaleFactor, 1
+				)
+				var p3 = graphics3D.point3D(chestSide.x, chestSide.y, 1.05);
+				var p4 = graphics3D.point3D(chestSide.x, chestSide.y, 0.95);
+				c.fillStyle = "rgb(159, 89, 39)";
+				c.fillPolyWithoutOrder(p1, p2, p3, p4);
+			},
+			0.95
+		)
+	);
+	/* draw box for chest */
+	graphics3D.cube(this.x + p.worldX - 20, this.y + p.worldY - 30, 40, 30, 0.95, 1.05, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+};
 function FallBlock(x, y) {
 	this.x = x;
 	this.y = y;
@@ -3079,46 +3411,17 @@ function FallBlock(x, y) {
 	this.allDone = false;
 };
 FallBlock.prototype.exist = function() {
-	var topLeftF = graphics3D.point3D(this.x + p.worldX - 20, this.y + p.worldY, 1.1);
-	var topRightF = graphics3D.point3D(this.x + p.worldX + 20, this.y + p.worldY, 1.1);
-	var bottomF = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY + 60, 1.1);
-	var topLeftB = graphics3D.point3D(this.x + p.worldX - 20, this.y + p.worldY, 0.9);
-	var topRightB = graphics3D.point3D(this.x + p.worldX + 20, this.y + p.worldY, 0.9);
-	var bottomB = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY + 60, 0.9);
-	c.fillStyle = "rgb(150, 150, 150)";
-	var shakeX = Math.random() * (this.timeShaking * 2) - this.timeShaking;
-	var shakeY = Math.random() * (this.timeShaking * 2) - this.timeShaking;
-	c.save(); {
-		c.translate(shakeX, shakeY);
-		/* Top face */
-		c.fillPoly(topLeftF, topLeftB, topRightB, topRightF);
-		collisions.line(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
-		/* left face */
-		c.fillPoly(topLeftF, topLeftB, bottomB, bottomF);
-		collisions.line(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
-		/* right face */
-		c.fillPoly(topRightF, topRightB, bottomB, bottomF);
-		collisions.line(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
-		/* front face */
-		graphics3D.boxFronts.push({
-			type: "polygon",
-			col: "rgb(110, 110, 110)",
-			loc: [
-				{
-					x: + topLeftF.x + shakeX,
-					y: + topLeftF.y + shakeY,
-				},
-				{
-					x: + topRightF.x + shakeX,
-					y: + topRightF.y + shakeY
-				},
-				{
-					x: + bottomF.x + shakeX,
-					y: + bottomF.y + shakeY
-				}
-			]
-		});
-	} c.restore();
+	this.update();
+	this.display();
+};
+FallBlock.prototype.update = function() {
+	/* Top face */
+	collisions.line(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
+	/* left face */
+	collisions.line(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
+	/* right face */
+	collisions.line(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
+
 	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 100 >= this.y + p.worldY && p.canJump && !this.allDone) {
 		this.steppedOn = true;
 	}
@@ -3135,12 +3438,34 @@ FallBlock.prototype.exist = function() {
 		this.velY += 0.1;
 		this.y += this.velY;
 	}
-	if(p.screenOp > 0.9) {
+	if(game.transitions.opacity >= 0.9 && p.enteringDoor) {
 		this.y = this.origY;
 		this.velY = 0;
 		this.falling = false;
 		this.allDone = false;
 	}
+};
+FallBlock.prototype.display = function() {
+	var shakeX = Math.random() * (this.timeShaking * 2) - this.timeShaking;
+	var shakeY = Math.random() * (this.timeShaking * 2) - this.timeShaking;
+	graphics3D.polygon3D(
+		"rgb(110, 110, 110)", "rgb(150, 150, 150)",
+		0.9, 1.1,
+		[
+			{
+				x: this.x + p.worldX + shakeX - 20,
+				y: this.y + p.worldY + shakeY
+			},
+			{
+				x: this.x + p.worldX + shakeX + 20,
+				y: this.y + p.worldY + shakeY,
+			},
+			{
+				x: this.x + p.worldX + shakeX,
+				y: this.y + p.worldY + shakeY + 60
+			}
+		]
+	);
 };
 function Stairs(x, y, numSteps, dir) {
 	this.x = x;
@@ -3160,21 +3485,26 @@ function Stairs(x, y, numSteps, dir) {
 		}
 	}
 };
-Stairs.prototype.exist = function(noGraphics) {
+Stairs.prototype.exist = function() {
+	this.update();
+	this.display();
+};
+Stairs.prototype.display = function() {
 	utilities.tempVars.partOfAStair = true;
-	if(this.dir === "right") {
-		for(var i = 0; i < this.steps.length; i ++) {
-			this.steps[i].exist();
-		}
+	for(var i = 0; i < this.steps.length; i ++) {
+		this.steps[i].display();
 	}
-	else {
-		for(var i = 0; i < this.steps.length; i ++) {
-			this.steps[i].exist();
-		}
+	utilities.tempVars.partOfAStair = false;
+};
+Stairs.prototype.update = function() {
+	utilities.tempVars.partOfAStair = true;
+	for(var i = 0; i < this.steps.length; i ++) {
+		this.steps[i].update();
 	}
 	utilities.tempVars.partOfAStair = false;
 };
 function Altar(x, y, type) {
+	/* Only represents the particles of the altar. The actual stairs + platform are created using Blocks and Stairs. */
 	this.x = x;
 	this.y = y;
 	this.type = type;
@@ -3196,85 +3526,125 @@ Altar.prototype.update = function() {
 		}
 		this.splicing = true;
 	}
-};
-Altar.prototype.display = function() {
-	for(var i = 0; i < 5; i ++) {
-		this.particles.push(new Particle(this.type === "health" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)", this.x + Math.random() * 40 - 20, this.y + Math.random() * 40 - 20, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
 	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].exist();
+		this.particles[i].update();
 		if(this.particles[i].opacity <= 0) {
 			this.particles.splice(i, 1);
 			continue;
 		}
 	}
 };
+Altar.prototype.display = function() {
+	for(var i = 0; i < 5; i ++) {
+		this.particles.push(new Particle(this.type === "health" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)", this.x + Math.random() * 40 - 20, this.y + Math.random() * 40 - 20, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
+	}
+	for(var i = 0; i < this.particles.length; i ++) {
+		this.particles[i].display();
+	}
+};
+Altar.prototype.remove = function() {
+	for(var i = 0; i < this.particles.length; i ++) {
+		game.dungeon[game.theRoom].content.push(this.particles[i]);
+	}
+};
 function Forge(x, y) {
 	this.x = x;
 	this.y = y;
 	this.used = false;
-	this.curveArray = Math.findPointsCircular(0, 0, 50);
 	this.init = false;
 	this.particles = [];
+
+	this.DEPTH = 0.99;
 };
 Forge.prototype.exist = function() {
-	/* initialize curved segments */
-	if(!this.init) {
-		for(var i = 0; i < this.curveArray.length; i ++) {
-			if(this.curveArray[i].y > 0) {
-				this.curveArray.splice(i, 1);
-				continue;
-			}
-		}
-	}
-	/* main stone forge body */
-	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 76, 50, 76, 0.9, 1.05);
-	graphics3D.cube(this.x + p.worldX + 50, this.y + p.worldY - 76, 50, 76, 0.9, 1.05);
-	graphics3D.cube(this.x + p.worldX - 51, this.y + p.worldY - 300, 102, 200, 0.9, 1.05);
-	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 60, 100, 20, 0.9, 1.05);
-	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 10, 100, 10, 0.9, 1.05);
-	/* curved segments */
-	for(var i = 0; i < this.curveArray.length - 1; i ++) {
-		if(this.curveArray[i].x > 0 && this.curveArray[i + 1].x > 0) {
-			graphics3D.line3D(this.x + p.worldX + this.curveArray[i].x + 50, this.y + p.worldY + this.curveArray[i].y - 75, this.x + p.worldX + this.curveArray[i + 1].x + 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 0.9, 1.05, "rgb(150, 150, 150)");
-		}
-	}
-	for(var i = 0; i < this.curveArray.length - 1; i ++) {
-		if(this.curveArray[i].x < 0) {
-			graphics3D.line3D(this.x + p.worldX + this.curveArray[i].x - 50, this.y + p.worldY + this.curveArray[i].y - 75, this.x + p.worldX + this.curveArray[i + 1].x - 50, this.y + p.worldY + this.curveArray[i + 1].y - 75, 0.9, 1.05, "rgb(150, 150, 150)");
-		}
-	}
-	graphics3D.line3D(this.x + p.worldX + 50, this.y + p.worldY - 75, this.x + p.worldX + 50, this.y + p.worldY - 125, 0.9, 1.05, "rgb(150, 150, 150)");
-	graphics3D.line3D(this.x + p.worldX - 50, this.y + p.worldY - 75, this.x + p.worldX - 50, this.y + p.worldY - 125, 0.9, 1.05, "rgb(150, 150, 150)");
-	graphics3D.boxFronts.push({type: "arc", loc: [graphics3D.point3D(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).x, graphics3D.point3D(this.x + p.worldX + 50, this.y + p.worldY - 75, 1.05).y, 50, 1.5 * Math.PI, 2 * Math.PI], col: "rgb(110, 110, 110)"});
-	graphics3D.boxFronts.push({type: "arc", loc: [graphics3D.point3D(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).x, graphics3D.point3D(this.x + p.worldX - 50, this.y + p.worldY - 75, 1.05).y, 50, Math.PI, 1.5 * Math.PI], col: "rgb(110, 110, 110)"});
-	/* bars underneath */
-	for(var x = -30; x <= 30; x += 30) {
-		graphics3D.cube(this.x + p.worldX + x - 10, this.y + p.worldY - 40, 20, 40, 0.9, 1.05);
-	}
+	this.display();
+	this.update();
+};
+Forge.prototype.display = function() {
 	/* fire */
-	if(!this.used) {
-		for(var i = 0; i < 5; i ++) {
-			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 10, Math.random() * 2 - 1, Math.random() * -2, 10));
-			this.particles[this.particles.length - 1].z = Math.random() * 0.15 + 0.9;
+	for(var i = 0; i < this.particles.length; i ++) {
+		this.particles[i].display();
+	}
+
+	var self = this;
+	function displayForge() {
+		for(var scale = -1; scale <= 1; scale += (1 * 2)) {
+			c.save(); {
+				c.scale(scale, 1);
+				c.fillRect(50, -76, 50, 76);
+				c.fillArc(50, -75, 50, Math.rad(-90), Math.rad(0));
+			} c.restore();
 		}
-		for(var i = 0; i < 5; i ++) {
-			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 60, Math.random() * 2 - 1, Math.random() * -2, 10));
-			this.particles[this.particles.length - 1].z = Math.random() * 0.15 + 0.9;
+		c.fillRect(-50 - 1, -300 - 1, 100 + 2, 200);
+		// c.fillRect(-50, -60, 100, 20);
+		c.fillRect(-50, -10, 100, 10);
+		for(var x = -30; x <= 30; x += 30) {
+			c.fillRect(x - 10, -40 - 1, 20, 40 + 1);
+		}
+	};
+	/* sides of forge */
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				// return;
+				c.save(); {
+					var location = graphics3D.point3D(self.x + p.worldX, self.y + p.worldY, 0.9);
+					c.translate(location.x, location.y);
+					c.scale(0.9, 0.9);
+					c.fillStyle = "rgb(150, 150, 150)";
+					displayForge();
+				} c.restore();
+			},
+			0.9
+		)
+	);
+	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 60, 100, 20, 0.9, this.DEPTH);
+	for(var x = -30; x <= 30; x += 30) {
+		// c.fillRect(x - 10, -40 - 1, 20, 40 + 1);
+		graphics3D.cube(this.x + p.worldX + x - 10, this.y + p.worldY - 40 - 1, 20, 40 + 1, 0.9, this.DEPTH);
+	}
+	/* front of forge */
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				// return;
+				c.save(); {
+					var location = graphics3D.point3D(self.x + p.worldX, self.y + p.worldY, self.DEPTH);
+					c.translate(location.x, location.y);
+					c.scale(self.DEPTH, self.DEPTH);
+					c.fillStyle = "rgb(110, 110, 110)";
+					displayForge();
+				} c.restore();
+			},
+			this.DEPTH
+		)
+	);
+	/* crop out dark gray parts on side of forge */
+	graphics3D.plane3D(this.x + p.worldX + 50, this.y + p.worldY - 75, this.x + p.worldX + 50, this.y + p.worldY - 125, 0.9, this.DEPTH, "rgb(150, 150, 150)");
+	graphics3D.plane3D(this.x + p.worldX - 50, this.y + p.worldY - 75, this.x + p.worldX - 50, this.y + p.worldY - 125, 0.9, this.DEPTH, "rgb(150, 150, 150)");
+};
+Forge.prototype.update = function() {
+	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && !this.used && p.guiOpen === "none") {
+		ui.infoBar.actions.s = "use forge";
+		if(io.keys[83]) {
+			p.guiOpen = "reforge-item";
 		}
 	}
 	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].exist();
+		this.particles[i].update();
 		if(this.particles[i].splicing) {
 			this.particles.splice(i, 1);
 			continue;
 		}
 	}
-	/* usage */
-	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && !this.used && p.guiOpen === "none") {
-		ui.infoBar.actions.s = "use forge";
-		if(io.keys[83]) {
-			p.guiOpen = "reforge-item";
+	if(!this.used) {
+		for(var i = 0; i < 5; i ++) {
+			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 10, Math.random() * 2 - 1, Math.random() * -2, 10));
+			this.particles.lastItem().z = Math.randomInRange(this.DEPTH - 0.15, this.DEPTH);
+		}
+		for(var i = 0; i < 5; i ++) {
+			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 60, Math.random() * 2 - 1, Math.random() * -2, 10));
+			this.particles.lastItem().z = Math.randomInRange(this.DEPTH - 0.15, this.DEPTH);
 		}
 	}
 };
@@ -3290,20 +3660,27 @@ function Pulley(x1, w1, x2, w2, y, maxHeight) {
 	this.maxHeight = maxHeight;
 };
 Pulley.prototype.exist = function() {
-	/* Graphics & Hitbox */
+	this.update();
+	this.display();
+};
+Pulley.prototype.display = function() {
 	function platform(x, y, w) {
-		new Platform(x, y, w).exist();
-		graphics3D.cube(x + p.worldX, -100, 3, y + 100 + p.worldY, 0.9, 0.9, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
-		graphics3D.cube(x + p.worldX, -100, 3, y + 100 + p.worldY, 1.1, 1.1, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
-		graphics3D.cube(x + w + p.worldX, -100, 3, y + 100 + p.worldY, 0.9, 0.9, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
-		graphics3D.cube(x + w + p.worldX, -100, 3, y + 100 + p.worldY, 1.1, 1.1, "rgb(150, 150, 150)", "rgb(150, 150, 150)", { noFrontExtended: true });
+		new Platform(x, y, w).display();
+		x += p.worldX;
+		y += p.worldY;
+		c.lineWidth = 3;
+		c.strokeStyle = "rgb(150, 150, 150)";
+		graphics3D.line3D(x, y, 0.8999999, x, -100, 0.8999999, 3);
+		graphics3D.line3D(x, y, 1.1, x, -100, 1.1, 3);
+		graphics3D.line3D(x + w, y, 0.8999999, x + w, -100, 0.8999999, 3);
+		graphics3D.line3D(x + w, y, 1.1, x + w, -100, 1.1, 3);
 	};
 	platform(this.x1, this.y1, this.w1);
 	platform(this.x2, this.y2, this.w2);
-	/* Moving */
-	this.update();
 };
 Pulley.prototype.update = function() {
+	new Platform(this.x1, this.y1, this.w1).update();
+	new Platform(this.x2, this.y2, this.w2).update();
 	/* Moving */
 	this.steppedOn1 = false;
 	this.steppedOn2 = false;
@@ -3333,32 +3710,16 @@ Pulley.prototype.update = function() {
 		this.steppedOn2 = false;
 	}
 };
-function Window(x, y) {
-	this.x = x;
-	this.y = y;
-};
-Window.prototype.exist = function() {
-	c.save(); {
-		var loc = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.9);
-		c.translate(loc.x, loc.y);
-		c.scale(0.75, 1);
-		c.fillStyle = "rgb(20, 20, 20)";
-		c.fillCircle(0, 0, 50);
-		c.fillRect(-50, -1, 100, 20);
-		c.strokeStyle = "rgb(150, 150, 150)";
-		c.lineCap = "round";
-		c.strokeLine(10, -47, 10, -17);
-		c.strokeLine(-10, -47, -10, 17);
-		c.strokeLine(30, -37, 30, 17);
-		c.strokeLine(-30, -37, -30, 17);
-	} c.restore();
-};
 function Pillar(x, y, h) {
 	this.x = x;
 	this.y = y;
 	this.h = h;
 };
 Pillar.prototype.exist = function() {
+	this.update();
+	this.display();
+};
+Pillar.prototype.display = function() {
 	/* Base */
 	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, 0.9, 1.1);
 	graphics3D.cube(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, 0.9, 1.1);
@@ -3366,7 +3727,12 @@ Pillar.prototype.exist = function() {
 	graphics3D.cube(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12, 0.9, 1.1);
 	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10, 0.9, 1.1);
 	/* Pillar */
-	graphics3D.cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05, null, null, { noFrontExtended: true });
+	graphics3D.cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05);
+	/* manual override to make sure enemies and stuff get displayed in front of the pillar (even though the pillar is technically in front) */
+	game.dungeon[game.theRoom].renderingObjects.lastItem().depth = 1;
+	game.dungeon[game.theRoom].renderingObjects.lastItem().zOrder = -1;
+};
+Pillar.prototype.update = function() {
 	/* Base collisions */
 	collisions.rect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	collisions.rect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, {walls: [true, true, true, true], illegalHandling: "teleport"});
@@ -3397,104 +3763,132 @@ function Statue(x, y) {
 	this.pose = (Math.random() < 0.5) ? "standing" : "kneeling";
 };
 Statue.prototype.exist = function() {
+	this.update();
+	this.display();
+};
+Statue.prototype.display = function() {
 	/* item in hands */
-	if(this.itemHolding instanceof MeleeWeapon && this.pose === "standing" && !this.itemStolen) {
-		if(this.facing === "left") {
-			c.save(); {
-				c.translate(this.x + p.worldX - 20, this.y + p.worldY + 72);
-				c.rotate(Math.rad(-45));
-				this.itemHolding.display("attacking");
-			} c.restore();
-		}
-		else {
-			c.save(); {
-				c.translate(this.x + p.worldX + 20, this.y + p.worldY + 72);
-				c.rotate(Math.rad(45));
-				this.itemHolding.display("attacking");
-			} c.restore();
-		}
+	var self = this;
+	if(!this.itemStolen) {
+		game.dungeon[game.theRoom].render(
+			new RenderingOrderObject(
+				function() {
+					if(self.itemHolding instanceof MeleeWeapon) {
+						if(self.pose === "standing") {
+							if(self.facing === "left") {
+								c.translate(self.x + p.worldX - 20, self.y + p.worldY + 72);
+								c.rotate(Math.rad(-45));
+								self.itemHolding.display("attacking");
+							}
+							else {
+								c.translate(self.x + p.worldX + 20, self.y + p.worldY + 72);
+								c.rotate(Math.rad(45));
+								self.itemHolding.display("attacking");
+							}
+						}
+						else {
+							if(self.facing === "left") {
+								c.save(); {
+									c.translate(self.x + p.worldX - 24, self.y + p.worldY + 52);
+									self.itemHolding.display("attacking");
+								} c.restore();
+							}
+							else {
+								c.save(); {
+									c.translate(self.x + p.worldX + 24, self.y + p.worldY + 52);
+									self.itemHolding.display("attacking");
+								} c.restore();
+							}
+						}
+					}
+					else {
+						if(self.facing === "left") {
+							c.save(); {
+								c.translate(self.x + p.worldX - (self.itemHolding instanceof MagicWeapon ? 28 : 20), self.y + p.worldY + (self.itemHolding instanceof MagicWeapon ? 32 : 52));
+								c.scale(-2, 2);
+								self.itemHolding.display("aiming");
+							} c.restore();
+						}
+						else {
+							c.save(); {
+								c.translate(self.x + p.worldX + (self.itemHolding instanceof MagicWeapon ? 28 : 20), self.y + p.worldY + (self.itemHolding instanceof MagicWeapon ? 32 : 52));
+								c.scale(2, 2);
+								self.itemHolding.display("aiming");
+							} c.restore();
+						}
+					}
+				},
+				1,
+				(this.itemHolding instanceof RangedWeapon) ? 1 : -1
+			)
+		);
 	}
-	else if(this.itemHolding instanceof MeleeWeapon && this.pose === "kneeling" && !this.itemStolen) {
-		if(this.facing === "left") {
-			c.save(); {
-				c.translate(this.x + p.worldX - 24, this.y + p.worldY + 52);
-				this.itemHolding.display("attacking");
-			} c.restore();
-		}
-		else {
-			c.save(); {
-				c.translate(this.x + p.worldX + 24, this.y + p.worldY + 52);
-				this.itemHolding.display("attacking");
-			} c.restore();
-		}
-	}
+	/* statue */
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				c.fillStyle = "rgb(125, 125, 125)";
+				c.lineCap = "round";
+				c.lineWidth = 10;
+				c.translate(p.worldX, p.worldY);
+				c.save(); {
+					c.translate(self.x, self.y);
+					c.scale(1, 1.2);
+					c.fillCircle(0, 24, 20);
+				} c.restore();
+				/* body */
+				c.strokeStyle = "rgb(125, 125, 125)";
+				c.strokeLine(self.x, self.y + 24, self.x, self.y + 72);
+				/* legs */
+				if(self.pose === "standing") {
+					c.strokeLine(self.x, self.y + 72, self.x - 10, self.y + 92);
+					c.strokeLine(self.x, self.y + 72, self.x + 10, self.y + 92);
+				}
+				else if(self.facing === "left") {
+					c.strokeLine(
+						self.x, self.y + 72,
+						self.x - 20, self.y + 72,
+						self.x - 20, self.y + 92
+					);
+					c.strokeLine(
+						self.x, self.y + 72,
+						self.x, self.y + 92,
+						self.x + 20, self.y + 92
+					);
+				}
+				else if(self.facing === "right") {
+					c.strokeLine(
+						self.x, self.y + 72,
+						self.x + 20, self.y + 72,
+						self.x + 20, self.y + 92
+					);
+					c.strokeLine(
+						self.x, self.y + 72,
+						self.x, self.y + 92,
+						self.x - 20, self.y + 92
+					);
+				}
+				/* arms */
+				var leftArmUp = (self.facing === "left" && (!(self.itemHolding instanceof MeleeWeapon) || self.pose === "kneeling"));
+				var rightArmUp = (self.facing === "right" && (!(self.itemHolding instanceof MeleeWeapon) || self.pose === "kneeling"));
+				c.strokeLine(self.x, self.y + 52, self.x - 20, self.y + (leftArmUp ? 52 : 72));
+				c.strokeLine(self.x, self.y + 52, self.x + 20, self.y + (rightArmUp ? 52 : 72));
+			},
+			1
+		)
+	);
 	/* pedestal */
 	graphics3D.cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 34, 0.95, 1.05, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
-	c.save(); {
-		c.fillStyle = "rgb(125, 125, 125)";
-		c.lineCap = "round";
-		c.lineWidth = 10;
-		c.translate(p.worldX, p.worldY);
-		c.save(); {
-			c.translate(this.x, this.y);
-			c.scale(1, 1.2);
-			c.fillCircle(0, 24, 20);
-		} c.restore();
-		/* body */
-		c.strokeStyle = "rgb(125, 125, 125)";
-		c.strokeLine(this.x, this.y + 24, this.x, this.y + 72);
-		/* legs */
-		if(this.pose === "standing") {
-			c.strokeLine(this.x, this.y + 72, this.x - 10, this.y + 92);
-			c.strokeLine(this.x, this.y + 72, this.x + 10, this.y + 92);
-		}
-		else if(this.facing === "left") {
-			c.strokePoly(
-				this.x, this.y + 72,
-				this.x - 20, this.y + 72,
-				this.x - 20, this.y + 92
-			);
-			c.strokePoly(
-				this.x, this.y + 72,
-				this.x, this.y + 92,
-				this.x + 20, this.y + 92
-			);
-		}
-		else if(this.facing === "right") {
-			c.strokePoly(
-				this.x, this.y + 72,
-				this.x + 20, this.y + 72,
-				this.x + 20, this.y + 92
-			);
-			c.strokePoly(
-				this.x, this.y + 72,
-				this.x, this.y + 92,
-				this.x - 20, this.y + 92
-			);
-		}
-		/* arms */
-		var leftArmUp = (this.facing === "left" && (!(this.itemHolding instanceof MeleeWeapon) || this.pose === "kneeling"));
-		var rightArmUp = (this.facing === "right" && (!(this.itemHolding instanceof MeleeWeapon) || this.pose === "kneeling"));
-		c.strokeLine(this.x, this.y + 52, this.x - 20, this.y + (leftArmUp ? 52 : 72));
-		c.strokeLine(this.x, this.y + 52, this.x + 20, this.y + (rightArmUp ? 52 : 72));
-	} c.restore();
-	/* ranged weapon graphics - drawn after stick figure */
-	if(!(this.itemHolding instanceof MeleeWeapon) && !this.itemStolen) {
-		if(this.facing === "left") {
-			c.save(); {
-				c.translate(this.x + p.worldX - (this.itemHolding instanceof MagicWeapon ? 28 : 20), this.y + p.worldY + (this.itemHolding instanceof MagicWeapon ? 32 : 52));
-				c.scale(-2, 2);
-				this.itemHolding.display("aiming");
-			} c.restore();
-		}
-		else {
-			c.save(); {
-				c.translate(this.x + p.worldX + (this.itemHolding instanceof MagicWeapon ? 28 : 20), this.y + p.worldY + (this.itemHolding instanceof MagicWeapon ? 32 : 52));
-				c.scale(2, 2);
-				this.itemHolding.display("aiming");
-			} c.restore();
-		}
-	}
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+
+			},
+			1
+		)
+	);
+};
+Statue.prototype.update = function() {
 	/* stealing Weapons */
 	if(io.keys[83] && Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) <= 100 && !this.itemStolen) {
 		this.itemStolen = true;
@@ -3516,62 +3910,35 @@ function TiltPlatform(x, y) {
 	this.velY = 0;
 };
 TiltPlatform.prototype.exist = function() {
-	var p1 = Math.rotate(-75, -10, Math.floor(this.tilt));
-	var p2 = Math.rotate(75, -10, Math.floor(this.tilt));
-	this.p1 = p1;
-	this.p2 = p2;
-	/* graphics */
-	graphics3D.cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01, null, null, { noFrontExtended: true });
-	if(Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
-		this.collides = function(x, y) {
-			var p1 = graphics3D.point3D(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, 1.1);
-			var p2 = graphics3D.point3D(this.p2.x + this.x + p.worldX, this.p2.y + this.y + p.worldY, 1.1);
-			var p3 = graphics3D.point3D(-this.p1.x + this.x + p.worldX, -this.p1.y + this.y + p.worldY, 1.1);
-			var p4 = graphics3D.point3D(-this.p2.x + this.x + p.worldX, -this.p2.y + this.y + p.worldY, 1.1);
-			c.beginPath();
-			c.polygon(
-				{ x: p1.x, y: -800 },
-				{ x: p2.x, y: -800 },
-				p3,
-				p4
-			);
-			return c.isPointInPath(x, y);
-		};
-		var topL = graphics3D.boxFronts[graphics3D.boxFronts.length - 1].loc[1];
-		while(this.collides(this.origX + p.worldX - 5, topL)) {
-			topL ++;
-		}
-		var topR = graphics3D.boxFronts[graphics3D.boxFronts.length - 1].loc[1];
-		while(this.collides(this.origX + p.worldX + 5, topR)) {
-			topR ++;
-		}
-	}
+	this.update();
+	this.display();
+};
+TiltPlatform.prototype.display = function() {
+	graphics3D.cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01);
 	graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
 		{
-			x: p1.x + this.x + p.worldX,
-			y: p1.y + this.y + p.worldY
+			x: this.p1.x + this.x + p.worldX,
+			y: this.p1.y + this.y + p.worldY
 		},
 		{
-			x: p2.x + this.x + p.worldX,
-			y: p2.y + this.y + p.worldY
+			x: this.p2.x + this.x + p.worldX,
+			y: this.p2.y + this.y + p.worldY
 		},
 		{
-			x: -(p1.x) + this.x + p.worldX,
-			y: -(p1.y) + this.y + p.worldY
+			x: -(this.p1.x) + this.x + p.worldX,
+			y: -(this.p1.y) + this.y + p.worldY
 		},
 		{
-			x: -(p2.x) + this.x + p.worldX,
-			y: -(p2.y) + this.y + p.worldY
+			x: -(this.p2.x) + this.x + p.worldX,
+			y: -(this.p2.y) + this.y + p.worldY
 		}
 	]);
+};
+TiltPlatform.prototype.update = function() {
+	this.p1 = Math.rotate(-75, -10, Math.floor(this.tilt));
+	this.p2 = Math.rotate(75, -10, Math.floor(this.tilt));
 	/* hitbox */
-	collisions.line(p1.x + this.x + p.worldX, p1.y + this.y + p.worldY, p2.x + this.x + p.worldX, p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
-	if(p.x > p1.x + this.x + p.worldX && p.x < -p1.x + this.x + p.worldX && !p.canJump && p.onGroundBefore && p.velY >= 0 && Math.abs(this.x - this.origX) < 3 && Math.abs(this.y - this.origY) < 3) {
-		while(!p.canJump && false) {
-			p.y ++;
-			collisions.line(p1.x + this.x + p.worldX, p1.y + this.y + p.worldY, p2.x + this.x + p.worldX, p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
-		}
-	}
+	collisions.line(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, this.p2.x + this.x + p.worldX, this.p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	/* tilting */
 	if(p.x + 5 > this.x + p.worldX - 75 && p.x - 5 < this.x + p.worldX + 75 && p.canJump && this.interact) {
 		if(p.x > this.x + p.worldX) {
@@ -3585,12 +3952,7 @@ TiltPlatform.prototype.exist = function() {
 		this.tiltDir *= 0.99;
 	}
 	this.tilt += this.tiltDir;
-	while(this.tilt > 360) {
-		this.tilt -= 360;
-	}
-	while(this.tilt < 0) {
-		this.tilt += 360;
-	}
+	this.tilt = this.tilt.mod(360);
 	/* falling */
 	this.y += 5;
 	this.collides = function() {
@@ -3621,13 +3983,28 @@ TiltPlatform.prototype.exist = function() {
 	this.x += this.velX;
 	p.onGroundBefore = p.canJump;
 };
+TiltPlatform.prototype.collides = function(x, y) {
+	var p1 = graphics3D.point3D(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, 1.1);
+	var p2 = graphics3D.point3D(this.p2.x + this.x + p.worldX, this.p2.y + this.y + p.worldY, 1.1);
+	var p3 = graphics3D.point3D(-this.p1.x + this.x + p.worldX, -this.p1.y + this.y + p.worldY, 1.1);
+	var p4 = graphics3D.point3D(-this.p2.x + this.x + p.worldX, -this.p2.y + this.y + p.worldY, 1.1);
+	c.beginPath();
+	c.polygon(
+		{ x: p1.x, y: -800 },
+		{ x: p2.x, y: -800 },
+		p3,
+		p4
+	);
+	return c.isPointInPath(x, y);
+};
 function Bridge(x, y) {
 	this.x = x;
 	this.y = y;
 };
 Bridge.prototype.exist = function() {
-	/* hitbox */
-	collisions.collisions.push(new CollisionCircle(this.x, this.y + 500, 500));
+	this.update();
+	this.display();
+	return;
 	/* graphics - top bridge surface */
 	var topB = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY + 500, 0.9);
 	var topF = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY + 500, 1.1);
@@ -3673,30 +4050,78 @@ Bridge.prototype.exist = function() {
 		} c.restore();
 	}
 };
+Bridge.prototype.display = function() {
+	function displayBridge() {
+		/* clip out arches */
+		c.lineWidth = 4;
+		for(var x = -200; x <= 200; x += 200) {
+			var archWidth = (x === 0) ? 150 : 100;
+			var y = (x === 0) ? 200 : 250;
+			var left = x - (archWidth / 2);
+			var right = x + (archWidth / 2);
+			c.beginPath();
+			c.line(left, canvas.height + 100, left, y);
+			c.arc(x, y, archWidth / 2, Math.rad(180), Math.rad(360));
+			c.lineTo(right, canvas.height + 100);
+			c.stroke();
+			c.invertPath();
+			c.clip("evenodd");
+		}
+		/* draw bridge with arches cut out */
+		c.fillCircle(0, 500, 500);
+	};
+	var self = this;
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				var backOfBridge = graphics3D.point3D(self.x + p.worldX, self.y + p.worldY, 0.9);
+				c.fillStyle = "rgb(150, 150, 150)";
+				c.strokeStyle = "rgba(150, 150, 150, 0)";
+				c.translate(backOfBridge.x, backOfBridge.y);
+				c.scale(0.9, 0.9);
+				displayBridge();
+			},
+			0.9
+		)
+	);
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				var frontOfBridge = graphics3D.point3D(self.x + p.worldX, self.y + p.worldY, 1.1);
+				c.fillStyle = "rgb(110, 110, 110)";
+				c.strokeStyle = "rgb(150, 150, 150)";
+				c.translate(frontOfBridge.x, frontOfBridge.y);
+				c.scale(1.1, 1.1);
+				displayBridge();
+			},
+			1.1
+		)
+	);
+};
+Bridge.prototype.update = function() {
+	collisions.collisions.push(new CollisionCircle(this.x, this.y + 500, 500));
+
+};
 function BookShelf(x, y) {
 	this.x = x;
 	this.y = y;
-	this.books = [];
-	for(var i = 1; i <= 4; i ++) {
-		this.books.push({
-			x: Math.random() * 160,
-			y: i * 50,
-			color: Math.random() < 0.5 ? (Math.random() < 0.5 ? "rgb(255, 255, 0)" : "rgb(255, 0, 0)") : (Math.random() < 0.5 ? "rgb(0, 0, 255)" : "rgb(0, 128, 0)")
-		});
-	}
 };
 BookShelf.prototype.exist = function() {
+	this.update();
+	this.display();
+};
+BookShelf.prototype.display = function() {
 	/* graphics */
 	for(var y = this.y; y >= this.y - 200; y -= 50) {
 		graphics3D.cube(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-		collisions.rect(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, {walls: [true, false, false, false]});
-	}
-	for(var i = 0; i < this.books.length; i ++) {
-		break;
-		graphics3D.cube(this.books[i].x + this.x + p.worldX - 80, this.y + p.worldY - this.books[i].y, 10, 40, 0.9, 1, this.books[i].color, this.books[i].color);
 	}
 	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + 90, this.y + p.worldY - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+};
+BookShelf.prototype.update = function() {
+	for(var y = this.y; y >= this.y - 200; y -= 50) {
+		collisions.rect(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, {walls: [true, false, false, false]});
+	}
 };
 function Chandelier(x, y) {
 	this.x = x;
@@ -3714,51 +4139,79 @@ function Chandelier(x, y) {
 	this.particles = [];
 };
 Chandelier.prototype.exist = function() {
+	this.update();
+	this.display();
+};
+Chandelier.prototype.display = function() {
 	/*
 	this function breaks the graphics into multiple sub-functions so that they can be called in different orders depending on perspective.
 	*/
-	this.topDisc = function() {
-		c.fillStyle = "rgb(110, 110, 110)";
-		c.beginPath();
-		for(var i = 0; i < this.points.length; i ++) {
-			var point = graphics3D.point3D(this.points[i].x + p.worldX, this.points[i].y + p.worldY, this.points[i].z);
-			if(i === 0) {
-				c.moveTo(point.x, point.y);
-			}
-			else {
-				c.lineTo(point.x, point.y);
-			}
+	var self = this;
+	function topDisc() {
+		var points = self.points.clone();
+		for(var i = 0; i < points.length; i ++) {
+			points[i].x += p.worldX;
+			points[i].y += p.worldY;
 		}
-		c.fill();
+		graphics3D.polyhedron("rgb(110, 110, 110)", points);
 	};
-	this.middleDisc = function() {
-		c.fillStyle = "rgb(150, 150, 150)";
-		for(var offset = 0; offset < 20; offset ++) {
-			c.beginPath();
-			for(var j = 0; j < this.points.length; j ++) {
-				var point = graphics3D.point3D(this.points[j].x + p.worldX, this.points[j].y + p.worldY, this.points[j].z);
-				if(j === 0) {
-					c.moveTo(point.x, point.y + offset);
-				}
-				else {
-					c.lineTo(point.x, point.y + offset);
-				}
-			}
-			c.fill();
+	function middleDisc() {
+		for(var i = 0; i < self.points.length; i ++) {
+			var currentPoint = {
+				top: graphics3D.point3D(
+					self.points[i].x + p.worldX,
+					self.points[i].y + p.worldY,
+					self.points[i].z
+				),
+				bottom: graphics3D.point3D(
+					self.points[i].x + p.worldX,
+					self.points[i].y + p.worldY + 20,
+					self.points[i].z
+				)
+			};
+			var nextIndex = (i === self.points.length - 1) ? 0 : i + 1;
+			var nextPoint = {
+				top: graphics3D.point3D(
+					self.points[nextIndex].x + p.worldX,
+					self.points[nextIndex].y + p.worldY,
+					self.points[nextIndex].z
+				),
+				bottom: graphics3D.point3D(
+					self.points[nextIndex].x + p.worldX,
+					self.points[nextIndex].y + p.worldY + 20,
+					self.points[nextIndex].z
+				)
+			};
+			game.dungeon[game.theRoom].render(
+				new RenderingOrderShape(
+					"polygon",
+					[
+						currentPoint.top,
+						currentPoint.bottom,
+						nextPoint.bottom,
+						nextPoint.top
+					],
+					"rgb(150, 150, 150)",
+					Math.min(
+						self.points[i].z,
+						self.points[nextIndex].z
+					)
+				)
+			);
 		}
 	};
-	this.lowDisc = function() {
+	function lowDisc() {
 		c.save(); {
 			c.translate(0, 20);
-			this.topDisc();
+			topDisc();
 		} c.restore();
 	};
-	this.cords = function() {
+	function cords() {
 		var indexes = [];
 		while(indexes.length < 12) {
-			var lowestIndex = this.points.length / 2;
-			for(var i = 0; i < this.points.length - 10; i += Math.floor(this.points.length / 12)) {
-				if(this.points[i].z < this.points[lowestIndex].z) {
+			var lowestIndex = self.points.length / 2;
+			for(var i = 0; i < self.points.length - 10; i += Math.floor(self.points.length / 12)) {
+				if(self.points[i].z < self.points[lowestIndex].z) {
 					var alreadyDone = false;
 					for(var j = 0; j < indexes.length; j ++) {
 						if(indexes[j].index === i) {
@@ -3771,74 +4224,83 @@ Chandelier.prototype.exist = function() {
 					}
 				}
 			}
-			if(lowestIndex % Math.floor(this.points.length / 6) > 100 || lowestIndex === 0 | lowestIndex % Math.floor(this.points.length / 6) < 5) {
-				indexes.push({ index: lowestIndex, type: "torch", z: this.points[lowestIndex].z});
+			if(lowestIndex % Math.floor(self.points.length / 6) > 100 || lowestIndex === 0 | lowestIndex % Math.floor(self.points.length / 6) < 5) {
+				indexes.push({ index: lowestIndex, type: "torch", z: self.points[lowestIndex].z});
 			}
 			else {
-				indexes.push({ index: lowestIndex, type: "cord", z: this.points[lowestIndex].z});
+				indexes.push({ index: lowestIndex, type: "cord", z: self.points[lowestIndex].z});
 			}
 		}
 		for(var i = 0; i < indexes.length; i ++) {
 			if(indexes[i].type === "cord") {
-				var edge = graphics3D.point3D(this.points[indexes[i].index].x + p.worldX, this.points[indexes[i].index].y + p.worldY, this.points[indexes[i].index].z);
+				var edge = graphics3D.point3D(self.points[indexes[i].index].x + p.worldX, self.points[indexes[i].index].y + p.worldY, self.points[indexes[i].index].z);
 				c.strokeStyle = "rgb(139, 69, 19)";
 				c.beginPath();
-				c.moveTo(this.x + p.worldX, this.y + p.worldY - 600);
+				c.moveTo(self.x + p.worldX, self.y + p.worldY - 600);
 				c.lineTo(edge.x, edge.y);
 				c.stroke();
 			}
 			else {
-				graphics3D.cube(p.worldX + this.points[indexes[i].index].x - 5, p.worldY + this.points[indexes[i].index].y - 10, 10, 10, this.points[indexes[i].index].z - 0.01, this.points[indexes[i].index].z + 0.01, null, null);
-				this.particles.push(new Particle("rgb(255, 128, 0)", this.points[indexes[i].index].x, this.points[indexes[i].index].y - 10, Math.random() * 2 - 1, Math.random() * -2, 5));
-				this.particles[this.particles.length - 1].z = this.points[indexes[i].index].z;
+				graphics3D.cube(p.worldX + self.points[indexes[i].index].x - 5, p.worldY + self.points[indexes[i].index].y - 10, 10, 10, self.points[indexes[i].index].z - 0.01, self.points[indexes[i].index].z + 0.01, null, null);
+				self.particles.push(new Particle("rgb(255, 128, 0)", self.points[indexes[i].index].x, self.points[indexes[i].index].y - 10, Math.random() * 2 - 1, Math.random() * -2, 5));
+				self.particles[self.particles.length - 1].z = self.points[indexes[i].index].z;
 			}
 		}
-		for(var i = 0; i < this.particles.length; i ++) {
-			this.particles[i].exist();
-			if(this.particles[i].splicing) {
-				this.particles.splice(i, 1);
+		for(var i = 0; i < self.particles.length; i ++) {
+			self.particles[i].exist();
+			if(self.particles[i].splicing) {
+				self.particles.splice(i, 1);
 				continue;
 			}
 		}
 		c.beginPath();
-		c.moveTo(this.x + p.worldX, this.y + p.worldY - 600);
-		c.lineTo(this.x + p.worldX, 0);
+		c.moveTo(self.x + p.worldX, self.y + p.worldY - 600);
+		c.lineTo(self.x + p.worldX, 0);
 		c.stroke();
 		c.beginPath();
-		c.moveTo(this.x + p.worldX - 72, this.y + p.worldY - 150);
-		c.lineTo(this.x + p.worldX + 72, this.y + p.worldY - 150);
+		c.moveTo(self.x + p.worldX - 72, self.y + p.worldY - 150);
+		c.lineTo(self.x + p.worldX + 72, self.y + p.worldY - 150);
 		c.stroke();
 		c.beginPath();
-		c.moveTo(this.x + p.worldX - 54, this.y + p.worldY - 300);
-		c.lineTo(this.x + p.worldX + 54, this.y + p.worldY - 300);
+		c.moveTo(self.x + p.worldX - 54, self.y + p.worldY - 300);
+		c.lineTo(self.x + p.worldX + 54, self.y + p.worldY - 300);
 		c.stroke();
-		collisions.rect(this.x + p.worldX - 72, this.y + p.worldY - 150, 144, 3, {walls: [true, false, false, false]});
-		collisions.rect(this.x + p.worldX - 54, this.y + p.worldY - 300, 108, 3, {walls: [true, false, false, false]});
 	};
 	if(this.y + p.worldY < 400) {
-		this.cords();
-		this.topDisc();
-		this.middleDisc();
-		this.lowDisc();
+		cords();
+		topDisc();
+		middleDisc();
+		lowDisc();
 	}
 	else {
-		this.lowDisc();
-		this.middleDisc();
-		this.topDisc();
-		this.cords();
+		lowDisc();
+		middleDisc();
+		topDisc();
+		cords();
 	}
+};
+Chandelier.prototype.update = function() {
 	collisions.rect(this.x + p.worldX - 100, this.y + p.worldY, 200, 20);
+	collisions.rect(this.x + p.worldX - 72, this.y + p.worldY - 150, 144, 3, {walls: [true, false, false, false]});
+	collisions.rect(this.x + p.worldX - 54, this.y + p.worldY - 300, 108, 3, {walls: [true, false, false, false]});
 };
 function Table(x, y) {
 	this.x = x;
 	this.y = y;
 };
 Table.prototype.exist = function() {
+	this.display();
+	this.update();
+};
+Table.prototype.display = function() {
 	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
 	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + 40, this.y + p.worldY - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
 	graphics3D.cube(this.x + p.worldX + 40, this.y + p.worldY - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 100, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+};
+Table.prototype.update = function() {
+	/* Nothing to update */
 };
 function Chair(x, y, dir) {
 	this.x = x;
@@ -3848,8 +4310,8 @@ function Chair(x, y, dir) {
 Chair.prototype.exist = function() {
 	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
-	graphics3D.cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
+	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 50, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + ((this.dir === "right") ? -25 : 15), this.y + p.worldY - 60, 10, 35, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 };
@@ -3976,6 +4438,9 @@ Decoration.prototype.exist = function() {
 		/* randomize decoration if none other to mimic */
 		if(!resolved) {
 			var chooser = Math.random();
+			if(TESTING_MODE) {
+				chooser = 1;
+			}
 			if(chooser < 0.33) {
 				game.dungeon[game.theRoom].content[selfIndex] = new Torch(this.x, this.y);
 				game.dungeon[game.theRoom].content[selfIndex].lit = true;
@@ -4050,24 +4515,34 @@ Banner.prototype.exist = function() {
 		var gradient = c.createLinearGradient(center.x, p1.y, center.x, p3.y);
 		gradient.addColorStop(0, color1);
 		gradient.addColorStop(1, color2);
-		c.fillStyle = gradient;
-		c.fillPoly(p1, p2, p3, p4, p5);
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				c.fillStyle = gradient;
+				c.fillPoly(p1, p2, p3, p4, p5);
+			},
+			0.9
+		));
 	}
 	else if(this.graphic === "border") {
-		c.fillStyle = color1;
-		c.fillPoly(p1, p2, p3, p4, p5);
-
 		var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.9);
-		p1 = Math.scale(p1.x, p1.y, 0.7, center.x, center.y);
-		p2 = Math.scale(p2.x, p2.y, 0.7, center.x, center.y);
-		p3 = Math.scale(p3.x, p3.y, 0.7, center.x, center.y);
-		p4 = Math.scale(p4.x, p4.y, 0.7, center.x, center.y);
-		p5 = Math.scale(p5.x, p5.y, 0.7, center.x, center.y);
+		var p6 = Math.scaleAboutPoint(p1.x, p1.y, center.x, center.y, 0.7);
+		var p7 = Math.scaleAboutPoint(p2.x, p2.y, center.x, center.y, 0.7);
+		var p8 = Math.scaleAboutPoint(p3.x, p3.y, center.x, center.y, 0.7);
+		var p9 = Math.scaleAboutPoint(p4.x, p4.y, center.x, center.y, 0.7);
+		var p10 = Math.scaleAboutPoint(p5.x, p5.y, center.x, center.y, 0.7);
 
-		c.fillStyle = color2;
-		c.fillPoly(p1, p2, p3, p4, p5);
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				c.fillStyle = color1;
+				c.fillPoly(p1, p2, p3, p4, p5);
+
+				c.fillStyle = color2;
+				c.fillPoly(p6, p7, p8, p9, p10);
+			},
+			0.9
+		));
 	}
-	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - 50, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", { noFrontExtended: true });
+	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - 50, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 };
 function GlassWindow(x, y, color) {
 	this.x = x;
@@ -4079,51 +4554,68 @@ GlassWindow.prototype.exist = function() {
 	c.save(); {
 		var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.9);
 		/* delete bricks behind window */
-		c.beginPath();
-		c.rect(center.x - 25, center.y - 100, 50, 100);
-		c.circle(center.x, center.y - 100, 25);
-		c.clip();
+		function clip() {
+			c.beginPath();
+			c.rect(center.x - 25, center.y - 100, 50, 100);
+			c.circle(center.x, center.y - 100, 25);
+			c.clip();
+		};
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.fillRect(0, 0, 800, 800);
 		/* background */
-		graphics3D.cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
-		graphics3D.cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null, { noFrontExtended: true });
-		graphics3D.cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, null, null, { noFrontExtended: true });
-		graphics3D.cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
-		graphics3D.cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.78, 0.78, null, null, { noFrontExtended: true });
+		graphics3D.cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null);
+		graphics3D.cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null);
+		graphics3D.cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, null, null);
+		var renderingObjects = game.dungeon[game.theRoom].renderingObjects;
+		for(var i = renderingObjects.length - 6; i < renderingObjects.length; i ++) {
+			var obj = renderingObjects[i];
+			obj.transform = clip;
+		}
 		/* cross patterns */
-		if(this.color === "red") {
-			c.strokeStyle = "rgb(200, 50, 0)";
-		}
-		else if(this.color === "green") {
-			c.strokeStyle = "rgb(25, 128, 25)";
-		}
-		else if(this.color === "blue") {
-			c.strokeStyle = "rgb(0, 0, 100)";
-		}
-		c.lineWidth = 1;
-		for(var y = -150; y < 0; y += 10) {
-			c.strokeLine(center.x - 25, center.y + y, center.x + 25, center.y + y + 50);
-			c.strokeLine(center.x + 25, center.y + y, center.x - 25, center.y + y + 50);
-		}
+		var self = this;
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				clip();
+				if(self.color === "red") {
+					c.strokeStyle = "rgb(200, 50, 0)";
+				}
+				else if(self.color === "green") {
+					c.strokeStyle = "rgb(25, 128, 25)";
+				}
+				else if(self.color === "blue") {
+					c.strokeStyle = "rgb(0, 0, 100)";
+				}
+				c.lineWidth = 1;
+				for(var y = -150; y < 0; y += 10) {
+					c.strokeLine(center.x - 25, center.y + y, center.x + 25, center.y + y + 50);
+					c.strokeLine(center.x + 25, center.y + y, center.x - 25, center.y + y + 50);
+				}
+			},
+			0.9
+		));
 		/* window */
-		c.lineWidth = 4;
-		c.strokeStyle = "rgb(50, 50, 50)";
-		if(this.color === "red") {
-			c.fillStyle = "rgba(255, 20, 0, 0.5)";
-		}
-		else if(this.color === "green") {
-			c.fillStyle = "rgba(0, 128, 20, 0.5)";
-		}
-		else if(this.color === "blue") {
-			c.fillStyle = "rgba(0, 0, 128, 0.5)";
-		}
-		c.fillRect(center.x - 25, center.y - 100, 50, 100);
-		c.strokeRect(center.x - 25, center.y - 100, 50, 100);
-		c.beginPath();
-		c.arc(center.x, center.y - 100, 25, Math.PI, 2 * Math.PI);
-		c.fill();
-		c.stroke();
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				c.lineWidth = 4;
+				c.strokeStyle = "rgb(50, 50, 50)";
+				if(self.color === "red") {
+					c.fillStyle = "rgba(255, 20, 0, 0.5)";
+				}
+				else if(self.color === "green") {
+					c.fillStyle = "rgba(0, 128, 20, 0.5)";
+				}
+				else if(self.color === "blue") {
+					c.fillStyle = "rgba(0, 0, 128, 0.5)";
+				}
+				c.fillRect(center.x - 25, center.y - 100, 50, 100);
+				c.strokeRect(center.x - 25, center.y - 100, 50, 100);
+				c.beginPath();
+				c.arc(center.x, center.y - 100, 25, Math.PI, 2 * Math.PI);
+				c.fill();
+				c.stroke();
+			},
+			0.9
+		));
 	} c.restore();
 };
 function Roof(x, y, w) {
@@ -4223,73 +4715,94 @@ function Fountain(x, y) {
 	this.waterAnimations = [];
 };
 Fountain.prototype.exist = function() {
-	c.save(); {
-		var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.92);
-		c.fillStyle = "red";
+	/* water slot */
+	graphics3D.cutoutRect(this.x + p.worldX - 50, this.y + p.worldY - 160, 100, 10, "rgba(0, 0, 0, 0)", "rgba(150, 150, 150)", 0.8, 0.9);
+
+	var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.92);
+	game.dungeon[game.theRoom].setRenderingStyle(function() {
 		c.beginPath();
 		c.rect(center.x - (50 * 0.92), 0, (100 * 0.92), canvas.height);
 		c.clip();
-		/* water slot */
-		graphics3D.cutoutRect(this.x + p.worldX - 50, this.y + p.worldY - 160, 100, 10, "rgba(0, 0, 0, 0)", "rgba(150, 150, 150)", 0.8, 0.9);
+	});
+	c.save(); {
 		/* water */
-		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 10, 0.8, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)", { noFrontExtended: true });
-		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 150, 0.9, 0.92, "rgba(100, 100, 255, 0)", "rgb(100, 100, 255)", { noFrontExtended: true });
-		for(var i = 0; i < this.waterAnimations.length; i ++) {
-			var topY = this.waterAnimations[i].y;
-			var bottomY = this.waterAnimations[i].y + 50;
-			if(this.waterAnimations[i].y < 50) {
-				/* all on horizontal section of waterfall */
-				var p1 = graphics3D.point3D(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, Math.map(topY, 0, 100, 0.8, 0.92));
-				var p2 = graphics3D.point3D(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, Math.map(bottomY, 0, 100, 0.8, 0.92));
+		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 10, 0.8, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)");
+		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 150, 0.9, 0.92, "rgba(100, 100, 255, 0)", "rgb(100, 100, 255)");
+		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 150, 0.9, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)");
+		/*
+		Each water graphic's y-value is on a scale from 0 to 250. Each one is 50 tall. The corner of the fountain is at 100, so any value less than 100 is on the horizontal section and anything greater than 100 is on the vertical section.
+		*/
+		var self = this;
+		const HORIZONTAL_FOUNTAIN_HEIGHT = 100;
+		const TOTAL_FOUNTAIN_HEIGHT = 250;
+		const WATER_ANIMATION_HEIGHT = 50;
+		function displayWaterGraphic(p1, p2) {
+			/*
+			This function uses currying to avoid the problem that arises when creating functions in loops where the function only has access to the current value of the loop variable, instead of being able to take a snapshot of that value.
+			*/
+			return function() {
 				c.strokeStyle = "rgb(120, 120, 255)";
 				c.lineWidth = 3;
 				c.strokeLine(p1, p2);
+			};
+		};
+		function calculatePosition(x, y) {
+			/*
+			Returns the three-dimensional location of a water animation at ('x', 'y')
+			*/
+			if(y < HORIZONTAL_FOUNTAIN_HEIGHT) {
+				return {
+					x: self.x + p.worldX + x,
+					y: self.y + p.worldY - 150,
+					z: Math.map(y, 0, HORIZONTAL_FOUNTAIN_HEIGHT, 0.8, 0.92)
+				};
 			}
-			else if(this.waterAnimations[i].y > 50 && this.waterAnimations[i].y <= 100) {
-				/* runs over the corner - only display the upper section before the waterfall front */
-				var p1 = graphics3D.point3D(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, Math.map(topY, 0, 100, 0.8, 0.92));
-				var corner = graphics3D.point3D(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, 0.92);
-				c.strokeStyle = "rgb(120, 120, 255)";
-				c.lineWidth = 3;
-				c.strokeLine(p1, corner);
+			else {
+				return {
+					x: self.x + p.worldX + x,
+					y: self.y + p.worldY - 150 + Math.map(y, HORIZONTAL_FOUNTAIN_HEIGHT, TOTAL_FOUNTAIN_HEIGHT, 0, 150),
+					z: 0.92
+				};
+			}
+		};
+		for(var i = 0; i < this.waterAnimations.length; i ++) {
+			this.waterAnimations[i].y += 2;
+			var topY = this.waterAnimations[i].y;
+			var bottomY = this.waterAnimations[i].y + 50;
+			if(topY > 225) {
+				this.waterAnimations.splice(i, 1);
+				i --;
+				continue;
+			}
+			var p1 = calculatePosition(this.waterAnimations[i].x, this.waterAnimations[i].y);
+			var corner = calculatePosition(this.waterAnimations[i].x, HORIZONTAL_FOUNTAIN_HEIGHT);
+			var p2 = calculatePosition(this.waterAnimations[i].x, this.waterAnimations[i].y + 50);
+			if(topY < HORIZONTAL_FOUNTAIN_HEIGHT && bottomY > HORIZONTAL_FOUNTAIN_HEIGHT) {
+				game.dungeon[game.theRoom].render(new RenderingOrderObject(
+					displayWaterGraphic(graphics3D.point3D(p1.x, p1.y, p1.z), graphics3D.point3D(corner.x, corner.y, corner.z)),
+					p1.z,
+					1
+				));
+				game.dungeon[game.theRoom].render(new RenderingOrderObject(
+					displayWaterGraphic(graphics3D.point3D(corner.x, corner.y, corner.z), graphics3D.point3D(p2.x, p2.y, p2.z)),
+					corner.z,
+					1
+				));
+			}
+			else {
+				game.dungeon[game.theRoom].render(new RenderingOrderObject(
+					displayWaterGraphic(graphics3D.point3D(p1.x, p1.y, p1.z), graphics3D.point3D(p2.x, p2.y, p2.z)),
+					Math.min(p1.z, p2.z),
+					1
+				));
 			}
 		}
-		/* water animation */
-		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 150, 0.9, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)", { noFrontExtended: true });
-		if(utilities.frameCount % 10 === 0) {
+		if(utilities.frameCount % 15 === 0) {
 			this.waterAnimations.push( {x: Math.random() * 100 - 50, y: -50} );
 		}
-		c.save(); {
-			c.lineCap = "round";
-			for(var i = 0; i < this.waterAnimations.length; i ++) {
-				this.waterAnimations[i].y += 3;
-				var topY = this.waterAnimations[i].y < 0 ? 0 : this.waterAnimations[i].y;
-				var bottomY = this.waterAnimations[i].y + 50;
-				if(topY < 100 && bottomY > 100) {
-					/* runs over the corner - only display the lower section after the waterfall front */
-					var corner = graphics3D.point3D(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150, 0.92);
-					var p2 = graphics3D.point3D(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (bottomY - 100), 0.92);
-					c.strokeStyle = "rgb(120, 120, 255)";
-					c.lineWidth = 3;
-					c.strokeLine(corner, p2);
-				}
-				else if(topY > 100) {
-					/* all on front of the waterfall */
-					var p1 = graphics3D.point3D(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (topY - 100), 0.92);
-					var p2 = graphics3D.point3D(this.x + p.worldX + this.waterAnimations[i].x, this.y + p.worldY - 150 + (bottomY - 100), 0.92);
-					c.strokeStyle = "rgb(120, 120, 255)";
-					c.lineWidth = 3;
-					c.strokeLine(p1, p2);
-				}
-				if(topY > 250) {
-					this.waterAnimations.splice(i, 1);
-					i --;
-					continue;
-				}
-			}
-		} c.restore();
 	} c.restore();
 	/* base */
+	game.dungeon[game.theRoom].clearRenderingStyle();
 	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 10, 50, 0.9, 1);
 	graphics3D.cube(this.x + p.worldX + 90, this.y + p.worldY - 50, 10, 50, 0.9, 1);
 	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 200, 50, 0.98, 1);
@@ -4459,6 +4972,7 @@ function Room(type, content, id, minWorldY, background) {
 	this.background = background || null;
 	this.minWorldY = minWorldY;
 	this.colorScheme = null;
+	this.renderingObjects = [];
 };
 Room.prototype.exist = function(index) {
 	c.globalAlpha = 1;
@@ -4477,51 +4991,19 @@ Room.prototype.exist = function(index) {
 	var chargeIndexes = [];
 	p.canUseEarth = true;
 	/* testing */
-	for(var i = 0; i < this.content.length; i ++) {
-		if(this.content[i] instanceof Enemy) {
+	this.content.forEach(function(obj) {
+		if(obj instanceof Enemy) {
 			//this.content[i].health = this.content[i].maxHealth;
 			// this.content.splice(i, 1);
 		}
-	}
+	});
 	/* load all types of items */
 	for(var i = 0; i < this.content.length; i ++) {
-		if(this.content[i] instanceof Door) {
-			this.content[i].exist(index);
+		var obj = this.content[i];
+		if(!obj.initialized && typeof obj.init === "function") {
+			obj.init();
 		}
-		else if(this.content[i] instanceof Chest) {
-			if(this.content[i].y + p.worldY > 400) {
-				chestIndexes.push(i);
-			}
-			else {
-				this.content[i].exist();
-			}
-		}
-		else if(this.content[i] instanceof Item) {
-			if(!this.content[i].initialized) {
-				this.content[i].init();
-			}
-			var chestIndex = 0;
-			for(var j = 0; j < this.content.length; j ++) {
-				if(this.content[j] instanceof Chest && Math.distSq(this.content[j].x, this.content[j].y, this.content[i].x, this.content[i].y) < Math.distSq(this.content[chestIndex].x, this.content[chestIndex].y, this.content[i].x, this.content[i].y)) {
-					chestIndex = j;
-				}
-			}
-			c.save(); {
-				c.globalAlpha = (this.content[i].opacity < 0) ? 0 : this.content[i].opacity;
-				c.translate(this.content[i].x + p.worldX, this.content[i].y + p.worldY);
-				c.beginPath();
-				c.rect(this.content[chestIndex].x - 50 - (this.content[i].x), this.content[chestIndex].y - 1000 - (this.content[i].y), 100, 1000);
-				c.clip();
-				this.content[i].display("item");
-			} c.restore();
-			this.content[i].animate();
-			if(this.content[i].opacity <= 0) {
-				this.content[i].opacity = 1;
-				p.addItem(this.content[i]);
-				this.content.splice(i, 1);
-			}
-		}
-		else if(this.content[i] instanceof Enemy) {
+		if(this.content[i] instanceof Enemy) {
 			this.content[i].seesPlayer = true;
 			this.content[i].displayStats();
 			c.globalAlpha = Math.max(0, this.content[i].opacity);
@@ -4550,33 +5032,6 @@ Room.prototype.exist = function(index) {
 				debugging.hitboxes.push({x: this.content[i].x + p.worldX + this.content[i].leftX, y: this.content[i].y + p.worldY + this.content[i].topY, w: (this.content[i].rightX + Math.abs(this.content[i].leftX)), h: (this.content[i].bottomY + Math.abs(this.content[i].topY)), color: "green"});
 			}
 		}
-		else if(this.content[i] instanceof ShotArrow) {
-			this.content[i].exist();
-			if(SHOW_HITBOXES) {
-				debugging.hitboxes.push({x: this.content[i].x + p.worldX - 1, y: this.content[i].y + p.worldY - 1, w: 2, h: 2, color: "green"});
-			}
-			if(this.content[i].opacity <= 0) {
-				this.content.splice(i, 1);
-				continue;
-			}
-		}
-		else if(this.content[i] instanceof RandomEnemy) {
-			this.content[i].generate();
-			this.content.splice(i, 1);
-		}
-		else if(this.content[i] instanceof MagicCharge) {
-			if(this.content[i].splicing) {
-				for(var j = 0; j < this.content[i].particles.length; j ++) {
-					this.content.push(Object.create(this.content[i].particles[j]));
-				}
-				this.content.splice(i, 1);
-				continue;
-			}
-			chargeIndexes.push(i);
-		}
-		else if(this.content[i] instanceof Block) {
-			this.content[i].exist(index);
-		}
 		else if(this.content[i] instanceof Boulder) {
 			if(this.content[i].splicing) {
 				this.content.splice(i, 1);
@@ -4584,44 +5039,20 @@ Room.prototype.exist = function(index) {
 			}
 			boulderIndexes.push(i);
 		}
-		else if(this.content[i] instanceof Altar) {
-			this.content[i].exist();
-			if(this.content[i].splicing) {
-				for(var j = 0; j < this.content[i].particles.length; j ++) {
-					this.content.push(Object.create(this.content[i].particles[j]));
-				}
-				this.content.splice(i, 1);
-			}
-		}
 		else {
 			this.content[i].exist();
-			if(this.content[i].splicing) {
-				this.content.splice(i, 1);
-				continue;
+		}
+		if(this.content[i].splicing) {
+			if(typeof this.content[i].remove === "function") {
+				this.content[i].remove();
 			}
+			this.content.splice(i, 1);
+			i --;
+			continue;
 		}
 		if(this.content[i] instanceof BoulderVoid) {
 			p.canUseEarth = false;
 		}
-	}
-	/* load chest fronts after everything else */
-	for(var i = 0; i < chestIndexes.length; i ++) {
-		if(this.content[chestIndexes[i]].y + p.worldY > 400) {
-			this.content[chestIndexes[i]].exist();
-			if(this.content[chestIndexes[i]].splicing) {
-				for(var j = 0; j < this.content[chargeIndexes[i]].particles.length; j ++) {
-					this.content.push(Object.create(this.content[chargeIndexes[i]].particles[j]));
-				}
-				this.content.splice(i, 1);
-				continue;
-			}
-		}
-	}
-	/* load block fronts after everything else */
-	graphics3D.loadBoxFronts();
-	/* load magic charges */
-	for(var i = 0; i < chargeIndexes.length; i ++) {
-		this.content[chargeIndexes[i]].exist();
 	}
 	/* load boulders */
 	for(var i = 0; i < boulderIndexes.length; i ++) {
@@ -4647,17 +5078,30 @@ Room.prototype.exist = function(index) {
 		}
 		c.strokeRect(debugging.hitboxes[i].x, debugging.hitboxes[i].y, debugging.hitboxes[i].w, debugging.hitboxes[i].h);
 	}
-	/* fading transitions between rooms */
-	c.fillStyle = "rgb(0, 0, 0)";
-	if(p.screenOp < 0) {
-		p.screenOp = 0;
-		p.exitingDoor = false;
+};
+Room.prototype.display = function() {
+	/* Displays the objects in the room in order. */
+	var sorter = function(a, b) {
+		if(a.depth === b.depth) {
+			return utilities.sortAscending(a.zOrder, b.zOrder);
+		}
+		else {
+			return utilities.sortAscending(a.depth, b.depth);
+		}
+	};
+	this.renderingObjects = this.renderingObjects.sort(sorter);
+	c.reset();
+	for(var i = 0; i < this.renderingObjects.length; i ++) {
+		c.save(); {
+			if(typeof this.renderingObjects[i].transform === "function") {
+				this.renderingObjects[i].transform();
+			}
+			if(typeof this.renderingObjects[i].renderingStyle === "function") {
+				this.renderingObjects[i].renderingStyle();
+			}
+			this.renderingObjects[i].display();
+		} c.restore();
 	}
-	c.globalAlpha = Math.max(p.screenOp, p.fallOp);
-	c.fillRect(0, 0, 800, 800);
-	c.fillStyle = "rgb(255, 0, 0)";
-	c.globalAlpha = Math.max(0, p.damOp);
-	c.fillRect(0, 0, 800, 800);
 };
 Room.prototype.displayBackground = function() {
 	if(this.background === "bricks") {
@@ -4682,6 +5126,39 @@ Room.prototype.displayShadowEffect = function() {
 	c.fillStyle = gradient;
 	c.fillRect(0, 0, 800, 800);
 };
+Room.prototype.render = function(object) {
+	/*
+	Parameter: a RenderingOrderObject or RenderingOrderShape to be rendered.
+	*/
+	if(this.groupingRenderedObjects) {
+		this.renderingObjects[this.renderingObjects.length - 1].objects.push(object);
+		this.renderingObjects[this.renderingObjects.length - 1].depth = object.depth;
+	}
+	else {
+		this.renderingObjects.push(object);
+	}
+	this.renderingObjects[this.renderingObjects.length - 1].renderingStyle = this.renderingStyle;
+};
+Room.prototype.beginRenderingGroup = function() {
+	this.groupingRenderedObjects = true;
+	this.renderingObjects.push(new RenderingOrderGroup());
+};
+Room.prototype.endRenderingGroup = function() {
+	this.groupingRenderedObjects = false;
+};
+Room.prototype.setRenderingStyle = function(func) {
+	/*
+	Allows you to set a function that will be run before every shape is rendered until it is turned off using Room.clearRenderingStyle().
+	*/
+	this.renderingStyle = func;
+};
+Room.prototype.clearRenderingStyle = function(func) {
+	/*
+	Allows you to set a function that will be run before every shape is rendered until it is turned off using Room.clearRenderingStyle().
+	*/
+	this.renderingStyle = undefined;
+};
+
 
 
 /** ITEMS **/
@@ -4711,7 +5188,41 @@ Item.prototype.animate = function() {
 	this.velY += 0.1;
 	if(this.velY >= 0) {
 		this.opacity -= 0.05;
+		if(this.opacity <= 0) {
+			this.splicing = true;
+		}
 	}
+};
+Item.prototype.remove = function() {
+	this.opacity = 1;
+	p.addItem(this);
+};
+Item.prototype.exist = function() {
+	this.animate();
+	/* display (clipped into only where it overlaps the nearest chest horizontally) */
+	var nearestChest = game.dungeon[game.theRoom].content[0];
+	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
+		var obj = game.dungeon[game.theRoom].content[i];
+		if(obj instanceof Chest && Math.distSq(obj.x, obj.y, this.x, this.y) < Math.distSq(nearestChest.x, nearestChest.y, this.x, this.y)) {
+			nearestChest = obj;
+		}
+	}
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			c.save(); {
+				c.globalAlpha = Math.constrain(self.opacity, 0, 1);
+				c.beginPath();
+				c.rect(nearestChest.x + p.worldX - 30, nearestChest.y + p.worldY - 1000, 60, 1000);
+				c.clip();
+				c.save(); {
+					c.translate(self.x + p.worldX, self.y + p.worldY);
+					self.display("item");
+				}
+			} c.restore();
+		},
+		1
+	));
 };
 Item.prototype.displayDesc = function(x, y, dir) {
 	dir = dir || "left";
@@ -4834,7 +5345,8 @@ Weapon.prototype.displayParticles = function() {
 		this.particles[this.particles.length - 1].opacity = 0.25;
 	}
 	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].exist();
+		this.particles[i].display(true);
+		this.particles[i].update();
 		if(this.particles[i].splicing) {
 			this.particles.splice(i, 1);
 			continue;
@@ -4925,6 +5437,7 @@ Sword.extends(MeleeWeapon);
 Sword.prototype.display = function(type) {
 	type = type || "item";
 	c.save(); {
+		// debugger;
 		c.globalAlpha = Math.max(this.opacity, 0);
 		c.fillStyle = "rgb(139, 69, 19)";
 		if(type === "holding" || type === "item") {
@@ -6374,33 +6887,45 @@ function ShotArrow(x, y, velX, velY, damage, shotBy, element, name) {
 	this.hitSomething = false;
 };
 ShotArrow.prototype.exist = function() {
-	var angle = Math.atan2(this.velX, this.velY);
-	c.save(); {
-		c.globalAlpha = Math.max(0, this.opacity);
-		c.translate(this.x + p.worldX, this.y + p.worldY);
-		c.rotate(Math.rad(90) - angle);
-		c.strokeStyle = "rgb(139, 69, 19)";
-		c.lineWidth = 4;
-		c.strokeLine(-28, 0, 0, 0);
-		for(var x = 0; x < 10; x += 3) {
-			c.lineWidth = 1;
-			c.strokeLine(
-				-x - 10, 0,
-				-x - 16, -6
-			);
-			c.strokeLine(
-				-x - 10, 0,
-				-x - 16, 6
-			);
-		}
-		c.fillStyle = "rgb(255, 255, 255)";
-		c.fillPoly(
-			0, 0,
-			-6, -6,
-			14, 0,
-			-6, 6
-		);
-	} c.restore();
+	this.update();
+	this.display();
+};
+ShotArrow.prototype.display = function() {
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			var angle = Math.atan2(self.velX, self.velY);
+			c.save(); {
+				c.globalAlpha = Math.max(0, self.opacity);
+				c.translate(self.x + p.worldX, self.y + p.worldY);
+				c.rotate(Math.rad(90) - angle);
+				c.strokeStyle = "rgb(139, 69, 19)";
+				c.lineWidth = 4;
+				c.strokeLine(-28, 0, 0, 0);
+				for(var x = 0; x < 10; x += 3) {
+					c.lineWidth = 1;
+					c.strokeLine(
+						-x - 10, 0,
+						-x - 16, -6
+					);
+					c.strokeLine(
+						-x - 10, 0,
+						-x - 16, 6
+					);
+				}
+				c.fillStyle = "rgb(255, 255, 255)";
+				c.fillPoly(
+					0, 0,
+					-6, -6,
+					14, 0,
+					-6, 6
+				);
+			} c.restore();
+		},
+		1
+	));
+};
+ShotArrow.prototype.update = function() {
 	if(!this.hitSomething) {
 		this.x += this.velX;
 		this.y += this.velY;
@@ -6452,6 +6977,9 @@ ShotArrow.prototype.exist = function() {
 	}
 	else {
 		this.opacity -= 0.05;
+		if(this.opacity <= 0) {
+			this.splicing = true;
+		}
 	}
 };
 
@@ -6460,6 +6988,12 @@ function RandomEnemy(x, y, notEnemy) {
 	this.x = x;
 	this.y = y;
 	this.notEnemy = notEnemy; // use this to specify any enemy BUT a certain enemy
+};
+RandomEnemy.prototype.exist = function() {
+	if(!this.splicing) {
+		this.generate();
+		this.splicing = true;
+	}
 };
 RandomEnemy.prototype.generate = function() {
 	/* Wait until the decorations are resolved before generating enemy */
@@ -6530,30 +7064,36 @@ Enemy.prototype.displayStats = function() {
 		this.topY = -20;
 	}
 	/* healthbar */
-	c.globalAlpha = Math.max(0, this.opacity);
-	this.attackRecharge --;
-	var middle = ((this.x + p.worldX + this.rightX) + (this.x + p.worldX + this.leftX)) / 2;
-	if(this instanceof Dragonling) {
-		middle = this.x + p.worldX;
-	}
-	c.fillStyle = "rgb(150, 150, 150)";
-	c.fillRect(middle - 30, this.y + p.worldY + this.topY - 15, 60, 10);
-	c.fillCircle(middle - 30, this.y + p.worldY + this.topY - 10, 5);
-	c.fillCircle(middle + 30, this.y + p.worldY + this.topY - 10, 5);
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			c.globalAlpha = Math.max(0, self.opacity);
+			var middle = ((self.x + p.worldX + self.rightX) + (self.x + p.worldX + self.leftX)) / 2;
+			if(self instanceof Dragonling) {
+				middle = self.x + p.worldX;
+			}
+			c.fillStyle = "rgb(150, 150, 150)";
+			c.fillRect(middle - 30, self.y + p.worldY + self.topY - 15, 60, 10);
+			c.fillCircle(middle - 30, self.y + p.worldY + self.topY - 10, 5);
+			c.fillCircle(middle + 30, self.y + p.worldY + self.topY - 10, 5);
+			c.fillStyle = "rgb(255, 0, 0)";
+			var visualHealth = self.health / self.maxHealth * 60;
+			self.visualHealth += (visualHealth - self.visualHealth) / 10;
+			c.fillRect(middle - 30, self.y + p.worldY + self.topY - 15, self.visualHealth, 10);
+			c.beginPath();
+			c.arc(middle - 30, self.y + p.worldY + self.topY - 10, 5, 0, 2 * Math.PI);
+			c.arc(middle - 30 + self.visualHealth, self.y + p.worldY + self.topY - 10, 5, 0, 2 * Math.PI);
+			c.fill();
+		},
+		1
+	))
 	/* updating */
+	this.attackRecharge --;
 	if(this.health <= 0) {
 		this.health = 0;
 		this.dead = true;
 	}
 	if(this.visualHealth > 0) {
-		c.fillStyle = "rgb(255, 0, 0)";
-		var visualHealth = this.health / this.maxHealth * 60;
-		this.visualHealth += (visualHealth - this.visualHealth) / 10;
-		c.fillRect(middle - 30, this.y + p.worldY + this.topY - 15, this.visualHealth, 10);
-		c.beginPath();
-		c.arc(middle - 30, this.y + p.worldY + this.topY - 10, 5, 0, 2 * Math.PI);
-		c.arc(middle - 30 + this.visualHealth, this.y + p.worldY + this.topY - 10, 5, 0, 2 * Math.PI);
-		c.fill();
 	}
 	if(this.dead) {
 		this.opacity -= 0.05;
@@ -6709,36 +7249,42 @@ function Spider(x, y) {
 };
 Spider.extends(Enemy);
 Spider.prototype.display = function() {
-	c.lineWidth = 4;
-	c.fillStyle = "rgb(0, 0, 0)";
-	c.strokeStyle = "rgb(0, 0, 0)";
-	c.fillCircle(this.x + p.worldX, this.y + p.worldY, 20);
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			c.lineWidth = 4;
+			c.fillStyle = "rgb(0, 0, 0)";
+			c.strokeStyle = "rgb(0, 0, 0)";
+			c.fillCircle(self.x + p.worldX, self.y + p.worldY, 20);
 
-	for(var scale = -1; scale <= 1; scale += (1 - (-1)) ) {
-		/* scaling is used to flip the legs (for left + right pairs of legs) */
-		for(var rotation = -this.legs; rotation <= this.legs; rotation += (this.legs === 0 ? Infinity : (this.legs * 2)) ) {
-			for(var legSize = 10; legSize <= 20; legSize += (20 - 10)) {
-				c.save(); {
-					c.translate(
-						this.x + p.worldX + (scale * (legSize === 10 ? 14 : 16)),
-						this.y + p.worldY + (legSize === 10 ? 14 : 4)
-					);
-					c.rotate(Math.rad(rotation));
-					c.scale(scale, 1);
+			for(var scale = -1; scale <= 1; scale += (1 - (-1)) ) {
+				/* scaling is used to flip the legs (for left + right pairs of legs) */
+				for(var rotation = -self.legs; rotation <= self.legs; rotation += (self.legs === 0 ? Infinity : (self.legs * 2)) ) {
+					for(var legSize = 10; legSize <= 20; legSize += (20 - 10)) {
+						c.save(); {
+							c.translate(
+								self.x + p.worldX + (scale * (legSize === 10 ? 14 : 16)),
+								self.y + p.worldY + (legSize === 10 ? 14 : 4)
+							);
+							c.rotate(Math.rad(rotation));
+							c.scale(scale, 1);
 
-					c.strokeLine(
-						0, 0,
-						legSize, 0,
-						legSize, legSize
-					);
-				} c.restore();
+							c.strokeLine(
+								0, 0,
+								legSize, 0,
+								legSize, legSize
+							);
+						} c.restore();
+					}
+				}
 			}
-		}
-	}
-	/* eyes */
-	c.fillStyle = "rgb(" + (255 - this.purity) + ", 0, " + this.purity + ")";
-	c.fillCircle(this.x + p.worldX - 10, this.y + p.worldY - 10, 5);
-	c.fillCircle(this.x + p.worldX + 10, this.y + p.worldY - 10, 5);
+			/* eyes */
+			c.fillStyle = "rgb(" + (255 - self.purity) + ", 0, " + self.purity + ")";
+			c.fillCircle(self.x + p.worldX - 10, self.y + p.worldY - 10, 5);
+			c.fillCircle(self.x + p.worldX + 10, self.y + p.worldY - 10, 5);
+		},
+		1
+	));
 };
 Spider.prototype.update = function(dest) {
 	if(dest === "player") {
@@ -6837,27 +7383,33 @@ function Bat(x, y) {
 };
 Bat.extends(Enemy);
 Bat.prototype.display = function() {
-	c.fillStyle = "rgb(0, 0, 0)";
-	c.fillCircle(this.x + p.worldX, this.y + p.worldY, 10);
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			c.fillStyle = "rgb(0, 0, 0)";
+			c.fillCircle(self.x + p.worldX, self.y + p.worldY, 10);
 
-	c.fillStyle = "rgb(" + (255 - this.purity) + ", 0, " + this.purity + ")";
-	c.fillCircle(this.x + p.worldX - 2, this.y + p.worldY - 4, 2);
-	c.fillCircle(this.x + p.worldX + 2, this.y + p.worldY - 4, 2);
+			c.fillStyle = "rgb(" + (255 - self.purity) + ", 0, " + self.purity + ")";
+			c.fillCircle(self.x + p.worldX - 2, self.y + p.worldY - 4, 2);
+			c.fillCircle(self.x + p.worldX + 2, self.y + p.worldY - 4, 2);
 
-	c.fillStyle = "rgb(0, 0, 0)";
-	for(var scale = -1; scale <= 1; scale += 2) {
-		c.save(); {
-			c.translate(this.x + p.worldX + (5 * scale), this.y + p.worldY);
-			c.rotate(Math.rad(this.wings * scale));
-			c.scale(scale, 1);
-			c.fillPoly(
-				0, 0,
-				10, -10,
-				50, 0,
-				10, 10
-			);
-		} c.restore();
-	}
+			c.fillStyle = "rgb(0, 0, 0)";
+			for(var scale = -1; scale <= 1; scale += 2) {
+				c.save(); {
+					c.translate(self.x + p.worldX + (5 * scale), self.y + p.worldY);
+					c.rotate(Math.rad(self.wings * scale));
+					c.scale(scale, 1);
+					c.fillPoly(
+						0, 0,
+						10, -10,
+						50, 0,
+						10, 10
+					);
+				} c.restore();
+			}
+		},
+		1
+	));
 };
 Bat.prototype.update = function(dest) {
 	if(dest === "player") {
@@ -6945,47 +7497,53 @@ function Skeleton(x, y) {
 };
 Skeleton.extends(Enemy);
 Skeleton.prototype.display = function() {
-	c.lineWidth = 2;
-	/* head */
-	c.fillStyle = "rgb(255, 255, 255)";
-	c.strokeStyle = "rgb(255, 255, 255)";
-	c.fillCircle(this.x + p.worldX, this.y + p.worldY + 3, 7);
-	c.fillRect(this.x + p.worldX - 3, this.y + p.worldY + 3, 6, 10);
-	/* body */
-	c.strokeLine(this.x + p.worldX, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 36);
-	/* legs */
-	c.strokeLine(
-		this.x + p.worldX, this.y + p.worldY + 36,
-		this.x + p.worldX + this.legs, this.y + p.worldY + 36 + 7
-	);
-	c.strokeLine(
-		this.x + p.worldX, this.y + p.worldY + 36,
-		this.x + p.worldX - this.legs, this.y + p.worldY + 36 + 7
-	);
-	this.legs += this.legDir;
-	this.legDir = (this.legs < -7) ? 0.5 : this.legDir;
-	this.legDir = (this.legs > 7) ? -0.5 : this.legDir;
-	/* arms */
-	c.strokeLine(
-		this.x + p.worldX     , this.y + p.worldY + 15,
-		this.x + p.worldX + 10, this.y + p.worldY + 15
-	);
-	c.strokeLine(
-		this.x + p.worldX + 8, this.y + p.worldY + 15,
-		this.x + p.worldX + 8, this.y + p.worldY + 15 + 10
-	);
-	c.strokeLine(
-		this.x + p.worldX     , this.y + p.worldY + 15,
-		this.x + p.worldX - 10, this.y + p.worldY + 15
-	);
-	c.strokeLine(
-		this.x + p.worldX - 8, this.y + p.worldY + 15,
-		this.x + p.worldX - 8, this.y + p.worldY + 15 + 10
-	);
-	/* ribcage */
-	for(var y = this.y + p.worldY + 22; y < this.y + p.worldY + 34; y += 4) {
-		c.strokeLine(this.x + p.worldX - 5, y, this.x + p.worldX + 5, y);
-	}
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			c.lineWidth = 2;
+			/* head */
+			c.fillStyle = "rgb(255, 255, 255)";
+			c.strokeStyle = "rgb(255, 255, 255)";
+			c.fillCircle(self.x + p.worldX, self.y + p.worldY + 3, 7);
+			c.fillRect(self.x + p.worldX - 3, self.y + p.worldY + 3, 6, 10);
+			/* body */
+			c.strokeLine(self.x + p.worldX, self.y + p.worldY, self.x + p.worldX, self.y + p.worldY + 36);
+			/* legs */
+			c.strokeLine(
+				self.x + p.worldX, self.y + p.worldY + 36,
+				self.x + p.worldX + self.legs, self.y + p.worldY + 36 + 7
+			);
+			c.strokeLine(
+				self.x + p.worldX, self.y + p.worldY + 36,
+				self.x + p.worldX - self.legs, self.y + p.worldY + 36 + 7
+			);
+			self.legs += self.legDir;
+			self.legDir = (self.legs < -7) ? 0.5 : self.legDir;
+			self.legDir = (self.legs > 7) ? -0.5 : self.legDir;
+			/* arms */
+			c.strokeLine(
+				self.x + p.worldX     , self.y + p.worldY + 15,
+				self.x + p.worldX + 10, self.y + p.worldY + 15
+			);
+			c.strokeLine(
+				self.x + p.worldX + 8, self.y + p.worldY + 15,
+				self.x + p.worldX + 8, self.y + p.worldY + 15 + 10
+			);
+			c.strokeLine(
+				self.x + p.worldX     , self.y + p.worldY + 15,
+				self.x + p.worldX - 10, self.y + p.worldY + 15
+			);
+			c.strokeLine(
+				self.x + p.worldX - 8, self.y + p.worldY + 15,
+				self.x + p.worldX - 8, self.y + p.worldY + 15 + 10
+			);
+			/* ribcage */
+			for(var y = self.y + p.worldY + 22; y < self.y + p.worldY + 34; y += 4) {
+				c.strokeLine(self.x + p.worldX - 5, y, self.x + p.worldX + 5, y);
+			}
+		},
+		1
+	));
 };
 Skeleton.prototype.update = function(dest) {
 	if(dest === "player") {
@@ -7040,87 +7598,93 @@ function SkeletonWarrior(x, y) {
 };
 SkeletonWarrior.extends(Enemy);
 SkeletonWarrior.prototype.display = function() {
-	c.lineWidth = 2;
-	/* head */
-	c.fillStyle = "rgb(255, 255, 255)";
-	c.strokeStyle = "rgb(255, 255, 255)";
-	c.fillCircle(this.x + p.worldX, this.y + p.worldY + 3, 7);
-	c.fillRect(this.x + p.worldX - 3, this.y + p.worldY + 3, 6, 10);
-	/* body */
-	c.strokeLine(
-		this.x + p.worldX, this.y + p.worldY,
-		this.x + p.worldX, this.y + p.worldY + 36
-	);
-	/* legs */
-	c.strokeLine(
-		this.x + p.worldX            , this.y + p.worldY + 36,
-		this.x + p.worldX + this.legs, this.y + p.worldY + 36 + 7
-	);
-	c.strokeLine(
-		this.x + p.worldX            , this.y + p.worldY + 36,
-		this.x + p.worldX - this.legs, this.y + p.worldY + 36 + 7
-	);
-	this.legs += this.legDir;
-	this.legDir = (this.legs < -7) ? 0.5 : this.legDir;
-	this.legDir = (this.legs > 7) ? -0.5 : this.legDir;
-	/* arms */
-	if(this.x + p.worldX > p.x) {
-		/* right arm (normal) */
-		c.strokeLine(
-			this.x + p.worldX     , this.y + p.worldY + 15,
-			this.x + p.worldX + 10, this.y + p.worldY + 15
-		);
-		c.strokeLine(
-			this.x + p.worldX + 8, this.y + p.worldY + 15,
-			this.x + p.worldX + 8, this.y + p.worldY + 15 + 10
-		);
-		/* left shoulder (normal) */
-		c.strokeLine(
-			this.x + p.worldX     , this.y + p.worldY + 15,
-			this.x + p.worldX - 10, this.y + p.worldY + 15
-		);
-		/* left arm (attacking) */
-		c.save(); {
-			c.translate(this.x + p.worldX - 8, this.y + p.worldY + 15);
-			c.rotate(Math.rad(this.attackArm));
-			c.strokeLine(0, 0, -10, 0);
-			/* sword */
-			c.translate(-10, 0);
-			new Sword("none").display("attacking");
-		} c.restore();
-	}
-	else {
-		/* left arm (normal) */
-		c.strokeLine(
-			this.x + p.worldX     , this.y + p.worldY + 15,
-			this.x + p.worldX - 10, this.y + p.worldY + 15
-		);
-		c.strokeLine(
-			this.x + p.worldX - 8, this.y + p.worldY + 15,
-			this.x + p.worldX - 8, this.y + p.worldY + 15 + 10
-		);
-		/* right shoulder (normal) */
-		c.strokeLine(
-			this.x + p.worldX     , this.y + p.worldY + 15,
-			this.x + p.worldX + 10, this.y + p.worldY + 15
-		);
-		/* right arm (attacking) */
-		c.save(); {
-			c.translate(this.x + p.worldX + 8, this.y + p.worldY + 15);
-			c.rotate(Math.rad(-this.attackArm));
-			c.strokeLine(0, 0, 10, 0);
-			/* sword */
-			c.translate(10, 0);
-			new Sword("none").display("attacking");
-		} c.restore();
-	}
-	/* ribcage */
-	for(var y = this.y + p.worldY + 22; y < this.y + p.worldY + 34; y += 4) {
-		c.strokeLine(
-			this.x + p.worldX - 5, y,
-			this.x + p.worldX + 5, y
-		);
-	}
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			c.lineWidth = 2;
+			/* head */
+			c.fillStyle = "rgb(255, 255, 255)";
+			c.strokeStyle = "rgb(255, 255, 255)";
+			c.fillCircle(self.x + p.worldX, self.y + p.worldY + 3, 7);
+			c.fillRect(self.x + p.worldX - 3, self.y + p.worldY + 3, 6, 10);
+			/* body */
+			c.strokeLine(
+				self.x + p.worldX, self.y + p.worldY,
+				self.x + p.worldX, self.y + p.worldY + 36
+			);
+			/* legs */
+			c.strokeLine(
+				self.x + p.worldX            , self.y + p.worldY + 36,
+				self.x + p.worldX + self.legs, self.y + p.worldY + 36 + 7
+			);
+			c.strokeLine(
+				self.x + p.worldX            , self.y + p.worldY + 36,
+				self.x + p.worldX - self.legs, self.y + p.worldY + 36 + 7
+			);
+			self.legs += self.legDir;
+			self.legDir = (self.legs < -7) ? 0.5 : self.legDir;
+			self.legDir = (self.legs > 7) ? -0.5 : self.legDir;
+			/* arms */
+			if(self.x + p.worldX > p.x) {
+				/* right arm (normal) */
+				c.strokeLine(
+					self.x + p.worldX     , self.y + p.worldY + 15,
+					self.x + p.worldX + 10, self.y + p.worldY + 15
+				);
+				c.strokeLine(
+					self.x + p.worldX + 8, self.y + p.worldY + 15,
+					self.x + p.worldX + 8, self.y + p.worldY + 15 + 10
+				);
+				/* left shoulder (normal) */
+				c.strokeLine(
+					self.x + p.worldX     , self.y + p.worldY + 15,
+					self.x + p.worldX - 10, self.y + p.worldY + 15
+				);
+				/* left arm (attacking) */
+				c.save(); {
+					c.translate(self.x + p.worldX - 8, self.y + p.worldY + 15);
+					c.rotate(Math.rad(self.attackArm));
+					c.strokeLine(0, 0, -10, 0);
+					/* sword */
+					c.translate(-10, 0);
+					new Sword("none").display("attacking");
+				} c.restore();
+			}
+			else {
+				/* left arm (normal) */
+				c.strokeLine(
+					self.x + p.worldX     , self.y + p.worldY + 15,
+					self.x + p.worldX - 10, self.y + p.worldY + 15
+				);
+				c.strokeLine(
+					self.x + p.worldX - 8, self.y + p.worldY + 15,
+					self.x + p.worldX - 8, self.y + p.worldY + 15 + 10
+				);
+				/* right shoulder (normal) */
+				c.strokeLine(
+					self.x + p.worldX     , self.y + p.worldY + 15,
+					self.x + p.worldX + 10, self.y + p.worldY + 15
+				);
+				/* right arm (attacking) */
+				c.save(); {
+					c.translate(self.x + p.worldX + 8, self.y + p.worldY + 15);
+					c.rotate(Math.rad(-self.attackArm));
+					c.strokeLine(0, 0, 10, 0);
+					/* sword */
+					c.translate(10, 0);
+					new Sword("none").display("attacking");
+				} c.restore();
+			}
+			/* ribcage */
+			for(var y = self.y + p.worldY + 22; y < self.y + p.worldY + 34; y += 4) {
+				c.strokeLine(
+					self.x + p.worldX - 5, y,
+					self.x + p.worldX + 5, y
+				);
+			}
+		},
+		1
+	));
 };
 SkeletonWarrior.prototype.update = function(dest) {
 	if(dest === "player") {
@@ -7214,74 +7778,80 @@ function SkeletonArcher(x, y) {
 };
 SkeletonArcher.extends(Enemy);
 SkeletonArcher.prototype.display = function() {
-	c.lineWidth = 2;
-	/* head */
-	c.fillStyle = "rgb(255, 255, 255)";
-	c.strokeStyle = "rgb(255, 255, 255)";
-	c.fillCircle(this.x + p.worldX, this.y + p.worldY + 3, 7);
-	c.fillRect(this.x + p.worldX - 3, this.y + p.worldY + 3, 6, 10);
-	/* body */
-	c.strokeLine(
-		this.x + p.worldX, this.y + p.worldY,
-		this.x + p.worldX, this.y + p.worldY + 36
-	);
-	/* legs */
-	c.strokeLine(
-		this.x + p.worldX            , this.y + p.worldY + 36,
-		this.x + p.worldX + this.legs, this.y + p.worldY + 36 + 7
-	);
-	c.strokeLine(
-		this.x + p.worldX            , this.y + p.worldY + 36,
-		this.x + p.worldX - this.legs, this.y + p.worldY + 36 + 7
-	);
-	/* shoulders */
-	c.strokeLine(
-		this.x + p.worldX - 10, this.y + p.worldY + 15,
-		this.x + p.worldX + 10, this.y + p.worldY + 15
-	);
-	/* right arm */
-	if(this.x + p.worldX < p.x && this.timeSinceAttack > 60) {
-		c.save(); {
-			c.translate(this.x + p.worldX + 8, this.y + p.worldY + 15);
-			c.rotate(Math.rad(this.aimRot));
-			c.strokeLine(0, 0, 10, 0);
-			c.translate(10, 0);
-			new WoodBow("none").display("aiming");
-		} c.restore();
-		this.timeAiming ++;
-	}
-	else {
-		c.strokeLine(
-			this.x + p.worldX + 8, this.y + p.worldY + 15,
-			this.x + p.worldX + 8, this.y + p.worldY + 15 + 10
-		);
-	}
-	/* left arm */
-	if(this.x + p.worldX > p.x && this.timeSinceAttack > 60) {
-		c.save(); {
-			c.translate(this.x + p.worldX - 8, this.y + p.worldY + 15);
-			c.rotate(Math.rad(-this.aimRot));
-			c.strokeLine(0, 0, -10, 0);
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			c.lineWidth = 2;
+			/* head */
+			c.fillStyle = "rgb(255, 255, 255)";
+			c.strokeStyle = "rgb(255, 255, 255)";
+			c.fillCircle(self.x + p.worldX, self.y + p.worldY + 3, 7);
+			c.fillRect(self.x + p.worldX - 3, self.y + p.worldY + 3, 6, 10);
+			/* body */
+			c.strokeLine(
+				self.x + p.worldX, self.y + p.worldY,
+				self.x + p.worldX, self.y + p.worldY + 36
+			);
+			/* legs */
+			c.strokeLine(
+				self.x + p.worldX            , self.y + p.worldY + 36,
+				self.x + p.worldX + self.legs, self.y + p.worldY + 36 + 7
+			);
+			c.strokeLine(
+				self.x + p.worldX            , self.y + p.worldY + 36,
+				self.x + p.worldX - self.legs, self.y + p.worldY + 36 + 7
+			);
+			/* shoulders */
+			c.strokeLine(
+				self.x + p.worldX - 10, self.y + p.worldY + 15,
+				self.x + p.worldX + 10, self.y + p.worldY + 15
+			);
+			/* right arm */
+			if(self.x + p.worldX < p.x && self.timeSinceAttack > 60) {
+				c.save(); {
+					c.translate(self.x + p.worldX + 8, self.y + p.worldY + 15);
+					c.rotate(Math.rad(self.aimRot));
+					c.strokeLine(0, 0, 10, 0);
+					c.translate(10, 0);
+					new WoodBow("none").display("aiming");
+				} c.restore();
+				self.timeAiming ++;
+			}
+			else {
+				c.strokeLine(
+					self.x + p.worldX + 8, self.y + p.worldY + 15,
+					self.x + p.worldX + 8, self.y + p.worldY + 15 + 10
+				);
+			}
+			/* left arm */
+			if(self.x + p.worldX > p.x && self.timeSinceAttack > 60) {
+				c.save(); {
+					c.translate(self.x + p.worldX - 8, self.y + p.worldY + 15);
+					c.rotate(Math.rad(-self.aimRot));
+					c.strokeLine(0, 0, -10, 0);
 
-			c.translate(-10, 0);
-			c.scale(-1, 1);
-			new WoodBow("none").display("aiming");
-		} c.restore();
-		this.timeAiming ++;
-	}
-	else {
-		c.strokeLine(
-			this.x + p.worldX - 8, this.y + p.worldY + 15,
-			this.x + p.worldX - 8, this.y + p.worldY + 15 + 10
-		);
-	}
-	/* ribcage */
-	for(var y = this.y + p.worldY + 22; y < this.y + p.worldY + 34; y += 4) {
-		c.strokeLine(
-			this.x + p.worldX - 5, y,
-			this.x + p.worldX + 5, y
-		);
-	}
+					c.translate(-10, 0);
+					c.scale(-1, 1);
+					new WoodBow("none").display("aiming");
+				} c.restore();
+				self.timeAiming ++;
+			}
+			else {
+				c.strokeLine(
+					self.x + p.worldX - 8, self.y + p.worldY + 15,
+					self.x + p.worldX - 8, self.y + p.worldY + 15 + 10
+				);
+			}
+			/* ribcage */
+			for(var y = self.y + p.worldY + 22; y < self.y + p.worldY + 34; y += 4) {
+				c.strokeLine(
+					self.x + p.worldX - 5, y,
+					self.x + p.worldX + 5, y
+				);
+			}
+		},
+		1
+	));
 };
 SkeletonArcher.prototype.update = function(dest) {
 	if(dest === "player") {
@@ -7435,30 +8005,47 @@ function Particle(color, x, y, velX, velY, size) {
 	this.color = color;
 	this.x = x;
 	this.y = y;
+	this.z = 1;
 	this.velX = velX;
 	this.velY = velY;
 	this.size = size;
 	this.opacity = 1;
 };
 Particle.prototype.exist = function() {
-	var prevOp = c.globalAlpha;
-	c.globalAlpha = Math.max(0, this.opacity);
-	c.fillStyle = "rgb(255, 0, 0)";
-	c.fillStyle = this.color;
-	if(this.z === undefined) {
-		c.fillCircle(this.x + p.worldX, this.y + p.worldY, this.size);
+	this.update();
+	this.display();
+};
+Particle.prototype.display = function(noRequest) {
+	noRequest = noRequest || false;
+
+	var self = this;
+	var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, this.z);
+	var radius = this.size * this.z;
+	var display = function() {
+		c.save(); {
+			c.fillStyle = self.color;
+			c.globalAlpha = Math.max(self.opacity, 0);
+			c.fillCircle(center.x, center.y, radius);
+		} c.restore();
+	};
+	if(noRequest) {
+		display();
 	}
 	else {
-		var loc = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, this.z);
-		c.fillCircle(loc.x, loc.y, this.size * this.z);
+		game.dungeon[game.theRoom].render(
+			new RenderingOrderObject(
+				display,
+				this.z
+			)
+		);
 	}
-	c.globalAlpha = prevOp;
 	this.x += this.velX;
 	this.y += this.velY;
 	this.opacity -= 0.05;
-	if(this.opacity <= 0) {
-		this.splicing = true;
-	}
+	this.splicing = (this.opacity <= 0);
+};
+Particle.prototype.update = function() {
+
 };
 function Wraith(x, y) {
 	Enemy.call(this, x, y);
@@ -7673,6 +8260,11 @@ MagicCharge.prototype.exist = function() {
 		this.splicing = true;
 	}
 };
+MagicCharge.prototype.remove = function() {
+	for(var i = 0; i < this.particles.length; i ++) {
+		game.dungeon[game.theRoom].content.push(this.particles[i]);
+	}
+};
 
 function Troll(x, y) {
 	Enemy.call(this, x, y);
@@ -7705,112 +8297,118 @@ function Troll(x, y) {
 };
 Troll.extends(Enemy);
 Troll.prototype.display = function() {
-	c.save(); {
-		c.translate(this.x + p.worldX, this.y + p.worldY);
-		c.scale(0.75, 0.75);
-		/* rounded shoulders */
-		c.fillStyle = "rgb(0, 128, 0)";
-		c.fillCircle(0 - 50, 0 - 20, 10);
-		c.fillCircle(0 + 50, 0 - 20, 10);
-		c.fillCircle(0 - 20, 0 + 50, 10);
-		c.fillCircle(0 + 20, 0 + 50, 10);
-		/* body */
-		c.fillRect(0 - 50, 0 - 30, 100, 30);
-		c.fillPoly(
-			-60, -20,
-			60, -20,
-			30, 50,
-			-30, 50
-		);
-		c.fillRect(0 - 20, 0 + 10, 40, 50);
-		/* legs */
-		c.fillStyle = "rgb(30, 128, 30)";
-		for(var scale = -1; scale <= 1; scale += 2) {
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
 			c.save(); {
-				if(scale === -1) {
-					c.translate(3 * this.leg1, 7 * this.leg1);
+				c.translate(self.x + p.worldX, self.y + p.worldY);
+				c.scale(0.75, 0.75);
+				/* rounded shoulders */
+				c.fillStyle = "rgb(0, 128, 0)";
+				c.fillCircle(0 - 50, 0 - 20, 10);
+				c.fillCircle(0 + 50, 0 - 20, 10);
+				c.fillCircle(0 - 20, 0 + 50, 10);
+				c.fillCircle(0 + 20, 0 + 50, 10);
+				/* body */
+				c.fillRect(0 - 50, 0 - 30, 100, 30);
+				c.fillPoly(
+					-60, -20,
+					60, -20,
+					30, 50,
+					-30, 50
+				);
+				c.fillRect(0 - 20, 0 + 10, 40, 50);
+				/* legs */
+				c.fillStyle = "rgb(30, 128, 30)";
+				for(var scale = -1; scale <= 1; scale += 2) {
+					c.save(); {
+						if(scale === -1) {
+							c.translate(3 * self.leg1, 7 * self.leg1);
+						}
+						else {
+							c.translate(-3 * self.leg2, 7 * self.leg2);
+						}
+						c.scale(scale, 1);
+						c.translate(-5, 0);
+						c.fillCircle(45, 30, 5);
+						c.fillCircle(30, 50, 5);
+						c.fillCircle(60, 30, 5);
+						c.fillCircle(60, 70, 5);
+						c.fillCircle(30, 70, 5);
+						c.fillRect(45, 25, 15, 10);
+						c.fillRect(25, 50, 40, 20);
+						c.fillRect(30, 70, 30, 5);
+						c.fillRect(45, 30, 20, 30);
+						c.fillPoly(
+							40, 30,
+							25, 30,
+							25, 70,
+							40, 70,
+							50, 70,
+							50, 30
+						);
+					} c.restore();
+				}
+				/* head */
+				c.fillCircle(0, -40, 20);
+			} c.restore();
+			/* right arm */
+			c.save(); {
+				c.translate(self.x + p.worldX + 40, self.y + p.worldY - 10);
+				if(self.armAttacking === "right") {
+					c.rotate(Math.rad(self.attackArm));
 				}
 				else {
-					c.translate(-3 * this.leg2, 7 * this.leg2);
+					c.rotate(Math.rad(60));
 				}
-				c.scale(scale, 1);
-				c.translate(-5, 0);
-				c.fillCircle(45, 30, 5);
-				c.fillCircle(30, 50, 5);
-				c.fillCircle(60, 30, 5);
-				c.fillCircle(60, 70, 5);
-				c.fillCircle(30, 70, 5);
-				c.fillRect(45, 25, 15, 10);
-				c.fillRect(25, 50, 40, 20);
-				c.fillRect(30, 70, 30, 5);
-				c.fillRect(45, 30, 20, 30);
-				c.fillPoly(
-					40, 30,
-					25, 30,
-					25, 70,
-					40, 70,
-					50, 70,
-					50, 30
-				);
+				if(self.x + p.worldX < p.x && self.currentAction === "melee-attack") {
+					c.fillStyle = "rgb(139, 69, 19)";
+					c.fillPoly(
+						45, 0,
+						50, -70,
+						30, -70,
+						35, 0
+					);
+					c.fillCircle(40, -70, 10);
+				}
+				c.fillStyle = "rgb(0, 128, 0)";
+				c.fillCircle(0, -10, 5);
+				c.fillCircle(0, 10, 5);
+				c.fillCircle(50, -10, 5);
+				c.fillCircle(50, 10, 5);
+				c.fillRect(-5, -10, 60, 20);
+				c.fillRect(0, -15, 50, 30);
 			} c.restore();
-		}
-		/* head */
-		c.fillCircle(0, -40, 20);
-	} c.restore();
-	/* right arm */
-	c.save(); {
-		c.translate(this.x + p.worldX + 40, this.y + p.worldY - 10);
-		if(this.armAttacking === "right") {
-			c.rotate(Math.rad(this.attackArm));
-		}
-		else {
-			c.rotate(Math.rad(60));
-		}
-		if(this.x + p.worldX < p.x && this.currentAction === "melee-attack") {
-			c.fillStyle = "rgb(139, 69, 19)";
-			c.fillPoly(
-				45, 0,
-				50, -70,
-				30, -70,
-				35, 0
-			);
-			c.fillCircle(40, -70, 10);
-		}
-		c.fillStyle = "rgb(0, 128, 0)";
-		c.fillCircle(0, -10, 5);
-		c.fillCircle(0, 10, 5);
-		c.fillCircle(50, -10, 5);
-		c.fillCircle(50, 10, 5);
-		c.fillRect(-5, -10, 60, 20);
-		c.fillRect(0, -15, 50, 30);
-	} c.restore();
-	/* left arm */
-	c.save(); {
-		c.translate(this.x + p.worldX - 40, this.y + p.worldY - 10);
-		if(this.armAttacking === "left") {
-			c.rotate(Math.rad(-this.attackArm));
-		}
-		else {
-			c.rotate(Math.rad(-60));
-		}
-		if(this.x + p.worldX > p.x && this.currentAction === "melee-attack") {
-			c.fillStyle = "rgb(139, 69, 19)";
-			c.fillPoly(
-				-45, 0,
-				-50, -70,
-				-30, -70,
-				-35, 0
-			);
-			c.fillCircle(-40, -70, 10);
-		}
-		c.fillStyle = "rgb(0, 128, 0)";
-		c.fillCircle(0, -10, 5);
-		c.fillCircle(0, 10, 5);
-		c.fillCircle(-50, -10, 5);
-		c.fillCircle(-50, 10, 5);
-		c.fillRect(-55, -10, 60, 20);
-		c.fillRect(-50, -15, 50, 30);
-	} c.restore();
+			/* left arm */
+			c.save(); {
+				c.translate(self.x + p.worldX - 40, self.y + p.worldY - 10);
+				if(self.armAttacking === "left") {
+					c.rotate(Math.rad(-self.attackArm));
+				}
+				else {
+					c.rotate(Math.rad(-60));
+				}
+				if(self.x + p.worldX > p.x && self.currentAction === "melee-attack") {
+					c.fillStyle = "rgb(139, 69, 19)";
+					c.fillPoly(
+						-45, 0,
+						-50, -70,
+						-30, -70,
+						-35, 0
+					);
+					c.fillCircle(-40, -70, 10);
+				}
+				c.fillStyle = "rgb(0, 128, 0)";
+				c.fillCircle(0, -10, 5);
+				c.fillCircle(0, 10, 5);
+				c.fillCircle(-50, -10, 5);
+				c.fillCircle(-50, 10, 5);
+				c.fillRect(-55, -10, 60, 20);
+				c.fillRect(-50, -15, 50, 30);
+			} c.restore();
+		},
+		1
+	));
 };
 Troll.prototype.update = function() {
 	/* animations */
@@ -8015,46 +8613,53 @@ function Dragonling(x, y) {
 };
 Dragonling.extends(Enemy);
 Dragonling.prototype.display = function() {
-	/* back wing */
-	c.fillStyle  = "rgb(0, 235, 0)";
-	var p1 = {x: this.pos[25].x + p.worldX, y: this.pos[25].y + p.worldY};
-	var slope = Math.normalize(this.pos[11].x - this.pos[5].x, this.pos[11].y - this.pos[5].y);
-	var p2 = graphics3D.point3D((slope.x * 15) + this.pos[25].x + p.worldX, (slope.y * 15) + this.pos[25].y + p.worldY, 0.9);
-	var p3 = graphics3D.point3D((-slope.x * 15) + this.pos[25].x + p.worldX, (-slope.y * 15) + this.pos[25].y + p.worldY, 0.9);
-	var p4 = graphics3D.point3D(p1.x, p1.y, 0.8);
-	c.fillPoly(p2, p4, p3, p1);
-	/* mouth */
-	c.fillStyle = "rgb(0, 255, 0)";
-	c.save(); {
-		c.translate(this.x + p.worldX, this.y + p.worldY);
-		c.rotate(Math.rad(this.rot));
-		c.fillPoly(
-			0, -10,
-			20, -20,
-			this.mouth, -50,
-			0, 10,
-			-this.mouth, -50,
-			-20, -20
-		);
-	} c.restore();
-	/* tail */
-	c.strokeStyle = "rgb(0, 255, 0)";
-	c.lineWidth = 5;
-	c.save(); {
-		c.translate(p.worldX, p.worldY);
-		c.strokeLine.apply(c, this.pos);
-	} c.restore();
-	/* update tail position */
-	this.pos.push({x: this.x, y: this.y});
-	if(this.pos.length > 30) {
-		this.pos.splice(0, 1);
-	}
-	/* front wing */
-	c.fillStyle = "rgb(20, 255, 20)";
-	var p2 = graphics3D.point3D((slope.x * 15) + this.pos[25].x + p.worldX, (slope.y * 15) + this.pos[25].y + p.worldY, 1.1);
-	var p3 = graphics3D.point3D((-slope.x * 15) + this.pos[25].x + p.worldX, (-slope.y * 15) + this.pos[25].y + p.worldY, 1.1);
-	var p4 = graphics3D.point3D(p1.x, p1.y, 1.2);
-	c.fillPoly(p2, p4, p3, p1);
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			/* back wing */
+			c.globalAlpha = Math.constrain(self.opacity, 0, 1);
+			c.fillStyle  = "rgb(0, 235, 0)";
+			var p1 = {x: self.pos[25].x + p.worldX, y: self.pos[25].y + p.worldY};
+			var slope = Math.normalize(self.pos[11].x - self.pos[5].x, self.pos[11].y - self.pos[5].y);
+			var p2 = graphics3D.point3D((slope.x * 15) + self.pos[25].x + p.worldX, (slope.y * 15) + self.pos[25].y + p.worldY, 0.9);
+			var p3 = graphics3D.point3D((-slope.x * 15) + self.pos[25].x + p.worldX, (-slope.y * 15) + self.pos[25].y + p.worldY, 0.9);
+			var p4 = graphics3D.point3D(p1.x, p1.y, 0.8);
+			c.fillPoly(p2, p4, p3, p1);
+			/* mouth */
+			c.fillStyle = "rgb(0, 255, 0)";
+			c.save(); {
+				c.translate(self.x + p.worldX, self.y + p.worldY);
+				c.rotate(Math.rad(self.rot));
+				c.fillPoly(
+					0, -10,
+					20, -20,
+					self.mouth, -50,
+					0, 10,
+					-self.mouth, -50,
+					-20, -20
+				);
+			} c.restore();
+			/* tail */
+			c.strokeStyle = "rgb(0, 255, 0)";
+			c.lineWidth = 5;
+			c.save(); {
+				c.translate(p.worldX, p.worldY);
+				c.strokeLine.apply(c, self.pos);
+			} c.restore();
+			/* update tail position */
+			self.pos.push({x: self.x, y: self.y});
+			if(self.pos.length > 30) {
+				self.pos.splice(0, 1);
+			}
+			/* front wing */
+			c.fillStyle = "rgb(20, 255, 20)";
+			var p2 = graphics3D.point3D((slope.x * 15) + self.pos[25].x + p.worldX, (slope.y * 15) + self.pos[25].y + p.worldY, 1.1);
+			var p3 = graphics3D.point3D((-slope.x * 15) + self.pos[25].x + p.worldX, (-slope.y * 15) + self.pos[25].y + p.worldY, 1.1);
+			var p4 = graphics3D.point3D(p1.x, p1.y, 1.2);
+			c.fillPoly(p2, p4, p3, p1);
+		},
+		1
+	));
 };
 Dragonling.prototype.update = function() {
 	/* move according to rotation */
@@ -8213,14 +8818,21 @@ var utilities = {
 			this.mouse.pressed = io.mouse.pressed;
 		}
 	},
-	frameCount: 0
+	frameCount: 0,
+
+	sortAscending: function(a, b) {
+		return a - b;
+	},
+	sortDescending: function(a, b) {
+		return b - a;
+	}
 };
 var graphics3D = {
 	point3D: function(x, y, z) {
 		/*
 		Returns the visual position of a point at 'x', 'y', 'z'
 		*/
-		return Math.scale(x, y, z, canvas.width / 2, canvas.height / 2);
+		return Math.scaleAboutPoint(x, y, canvas.width / 2, canvas.height / 2, z);
 	},
 	cube: function(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
 		/*
@@ -8247,33 +8859,67 @@ var graphics3D = {
 		var bottomLeftF = graphics3D.point3D(x, y + h, endDepth);
 		var bottomRightF = graphics3D.point3D(x + w, y + h, endDepth);
 		/* Top face */
-		c.fillStyle = settings.sideColors.top;
-		c.fillPoly(topLeftF, topRightF, topRightB, topLeftB);
-		/* Bottom face */
-		c.fillStyle = settings.sideColors.bottom;
-		c.fillPoly(bottomLeftF, bottomRightF, bottomRightB, bottomLeftB);
-		/* Left face */
-		c.fillStyle = settings.sideColors.left;
-		c.fillPoly(topLeftF, bottomLeftF, bottomLeftB, topLeftB);
-		/* Right face */
-		c.fillStyle = settings.sideColors.right;
-		c.fillPoly(topRightF, bottomRightF, bottomRightB, topRightB);
+		game.dungeon[game.theRoom].beginRenderingGroup(); {
+			game.dungeon[game.theRoom].render(
+				new RenderingOrderShape(
+					"polygon",
+					[ topLeftF, topRightF, topRightB, topLeftB ],
+					settings.sideColors.top,
+					startDepth
+				)
+			);
+			/* Bottom face */
+			game.dungeon[game.theRoom].render(
+				new RenderingOrderShape(
+					"polygon",
+					[ bottomLeftF, bottomRightF, bottomRightB, bottomLeftB ],
+					settings.sideColors.bottom,
+					startDepth
+				)
+			);
+			/* Left face */
+			game.dungeon[game.theRoom].render(
+				new RenderingOrderShape(
+					"polygon",
+					[ topLeftF, bottomLeftF, bottomLeftB, topLeftB ],
+					settings.sideColors.left,
+					startDepth
+				)
+			);
+			/* Right face */
+			game.dungeon[game.theRoom].render(
+				new RenderingOrderShape(
+					"polygon",
+					[ topRightF, bottomRightF, bottomRightB, topRightB ],
+					settings.sideColors.right,
+					startDepth
+				)
+			);
+		} game.dungeon[game.theRoom].endRenderingGroup();
+		/* Front face */
 		if(!settings.noFrontExtended) {
-			/* Front face */
-			graphics3D.boxFronts.push({
-				type: "rect",
-				col: frontCol,
-				loc: [topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y]
-			});
+			game.dungeon[game.theRoom].render(
+				new RenderingOrderShape(
+					"rect",
+					{
+						x: topLeftF.x,
+						y: topLeftF.y,
+						w: bottomRightF.x - topLeftF.x,
+						h: bottomRightF.y - topLeftF.y
+					},
+					frontCol,
+					endDepth
+				)
+			);
 		}
 		else {
 			c.fillStyle = frontCol;
 			c.fillRect(topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y);
 		}
 	},
-	line3D: function(x1, y1, x2, y2, startDepth, endDepth, col) {
+	plane3D: function(x1, y1, x2, y2, startDepth, endDepth, col) {
 		/*
-		Draws a line (really more like a plane) extending the line between ('x1', 'y1') and ('x2', 'y2') from 'startDepth' to 'endDepth' with a color of 'col'.
+		Draws a plane extending the line between ('x1', 'y1') and ('x2', 'y2') from 'startDepth' to 'endDepth' with a color of 'col'.
 		*/
 		var p1 = graphics3D.point3D(x1, y1, startDepth);
 		var p2 = graphics3D.point3D(x1, y1, endDepth);
@@ -8281,6 +8927,22 @@ var graphics3D = {
 		var p4 = graphics3D.point3D(x2, y2, startDepth);
 		c.fillStyle = col;
 		c.fillPoly(p1, p2, p3, p4);
+	},
+	line3D: function(x1, y1, z1, x2, y2, z2) {
+		var point1 = this.point3D(x1, y1, z1);
+		var point2 = this.point3D(x2, y2, z2);
+		var lineWidth = c.lineWidth;
+		var strokeStyle = c.strokeStyle;
+		game.dungeon[game.theRoom].render(
+			new RenderingOrderObject(
+				function() {
+					c.lineWidth = lineWidth;
+					c.strokeStyle = strokeStyle;
+					c.strokeLine(point1.x, point1.y, point2.x, point2.y);
+				},
+				Math.min(z1, z2)
+			)
+		);
 	},
 	polygon3D: function(frontCol, sideCol, startDepth, endDepth, points, settings) {
 		/*
@@ -8301,13 +8963,58 @@ var graphics3D = {
 		}
 		/* side faces */
 		c.fillStyle = sideCol;
-		for(var i = 0; i < frontVertices.length; i ++) {
-			var next = (i === frontVertices.length - 1) ? 0 : i + 1;
-			c.fillPoly(frontVertices[i], frontVertices[next], backVertices[next], backVertices[i]);
-		}
+		game.dungeon[game.theRoom].beginRenderingGroup(); {
+			for(var i = 0; i < frontVertices.length; i ++) {
+				var next = (i === frontVertices.length - 1) ? 0 : i + 1;
+				game.dungeon[game.theRoom].render(
+					new RenderingOrderShape(
+						"polygon",
+						[frontVertices[i], frontVertices[next], backVertices[next], backVertices[i]],
+						sideCol,
+						startDepth
+					)
+				);
+			}
+		} game.dungeon[game.theRoom].endRenderingGroup();
 		/* front face */
-		c.fillStyle = frontCol;
-		c.fillPoly(frontVertices);
+		game.dungeon[game.theRoom].render(
+			new RenderingOrderShape(
+				"polygon",
+				frontVertices,
+				frontCol,
+				endDepth,
+			)
+		);
+	},
+	polyhedron: function(color, points) {
+		/*
+		Not really a polyhedron. It just connects the (3d) points in order.
+		*/
+		var farthestBackPoint = Infinity;
+		for(var i = 0; i < points.length; i ++) {
+			if(points[i].z < farthestBackPoint) {
+				farthestBackPoint = points[i].z;
+			}
+		}
+		game.dungeon[game.theRoom].render(
+			new RenderingOrderObject(
+				function() {
+					c.fillStyle = color;
+					c.beginPath();
+					for(var i = 0; i < points.length; i ++) {
+						var location = graphics3D.point3D(points[i].x, points[i].y, points[i].z);
+						if(i === 0) {
+							c.moveTo(location.x, location.y);
+						}
+						else {
+							c.lineTo(location.x, location.y);
+						}
+					}
+					c.fill();
+				},
+				farthestBackPoint
+			)
+		);
 	},
 
 	cutoutPolygon: function(frontCol, sideCol, startDepth, endDepth, points) {
@@ -8325,14 +9032,24 @@ var graphics3D = {
 			back.push(graphics3D.point3D(points[i].x, points[i].y, endDepth));
 		}
 		c.save(); {
-			c.beginPath();
-			c.polygon(front);
-			c.clip();
-			c.fillStyle = sideCol;
-			for(var i = 0; i < points.length; i ++) {
-				var next = (i === points.length - 1) ? 0 : i + 1;
-				c.fillPoly(front[i], front[next], back[next], back[i]);
-			}
+			game.dungeon[game.theRoom].setRenderingStyle(function() {
+				c.beginPath();
+				c.polygon(front);
+				c.clip();
+			});
+			game.dungeon[game.theRoom].beginRenderingGroup(); {
+				for(var i = 0; i < points.length; i ++) {
+					var next = (i === points.length - 1) ? 0 : i + 1;
+					game.dungeon[game.theRoom].render(new RenderingOrderShape(
+						"polygon",
+						[ front[i], front[next], back[next], back[i] ],
+						sideCol,
+						endDepth
+					))
+					// c.fillPoly(front[i], front[next], back[next], back[i]);
+				}
+			} game.dungeon[game.theRoom].endRenderingGroup();
+			game.dungeon[game.theRoom].clearRenderingStyle();
 		} c.restore();
 	},
 	cutoutRect: function(x, y, w, h, frontCol, sideCol, startDepth, endDepth) {
@@ -8437,11 +9154,15 @@ var debugging = {
 	This object provides methods + properties so that you can disable certain aspects of the game for manual testing + debugging.
 	*/
 	hitboxes: [],
+	timeOfLastCall: 0,
+	frameOfLastCall: 0,
+	fps: 0,
 
 	activateDebuggingSettings: function() {
 		p.onScreen = "play";
 		/* override randomizer for room generation */
-		var includedRooms = ["ambient5", "reward3"];
+		var includedRooms = ["combat1", "reward4"];
+		// debugger;
 		for(var i = 0; i < game.rooms.length; i ++) {
 			if(!includedRooms.includes(game.rooms[i].name)) {
 				game.rooms.splice(i, 1);
@@ -8449,19 +9170,70 @@ var debugging = {
 				continue;
 			}
 		}
-		// game.items = [Barricade];
-		game.enemies = [Table];
+		game.items = [Sword];
+		game.enemies = [Dragonling];
+		/* load different rooms to override the first room */
+		function loadRoom(id) {
+			game.dungeon = [];
+			for(var i = 0; i < game.rooms.length; i ++) {
+				if(game.rooms[i].name === id) {
+					game.rooms[i].add();
+					var room = game.dungeon[0];
+					for(var j = 0; j < room.content.length; j ++) {
+						var object = room.content[j];
+						if(object instanceof Door) {
+							p.x = object.x + p.worldX;
+							p.y = object.y + p.worldY - 46;
+						}
+					}
+					room.colorScheme = ["red", "green", "blue"].randomItem();
+					break;
+				}
+			}
+		};
+		loadRoom("combat1");
 		/* change doors in first room */
 		for(var i = 0; i < game.dungeon[0].content.length; i ++) {
 			if(game.dungeon[0].content[i] instanceof Door) {
-				// game.dungeon[0].content[i].dest = ["reward"];
+				game.dungeon[0].content[i].dest = ["reward"];
 			}
 		}
 		/* give player items */
 		p.class = "mage";
 		for(var i = 0; i < game.items.length; i ++) {
-			p.addItem(new game.items[i]());
+			// p.addItem(new game.items[i]());
 		}
+		p.addItem(new WoodBow());
+		p.addItem(new EnergyStaff());
+		p.addItem(new Arrow(Infinity));
+	},
+	drawPoint: function() {
+		/* Puts a point at the location. (Used for visualizing graphic functions) */
+		c.save(); {
+			c.fillStyle = "rgb(255, 0, 0)";
+			var size = Math.sin(utilities.frameCount / 10) * 5 + 5;
+			if(typeof arguments[0] === "number") {
+				c.fillCircle(arguments[0], arguments[1], size);
+			}
+			else {
+				c.fillCircle(arguments[0].x, arguments[0].y, size);
+			}
+		} c.restore();
+	},
+	calculateFPS: function() {
+		var timeNow = new Date().getTime();
+		var timePassed = timeNow - this.timeOfLastCall;
+		var framesNow = utilities.frameCount;
+		var framesPassed = framesNow - this.frameOfLastCall;
+		this.fps = Math.round(framesPassed / timePassed * 1000);
+
+		this.timeOfLastCall = timeNow;
+		this.frameOfLastCall = framesNow;
+	},
+	displayFPS: function() {
+		c.fillStyle = "rgb(255, 255, 255)";
+		c.textAlign = "left";
+		c.fillText(this.fps + " fps", 0, 10);
 	}
 };
 var game = {
@@ -8646,7 +9418,7 @@ var game = {
 							new Block(900, -1000, 1000, 2000), //right wall,
 							new Door(100, 500, ["ambient", "combat", "parkour"]),
 							new Door(800, 500, ["ambient", "combat", "parkour"]),
-							new LightRay(200, 500),
+							new LightRay(200, 500, 500),
 							new Tree(450, 500),
 							new Block(-300, 0, 500, 100), //left roof,
 							new Block(700, 0, 500, 100), //right roof
@@ -8689,10 +9461,10 @@ var game = {
 					for(var i = 0; i < game.rooms.length; i ++) {
 						if(game.rooms[i].name === "combat3") {
 							game.rooms[i].add();
-							break;
+							return;
 						}
 					}
-					return;
+					throw new Error("Player has all items in game and default room was not available");
 				}
 				game.dungeon.push(
 					new Room(
@@ -8714,39 +9486,39 @@ var game = {
 			}
 		},
 		/* library room */
-		{
-			name: "secret2",
-			difficulty: 1,
-			extraDoors: 1,
-			add: function() {
-				game.dungeon.push(
-					new Room(
-						"secret3",
-						[
-							new Block(-4000, 0, 8000, 1000), //floor
-							new Block(500, -4000, 1000, 8000), //right wall
-							new Block(-1500, -4000, 1000, 8000), //left wall
-							new Door(-220, 0, ["ambient"]),
-							new Door(220, 0, ["ambient"]),
-							new BookShelf(-380, 0),
-							new BookShelf(380, 0),
-							new Chandelier(0, -300),
-							new Table(0, 0),
-							new Chair(-100, 0, "right"),
-							new Chair(100, 0, "left"),
-							new Block(220, -700, 1000, 300),
-							new Block(-1220, -700, 1000, 300),
-							new Block(220, -1300, 1000, 300),
-							new Block(-1220, -1300, 1000, 300),
-							new Door(400, -700, ["reward"], "no entries"),
-							new Door(-400, -700, ["reward"], "no entries")
-						],
-						"?"
-					)
-				);
-				game.dungeon[game.dungeon.length - 1].colorScheme = "red";
-			}
-		},
+		// {
+		// 	name: "secret2",
+		// 	difficulty: 1,
+		// 	extraDoors: 1,
+		// 	add: function() {
+		// 		game.dungeon.push(
+		// 			new Room(
+		// 				"secret3",
+		// 				[
+		// 					new Block(-4000, 0, 8000, 1000), //floor
+		// 					new Block(500, -4000, 1000, 8000), //right wall
+		// 					new Block(-1500, -4000, 1000, 8000), //left wall
+		// 					new Door(-220, 0, ["ambient"]),
+		// 					new Door(220, 0, ["ambient"]),
+		// 					new BookShelf(-380, 0),
+		// 					new BookShelf(380, 0),
+		// 					new Chandelier(0, -300),
+		// 					new Table(0, 0),
+		// 					new Chair(-100, 0, "right"),
+		// 					new Chair(100, 0, "left"),
+		// 					new Block(220, -700, 1000, 300),
+		// 					new Block(-1220, -700, 1000, 300),
+		// 					new Block(220, -1300, 1000, 300),
+		// 					new Block(-1220, -1300, 1000, 300),
+		// 					new Door(400, -700, ["reward"], "no entries"),
+		// 					new Door(-400, -700, ["reward"], "no entries")
+		// 				],
+		// 				"?"
+		// 			)
+		// 		);
+		// 		game.dungeon[game.dungeon.length - 1].colorScheme = "red";
+		// 	}
+		// },
 		/* basic combat room */
 		{
 			name: "combat1",
@@ -9184,7 +9956,7 @@ var game = {
 	],
 
 	inRoom: 0,
-	theRoom: null,
+	theRoom: 0,
 	numRooms: 0,
 
 	exist: function() {
@@ -9197,7 +9969,9 @@ var game = {
 			game.inRoom = 0;
 			game.theRoom = 0;
 			p.update();
+			game.dungeon[0].renderingObjects = [];
 			game.dungeon[0].exist(0);
+			game.dungeon[0].display();
 
 			c.fillStyle = "rgb(255, 255, 255)";
 			c.font = "100 20px Germania One";
@@ -9257,6 +10031,7 @@ var game = {
 				else if(game.tutorial.infoText === "that's all you need to know. good luck!") {
 					game.tutorial.infoText = "that's all you need to know. good luck!";
 					game.transitions.dir = "fade-out";
+					game.transitions.color = "rgb(0, 0, 0)";
 					game.transitions.nextScreen = "home";
 				}
 			}
@@ -9315,7 +10090,15 @@ var game = {
 	transitions: {
 		dir: null, // can be "fade-in" or "fade-out"
 		opacity: 0,
-		nextScreen: null
+		color: "rgb(0, 0, 0)",
+		nextScreen: null,
+
+		isTransitioning: function() {
+			return (this.opacity !== 0 || this.dir !== null);
+		},
+		onScreenChange: function() {
+
+		}
 	}
 };
 var ui = {
@@ -9324,7 +10107,10 @@ var ui = {
 			graphics3D.boxFronts = [];
 			p.worldX = 0;
 			p.worldY = 0;
+			game.inRoom = 0;
+			game.dungeon = [new Room(null, [])];
 			new Block(-100, 600, 1000, 200).display();
+			game.dungeon[0].display();
 			/* title */
 			c.fillStyle = "rgb(0, 0, 0)";
 			c.font = "80px Cursive";
@@ -9350,29 +10136,32 @@ var ui = {
 			125, 440, 170, 140,
 			"H o w",
 			function() {
-				p.reset();
-				p.clearInventory();
-				game.dungeon = [new Room(
-					"tutorial",
-					[
-						new Block(-4000, 400, 8000, 1000), /* floor */
-						new Block(-4000, -4000, 4400, 8000), /* left wall */
-						new MovingWall(400, -4000, 300, 4400),
-						new MovingWall(1100, -4000, 300, 4300, 1.1),
-						new Block(700, 300, 1000, 1000), /* higher floor */
-						new Chest(900, 300),
-						new Spider(1600, 200),
-						new Block(1700, -4000, 1000, 8000) /* far right wall */
-					],
-					"?"
-				)];
-				game.tutorial.infoText = "arrow keys to move, up to jump";
-				game.inRoom = 0, game.theRoom = 0;
+				game.transitions.onScreenChange = function() {
+					p.reset();
+					p.clearInventory();
+					game.dungeon = [new Room(
+						"tutorial",
+						[
+							new Block(-4000, 400, 8000, 1000), /* floor */
+							new Block(-4000, -4000, 4400, 8000), /* left wall */
+							new MovingWall(400, -4000, 300, 4400),
+							new MovingWall(1100, -4000, 300, 4300, 1.1),
+							new Block(700, 300, 1000, 1000), /* higher floor */
+							new Chest(900, 300),
+							new Spider(1600, 200),
+							new Block(1700, -4000, 1000, 8000) /* far right wall */
+						],
+						"?"
+					)];
+					game.tutorial.infoText = "arrow keys to move, up to jump";
+					game.inRoom = 0, game.theRoom = 0;
+					p.addItem(new Sword());
+					p.invSlots[3].content = new EnergyStaff();
+					p.invSlots[17].content = new Arrow(Infinity);
+				};
 				game.transitions.dir = "fade-out";
+				game.transitions.color = "rgb(0, 0, 0)";
 				game.transitions.nextScreen = "how";
-				p.addItem(new Sword());
-				p.invSlots[3].content = new EnergyStaff();
-				p.invSlots[17].content = new Arrow(Infinity);
 			},
 			{
 				textY: 490,
@@ -9386,6 +10175,7 @@ var ui = {
 				game.inRoom = 0;
 				game.theRoom = 0;
 				game.transitions.dir = "fade-out";
+				game.transitions.color = "rgb(0, 0, 0)";
 				game.transitions.nextScreen = "class-select";
 			},
 			{
@@ -9398,6 +10188,7 @@ var ui = {
 			"S c o r e s",
 			function() {
 				game.transitions.dir = "fade-out";
+				game.transitions.color = "rgb(0, 0, 0)";
 				game.transitions.nextScreen = "scores";
 			},
 			{
@@ -9410,12 +10201,19 @@ var ui = {
 		display: function() {
 			io.keys = [];
 			graphics3D.boxFronts = [];
-			/* ground */
+			/* buttons */
+			game.inRoom = 0;
+			game.dungeon = [new Room(null, [])];
+			game.dungeon[game.inRoom].renderingObjects = [];
 			new Block(-100, 600, 1000, 200).display();
+			this.warriorButton.displayPlatform();
+			this.archerButton.displayPlatform();
+			this.mageButton.displayPlatform();
+			this.warriorButton.displayStickFigure();
+			this.archerButton.displayStickFigure();
+			this.mageButton.displayStickFigure();
+			game.dungeon[game.inRoom].display();
 			/* archer */
-			this.warriorButton.display();
-			this.archerButton.display();
-			this.mageButton.display();
 			/* mage */
 			c.fillStyle = "rgb(150, 150, 150)";
 			c.font = "bolder 40px Arial black";
@@ -9478,7 +10276,11 @@ var ui = {
 			c.fillText("You were killed by " + p.deathCause, 400, 420);
 			p.worldX = 0;
 			p.worldY = 0;
+			game.dungeon = [new Room()];
+			game.theRoom = 0;
+			game.inRoom = 0;
 			new Block(-100, 700, 1000, 200).display();
+			game.dungeon[0].display();
 
 			this.homeButton.display();
 			this.retryButton.display();
@@ -9492,6 +10294,7 @@ var ui = {
 			175, 570, 150, 100, "H o m e",
 			function() {
 				game.transitions.dir = "fade-out";
+				game.transitions.color = "rgb(0, 0, 0)";
 				game.transitions.nextScreen = "home";
 			},
 			{
@@ -9503,6 +10306,7 @@ var ui = {
 			625, 570, 150, 100, "R e t r y",
 			function() {
 				game.transitions.dir = "fade-out";
+				game.transitions.color = "rgb(0, 0, 0)";
 				game.transitions.nextScreen = "class-select";
 			},
 			{
@@ -9572,6 +10376,7 @@ var ui = {
 			"H o m e",
 			function() {
 				game.transitions.dir = "fade-out";
+				game.transitions.color = "rgb(0, 0, 0)";
 				game.transitions.nextScreen = "home";
 			},
 			{
@@ -9945,30 +10750,49 @@ function RisingPlatformButton(x, y, w, h, player, settings) {
 	this.offsetY = 0;
 };
 RisingPlatformButton.prototype.display = function() {
+	this.displayPlatform();
+	this.displayStickFigure();
+};
+RisingPlatformButton.prototype.displayPlatform = function() {
 	new Block(this.x - (this.w / 2), this.y + this.offsetY, this.w, this.h).display();
+};
+RisingPlatformButton.prototype.displayStickFigure = function() {
 	var stickFigure = new Player();
 	stickFigure.x = this.x;
 	stickFigure.y = this.y + this.offsetY - 46;
 	if(this.player === "warrior") {
-		stickFigure.display(true, true);
-		c.save(); {
-			c.translate(this.x + 15, this.y + this.offsetY - 30);
-			c.scale(1, 0.65);
-			c.rotate(Math.rad(180));
-			new Sword().display("attacking");
-		} c.restore();
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				stickFigure.display(true, true);
+				c.translate(this.x + 15, this.y + this.offsetY - 30);
+				c.scale(1, 0.65);
+				c.rotate(Math.rad(180));
+				new Sword().display("attacking");
+			},
+			1
+		));
 	}
 	else if(this.player === "archer") {
-		stickFigure.aiming = true;
-		stickFigure.attackingWith = new WoodBow();
-		stickFigure.aimRot = 45;
-		stickFigure.display(true);
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				stickFigure.aiming = true;
+				stickFigure.attackingWith = new WoodBow();
+				stickFigure.aimRot = 45;
+				stickFigure.display(true);
+			},
+			1
+		));
 	}
 	else if(this.player === "mage") {
-		stickFigure.aiming = true;
-		stickFigure.attackingWith = new EnergyStaff();
-		stickFigure.facing = "left";
-		stickFigure.display(true);
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				stickFigure.aiming = true;
+				stickFigure.attackingWith = new EnergyStaff();
+				stickFigure.facing = "left";
+				stickFigure.display(true);
+			},
+			1
+		));
 	}
 };
 RisingPlatformButton.prototype.update = function() {
@@ -9977,11 +10801,14 @@ RisingPlatformButton.prototype.update = function() {
 			this.offsetY -= 5;
 		}
 		if(io.mouse.pressed) {
-			// this.onclick();
-			p.class = this.player;
+			var self = this;
+			game.transitions.onScreenChange = function() {
+				p.class = self.player;
+				p.reset();
+			};
 			game.transitions.dir = "fade-out";
+			game.transitions.color = "rgb(0, 0, 0)";
 			game.transitions.nextScreen = "play";
-			p.reset();
 		}
 	}
 	else if(this.offsetY < 0) {
@@ -10037,8 +10864,9 @@ TextButton.prototype.update = function() {
 /** FRAMES **/
 function timer() {
 	if(TESTING_MODE) {
-		p.health = p.maxHealth;
+		// p.health = p.maxHealth;
 	}
+	c.globalAlpha = 1;
 	io.cursor = "auto";
 	utilities.frameCount ++;
 	utilities.resizeCanvas();
@@ -10046,6 +10874,7 @@ function timer() {
 	c.fillCanvas();
 
 	if(p.onScreen === "play") {
+		game.dungeon[game.theRoom].renderingObjects = [];
 		/* load enemies in other rooms */
 		var unseenEnemy = false;
 		for(var i = 0; i < game.dungeon.length; i ++) {
@@ -10070,10 +10899,41 @@ function timer() {
 		}
 
 		/* move player into lower room when falling */
-		if(p.y + 46 > 900) {
-			p.fallDir = 0.05;
+		if(p.y + 46 > 900 && !game.transitions.isTransitioning()) {
+			game.transitions.dir = "fade-out";
+			game.transitions.color = "rgb(0, 0, 0)";
+			game.transitions.onScreenChange = function() {
+				p.roomsExplored ++;
+				p.fallDir = -0.05;
+				game.inRoom = game.numRooms;
+				p.worldX = 0;
+				p.worldY = 0;
+				p.x = 500;
+				p.y = -100;
+				p.velY = 2;
+				p.fallDmg = Math.round(Math.random() * 10 + 40);
+				game.dungeon.push(
+					new Room(
+						"ambient1",
+						[
+							new Pillar(200, 500, Math.random() * 100 + 200),
+							new Pillar(400, 500, Math.random() * 100 + 200),
+							new Pillar(600, 500, Math.random() * 100 + 200),
+							new Pillar(800, 500, Math.random() * 100 + 200),
+							new Block(-200, 500, 2000, 600),//floor
+							new Block(-600, -1200, 700, 3000), //left wall
+							new Block(900, -1200, 500, 3000), //right wall
+							new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
+							new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
+							new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
+						],
+						"?"
+					)
+				);
+			};
 		}
 
+		game.dungeon[game.inRoom].display();
 		game.dungeon[game.inRoom].displayShadowEffect();
 
 		p.display();
@@ -10105,18 +10965,30 @@ function timer() {
 		game.transitions.opacity += 0.05;
 		if(game.transitions.opacity >= 1) {
 			game.transitions.dir = "fade-in";
-			p.onScreen = game.transitions.nextScreen;
+			if(game.transitions.nextScreen !== null) {
+				p.onScreen = game.transitions.nextScreen;
+			}
+			console.log("changing screen");
+			if(typeof game.transitions.onScreenChange === "function") {
+				game.transitions.onScreenChange();
+			}
+			game.transitions.onScreenChange = null;
 		}
 	}
 	else if(game.transitions.dir === "fade-in") {
 		game.transitions.opacity -= 0.05;
 		if(game.transitions.opacity <= 0) {
 			game.transitions.dir = null;
+			if(p.enteringDoor) {
+				p.enteringDoor = false;
+				p.exitingDoor = true;
+			}
 		}
 	}
+	game.transitions.opacity = Math.constrain(game.transitions.opacity, 0, 1);
 	c.save(); {
-		c.globalAlpha = Math.max(game.transitions.opacity, 0);
-		c.fillStyle = "rgb(0, 0, 0)";
+		c.globalAlpha = game.transitions.opacity;
+		c.fillStyle = game.transitions.color;
 		c.fillRect(0, 0, canvas.width, canvas.height);
 	} c.restore();
 
@@ -10124,6 +10996,12 @@ function timer() {
 		(new Room()).displayShadowEffect();
 	}
 
+	if(TESTING_MODE) {
+		debugging.displayFPS();
+		if(utilities.frameCount % 10 === 0) {
+			debugging.calculateFPS();
+		}
+	}
 	utilities.pastInputs.update();
 	document.body.style.cursor = io.cursor;
 	window.setTimeout(timer, 1000 / FPS);
