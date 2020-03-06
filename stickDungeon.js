@@ -8,7 +8,17 @@ const TESTING_MODE = false;
 const SHOW_HITBOXES = false;
 
 /* utilities */
-CanvasRenderingContext2D.prototype.line = function() {
+Function.prototype.method = function(name, code) {
+	this.prototype[name] = code;
+	return this;
+};
+Function.method("extends", function(superclass) {
+	/* copy prototype to inherit methods */
+	this.prototype = Object.create(superclass.prototype);
+	this.prototype.constructor = this;
+	return this;
+});
+CanvasRenderingContext2D.method("line", function() {
 	/*
 	Can be used to draw a line or a series of lines.
 
@@ -19,7 +29,7 @@ CanvasRenderingContext2D.prototype.line = function() {
 	*/
 	if(Array.isArray(arguments[0])) {
 		/* assume the input is an array of objects */
-		this.polygon.apply(this, arguments[0]);
+		this.line.apply(this, arguments[0]);
 	}
 	else if(typeof arguments[0] === "object") {
 		/* assume each of the arguments is an object */
@@ -35,29 +45,29 @@ CanvasRenderingContext2D.prototype.line = function() {
 			this.lineTo(arguments[i], arguments[i + 1]);
 		}
 	}
-};
-CanvasRenderingContext2D.prototype.strokeLine = function() {
+});
+CanvasRenderingContext2D.method("strokeLine", function() {
 	/*
 	Can be used to stroke a line or a series of lines. Similar to polygon() but it doesn't automatically close the path (and it outlines the path).
 	*/
 	this.beginPath();
 	this.line.apply(this, arguments);
 	this.stroke();
-};
-CanvasRenderingContext2D.prototype.polygon = function() {
+});
+CanvasRenderingContext2D.method("polygon", function() {
 	/* draw lines connecting all vertices + close path to form polygon */
 	this.line.apply(this, arguments);
 	this.closePath();
-};
-CanvasRenderingContext2D.prototype.fillPoly = function() {
+});
+CanvasRenderingContext2D.method("fillPoly", function() {
 	/*
 	Arguments can be objects with 'x' and 'y' properties or numbers with each argument being either the x or the y, starting with x.
 	*/
 	this.beginPath();
 	this.polygon.apply(this, arguments);
 	this.fill();
-};
-CanvasRenderingContext2D.prototype.fillPolyWithoutOrder = function() {
+});
+CanvasRenderingContext2D.method("fillPolyWithoutOrder", function() {
 	/*
 	This function is for when you are unsure of whether the order of the points in the polygon is correct. It will draw the polygon correctly regardless of the order of the points, at the cost of being slightly slower.
 	*/
@@ -85,46 +95,56 @@ CanvasRenderingContext2D.prototype.fillPolyWithoutOrder = function() {
 			}
 		}
 	}
-};
-CanvasRenderingContext2D.prototype.strokePoly = function() {
+});
+CanvasRenderingContext2D.method("strokePoly", function() {
 	this.beginPath();
 	this.polygon.apply(this, arguments);
 	this.stroke();
-};
-CanvasRenderingContext2D.prototype.fillCircle = function(x, y, r) {
+});
+CanvasRenderingContext2D.method("fillCircle", function(x, y, r) {
 	this.beginPath();
-	this.arc(x, y, r, 0, 2 * Math.PI);
+	this.circle(x, y, r);
 	this.fill();
-};
-CanvasRenderingContext2D.prototype.strokeCircle = function(x, y, r) {
+});
+CanvasRenderingContext2D.method("strokeCircle", function(x, y, r) {
 	this.beginPath();
-	this.arc(x, y, r, 0, 2 * Math.PI);
+	this.circle(x, y, r);
 	this.stroke();
-};
-CanvasRenderingContext2D.prototype.circle = function(x, y, r) {
-	this.arc(x, y, r, 0, 2 * Math.PI);
-};
-CanvasRenderingContext2D.prototype.fillArc = function(x, y, r, start, end, antiClockwise) {
+});
+CanvasRenderingContext2D.method("circle", function(x, y, r) {
+	this.arc(x, y, r, 0, Math.TWO_PI);
+});
+CanvasRenderingContext2D.method("fillArc", function(x, y, r, start, end, connectToCenter) {
 	/*
 	Unlike strokeArc(), this function draws an arc like a pie shape instead of an arc outline.
 	*/
 	this.beginPath();
-	this.moveTo(x, y);
-	this.arc(x, y, r, start, end, antiClockwise);
-	this.closePath();
+	if(connectToCenter) {
+		this.moveTo(x, y);
+	}
+	this.arc(x, y, r, start, end);
+	if(connectToCenter) {
+		this.closePath();
+	}
 	this.fill();
-};
-CanvasRenderingContext2D.prototype.strokeArc = function(x, y, r, start, end, antiClockwise) {
+});
+CanvasRenderingContext2D.method("strokeArc", function(x, y, r, start, end, connectToCenter) {
 	this.beginPath();
-	this.arc(x, y, r, start, end, antiClockwise);
+	if(connectToCenter) {
+		this.moveTo(x, y);
+	}
+	this.arc(x, y, r, start, end);
+	if(connectToCenter) {
+		this.closePath();
+	}
 	this.stroke();
-};
-CanvasRenderingContext2D.prototype.clipRect = function(x, y, w, h) {
+});
+CanvasRenderingContext2D.method("clipRect", function(x, y, w, h) {
 	this.beginPath();
 	this.rect(x, y, w, h);
 	this.clip();
-};
-CanvasRenderingContext2D.prototype.invertPath = function() {
+});
+CanvasRenderingContext2D.method("invertPath", function() {
 	/*
 	Inverts the canvas path. Drawing a line on each of the canvas boundaries will, for any point on the canvas, increase the number of lines crossed by 1. When using the "evenodd" fill rule, this will toggle whether the point is in the path or not.
 
@@ -137,17 +157,20 @@ CanvasRenderingContext2D.prototype.invertPath = function() {
 	this.lineTo(8000, 8000);
 	this.lineTo(-8000, 8000);
 	this.lineTo(-8000, -8000);
-};
-CanvasRenderingContext2D.prototype.fillCanvas = function() {
+});
+CanvasRenderingContext2D.method("fillCanvas", function(color) {
 	/*
 	Fills the entire canvas with the current fillStyle.
 	*/
 	this.save();
 	this.resetTransform();
+	if(typeof color === "string") {
+		this.fillStyle = color;
+	}
 	this.fillRect(0, 0, this.canvas.width, this.canvas.height);
 	this.restore();
-};
-CanvasRenderingContext2D.prototype.reset = function() {
+});
+CanvasRenderingContext2D.method("reset", function() {
 	this.resetTransform();
 	this.fillStyle = "rgb(0, 0, 0)";
 	this.strokeStyle = "rgb(0, 0, 0)";
@@ -155,11 +178,11 @@ CanvasRenderingContext2D.prototype.reset = function() {
 	this.lineWidth = 1;
 	this.globalAlpha = 1;
 	this.textAlign = "start";
-};
-CanvasRenderingContext2D.prototype.resetTransform = function() {
+});
+CanvasRenderingContext2D.method("resetTransform", function() {
 	this.setTransform(1, 0, 0, 1, 0, 0);
-};
-CanvasRenderingContext2D.prototype.displayTextOverLines = function(text, x, y, maxWidth, lineSpacing) {
+});
+CanvasRenderingContext2D.method("displayTextOverLines", function(text, x, y, maxWidth, lineSpacing) {
 	var test = c.globalAlpha;
 	lineSpacing = lineSpacing || 15;
 	var lines = [text];
@@ -196,12 +219,21 @@ CanvasRenderingContext2D.prototype.displayTextOverLines = function(text, x, y, m
 			return y + (i * lineSpacing);
 		}
 	}
-};
+});
+Math.TWO_PI = Math.PI * 2;
 Math.dist = function(x1, y1, x2, y2) {
 	/*
 	Returns the distance between ('x1', 'y1') and ('x2', 'y2')
 	*/
-	return Math.hypot(x1 - x2, y1 - y2);
+	if(arguments.length === 2) {
+		return Math.abs(arguments[0] - arguments[1]);
+	}
+	else if(arguments.length === 4) {
+		return Math.hypot(x1 - x2, y1 - y2);
+	}
+	else {
+		throw new Error("Math.dist() must be called with 2 or 4 arguments.")
+	}
 };
 Math.distSq = function(x1, y1, x2, y2) {
 	/*
@@ -212,6 +244,19 @@ Math.distSq = function(x1, y1, x2, y2) {
 Math.constrain = function(num, min, max) {
 	num = Math.min(num, max);
 	num = Math.max(num, min);
+	return num;
+};
+Math.modulateIntoRange = function(num, min, max) {
+	/*
+	Adds or subtracts the range repeatedly until the number is within the range.
+	*/
+	var range = max - min;
+	while(num < min) {
+		num += range;
+	}
+	while(num > max) {
+		num -= range;
+	}
 	return num;
 };
 Math.normalize = function(x, y) {
@@ -229,6 +274,9 @@ Math.rad = function(deg) {
 	Convert 'deg' degrees to radians.
 	*/
 	return deg / 180 * Math.PI;
+};
+Math.deg = function(rad) {
+	return rad / Math.PI * 180;
 };
 Math.map = function(value, min1, max1, min2, max2) {
 	/*
@@ -352,7 +400,7 @@ Math.findPointsLinear = function(x1, y1, x2, y2) {
 	*/
 	var inverted = false;
 	/* Swap x's and y's if the line is closer to vertical than horizontal */
-	if(Math.abs(x1 - x2) < Math.abs(y1 - y2)) {
+	if(Math.dist(x1, x2) < Math.dist(y1, y2)) {
 		inverted = true;
 		var oldX1 = x1;
 		x1 = y1;
@@ -362,7 +410,7 @@ Math.findPointsLinear = function(x1, y1, x2, y2) {
 		y2 = oldX2;
 	}
 	/* Calculate line slope */
-	var m = Math.abs(y1 - y2) / Math.abs(x1 - x2);
+	var m = Math.dist(y1, y2) / Math.dist(x1, x2);
 	/* Find points on line */
 	var linearPoints = [];
 	if(x1 < x2) {
@@ -428,21 +476,12 @@ Math.calculateDegrees = function(x, y) {
 	/*
 	Returns the corrected arctangent of ('x', 'y').
 	*/
-	return Math.atan2(y, x) * 180 / Math.PI;
+	return Math.deg(Math.atan2(y, x));
 };
 Math.randomInRange = function(min, max) {
-	return Math.map(Math.random(), 0, 1, min, max);
+	return Math.random() * (max - min) + min;
 };
-Number.prototype.mod = function(divisor) {
-	/*
-	This is used instead of the % operator because % returns negatives for negative numbers. (ex: -5 % 10 === -5)
-
-	This is on the number prototype instead of Math since it seems more like an arithmetic operation than the Math functions.
-	*/
-
-	return ((this % divisor) + divisor) % divisor;
-};
-Array.prototype.min = function(func) {
+Array.method("min", function(func) {
 	/*
 	Returns the lowest item, or the item for which func() returns the lowest value.
 	*/
@@ -469,8 +508,8 @@ Array.prototype.min = function(func) {
 		}
 		return lowestValue;
 	}
-};
-Array.prototype.max = function(func) {
+});
+Array.method("max", function(func) {
 	/*
 	Returns the highest item, or the item for which func() returns the highest value.
 	*/
@@ -497,25 +536,28 @@ Array.prototype.max = function(func) {
 		}
 		return highestValue;
 	}
-};
-Array.prototype.containsInstanceOf = function(constructor) {
+});
+Array.method("containsInstanceOf", function(constructor) {
 	for(var i = 0; i < this.length; i ++) {
 		if(this[i] instanceof constructor) {
 			return true;
 		}
 	}
 	return false;
-};
-Array.prototype.lastItem = function() {
+});
+Array.method("lastItem", function() {
 	return this[this.length - 1];
-};
-Array.prototype.randomItem = function() {
+});
+Array.method("randomItem", function() {
 	return this[this.randomIndex()];
-};
-Array.prototype.randomIndex = function() {
+});
+Array.method("randomIndex", function() {
 	return Math.floor(Math.random() * this.length);
-};
-Object.prototype.clone = function() {
+});
+String.method("startsWith", function(substring) {
+	return this.substring(0, substring.length) === substring;
+});
+Object.method("clone", function() {
 	var clone = new this.constructor();
 	for(var i in this) {
 		if(this.hasOwnProperty(i)) {
@@ -528,7 +570,7 @@ Object.prototype.clone = function() {
 		}
 	}
 	return clone;
-};
+});
 Object.typeof = function(value) {
 	/*
 	This function serves to determine the type of a variable better than the default "typeof" operator, which returns strange values for some inputs (see special cases below).
@@ -548,14 +590,6 @@ Object.typeof = function(value) {
 	else {
 		return typeof value;
 	}
-};
-Function.prototype.extends = function(superclass) {
-	/* copy prototype to inherit methods */
-	window[this.name].prototype = Object.create(superclass.prototype);
-	window[this.name].prototype.constructor = window[this.name];
-};
-String.prototype.startsWith = function(substring) {
-	return this.substring(0, substring.length) === substring;
 };
 
 /* player */
@@ -630,7 +664,7 @@ function Player() {
 	/* initialization of other properties */
 	this.init();
 };
-Player.prototype.init = function() {
+Player.method("init", function() {
 	/*
 	This function initalizes the player's item slots.
 	*/
@@ -648,8 +682,8 @@ Player.prototype.init = function() {
 	for(var x = 0; x < 2; x ++) {
 		this.invSlots.push({x: x * 80 + 630, y: 20, content: "empty", type: "equip"});
 	}
-};
-Player.prototype.sideScroll = function() {
+});
+Player.method("sideScroll", function() {
 	/* Updates the world's position, keeping the player at the screen center. */
 	if(this.y > 400 && (this.worldY > game.dungeon[game.inRoom].minWorldY || game.dungeon[game.inRoom].minWorldY === undefined)) {
 		this.worldY -= Math.dist(0, this.y, 0, 400);
@@ -667,8 +701,8 @@ Player.prototype.sideScroll = function() {
 		this.worldX += Math.dist(this.x, 0, 400, 0);
 		this.x = 400;
 	}
-};
-Player.prototype.display = function(noSideScroll, straightArm) {
+});
+Player.method("display", function(noSideScroll, straightArm) {
 	/*
 	Draws the player. (Parameters are only for custom stick figures on class selection screen.)
 	*/
@@ -884,7 +918,7 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		if(this.attackingWith instanceof RangedWeapon) {
 			c.save(); {
 				c.translate(this.x, this.y + 26);
-				c.rotate(this.aimRot / -180 * Math.PI);
+				c.rotate(-Math.rad(this.aimRot));
 				c.strokeLine(0, 0, -10, 0);
 				c.translate(-10, 0);
 				c.scale(-1, 1);
@@ -923,8 +957,8 @@ Player.prototype.display = function(noSideScroll, straightArm) {
 		this.displayHealthBar(550, 87.5, "Gold", this.gold, Infinity, "rgb(255, 255, 0)", this.visualGold);
 		this.visualGold += ((this.gold / this.maxGold) - this.visualGold) / 10;
 	}
-};
-Player.prototype.displayHealthBar = function(x, y, txt, num, max, col, percentFull) {
+});
+Player.method("displayHealthBar", function(x, y, txt, num, max, col, percentFull) {
 	/*
 	Displays a health bar w/ top left at ('x', 'y') and color 'col'. Labeled as 'txt: num / max'.
 	*/
@@ -945,8 +979,8 @@ Player.prototype.displayHealthBar = function(x, y, txt, num, max, col, percentFu
 	c.textAlign = "center";
 	c.font = "bold 10pt monospace";
 	c.fillText(txt + ": " + num + ((max === Infinity) ? "" : (" / " + max)), x + 112, y + 15);
-};
-Player.prototype.update = function() {
+});
+Player.method("update", function() {
 	/*
 	This function does all of the key management for the player, as well as movement, attacking, and other things.
 	*/
@@ -1063,8 +1097,8 @@ Player.prototype.update = function() {
 		this.health = 0;
 	}
 	this.damOp -= 0.05;
-};
-Player.prototype.useItem = function() {
+});
+Player.method("useItem", function() {
 	/* Update facing direction */
 	this.facing = io.keys[39] ? "right" : this.facing;
 	this.facing = io.keys[37] ? "left" : this.facing;
@@ -1115,7 +1149,7 @@ Player.prototype.useItem = function() {
 				this.aimRot = 0;
 				this.attackingWith = this.invSlots[this.activeSlot].content;
 				if(this.attackingWith instanceof MagicWeapon && (this.mana >= this.attackingWith.manaCost || this.attackingWith instanceof ChaosStaff) && !(this.attackingWith instanceof ElementalStaff && this.attackingWith.element === "none")) {
-					var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+					var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 					if(this.facing === "right") {
 						game.dungeon[game.inRoom].content.push(new MagicCharge(450 - this.worldX, 400 - this.worldY, 0, 0, this.attackingWith.chargeType, damage));
 						game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].beingAimed = true;
@@ -1195,9 +1229,9 @@ Player.prototype.useItem = function() {
 			for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 				if(game.dungeon[game.inRoom].content[i] instanceof Enemy) {
 					var enemy = game.dungeon[game.inRoom].content[i];
-					if(weaponPos.x > enemy.x + p.worldX + enemy.leftX && weaponPos.x < enemy.x + p.worldX + enemy.rightX && weaponPos.y > enemy.y + p.worldY + enemy.topY && weaponPos.y < enemy.y + p.worldY + enemy.bottomY && this.canHit) {
+					if(weaponPos.x > enemy.x + p.worldX + enemy.hitbox.left && weaponPos.x < enemy.x + p.worldX + enemy.hitbox.right && weaponPos.y > enemy.y + p.worldY + enemy.hitbox.top && weaponPos.y < enemy.y + p.worldY + enemy.hitbox.bottom && this.canHit) {
 						/* hurt enemy that was hit by the weapon */
-						var damage = Math.round(Math.random() * (this.attackingWith.damHigh - this.attackingWith.damLow) + this.attackingWith.damLow);
+						var damage = Math.randomInRange(this.attackingWith.damLow, this.attackingWith.damHigh);
 						enemy.hurt(damage);
 						if(this.attackingWith.element === "fire") {
 							enemy.timeBurning = 120;
@@ -1223,7 +1257,7 @@ Player.prototype.useItem = function() {
 								}
 							}
 							game.dungeon[game.inRoom].content.push(new BoulderVoid(weaponPos.x - this.worldX, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h));
-							game.dungeon[game.inRoom].content.push(new Boulder(weaponPos.x - this.worldX, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.random() * 2 + 2));
+							game.dungeon[game.inRoom].content.push(new Boulder(weaponPos.x - this.worldX, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.randomInRange(2, 4)));
 						}
 						/* reset variables for weapon swinging */
 						this.canHit = false;
@@ -1235,7 +1269,7 @@ Player.prototype.useItem = function() {
 		}
 		else if(this.attackingWith instanceof Mace) {
 			for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-				if(game.dungeon[game.inRoom].content[i] instanceof SpikeBall && Math.abs(game.dungeon[game.inRoom].content[i].velX) <= 1 && Math.abs(game.dungeon[game.inRoom].content[i].x + this.worldX - this.x) < 5) {
+				if(game.dungeon[game.inRoom].content[i] instanceof SpikeBall && Math.abs(game.dungeon[game.inRoom].content[i].velX) <= 1 && Math.dist(game.dungeon[game.inRoom].content[i].x + this.worldX, this.x) < 5) {
 					if(this.facing === "right") {
 						this.attackArmDir = -1;
 					}
@@ -1296,11 +1330,11 @@ Player.prototype.useItem = function() {
 				var velY = velocity.y;
 				velocity.x += (this.x - this.worldX + 10);
 				velocity.y += (this.y - this.worldY + 26);
-				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+				var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 				if(this.attackingWith instanceof LongBow) {
-					game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].origX = game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].x;
+					game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].ORIGINAL_X = game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].x;
 				}
 			}
 			else {
@@ -1309,11 +1343,11 @@ Player.prototype.useItem = function() {
 				var velY = velocity.y;
 				velocity.x += (this.x - this.worldX + 10);
 				velocity.y += (this.y - this.worldY + 26);
-				var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+				var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 				if(this.attackingWith instanceof LongBow) {
-					game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].origX = game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].x;
+					game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].ORIGINAL_X = game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].x;
 				}
 			}
 			this.arrowEfficiency = 0;
@@ -1370,7 +1404,7 @@ Player.prototype.useItem = function() {
 			var velY = velocity.y;
 			velocity.x += (this.x - this.worldX + 10);
 			velocity.y += (this.y - this.worldY + 26);
-			var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+			var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 			var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 			game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 		}
@@ -1380,7 +1414,7 @@ Player.prototype.useItem = function() {
 			var velY = velocity.y;
 			velocity.x += (this.x - this.worldX + 10);
 			velocity.y += (this.y - this.worldY + 26);
-			var damage = Math.round(Math.random() * (this.invSlots[this.activeSlot].content.damHigh - this.invSlots[this.activeSlot].content.damLow) + this.invSlots[this.activeSlot].content.damLow);
+			var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 			var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 			game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
 		}
@@ -1406,8 +1440,8 @@ Player.prototype.useItem = function() {
 	this.aimingBefore = this.aiming;
 	this.facingBefore = this.facing;
 	this.shootReload --;
-};
-Player.prototype.gui = function() {
+});
+Player.method("gui", function() {
 	/* Delete Consumed Items */
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		if(this.invSlots[i].content.consumed) {
@@ -1476,7 +1510,7 @@ Player.prototype.gui = function() {
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(0, 0, 800, 800);
+		c.fillCanvas();
 		/* Display Items */
 		var hoverIndex = null;
 		for(var i = 0; i < this.invSlots.length; i ++) {
@@ -1597,7 +1631,7 @@ Player.prototype.gui = function() {
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(0, 0, 800, 800);
+		c.fillCanvas();
 		/* GUI Title */
 		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
@@ -1656,7 +1690,7 @@ Player.prototype.gui = function() {
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(0, 0, 800, 800);
+		c.fillCanvas();
 		/* Text */
 		c.font = "bold 20pt monospace";
 		c.textAlign = "center";
@@ -1731,7 +1765,7 @@ Player.prototype.gui = function() {
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(0, 0, 800, 800);
+		c.fillCanvas();
 		/* Text */
 		c.fillStyle = "rgb(59, 67, 70)";
 		c.textAlign = "center";
@@ -1865,7 +1899,7 @@ Player.prototype.gui = function() {
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(0, 0, 800, 800);
+		c.fillCanvas();
 		/* Text */
 		c.fillStyle = "rgb(59, 67, 70)";
 		c.textAlign = "center";
@@ -1981,7 +2015,7 @@ Player.prototype.gui = function() {
 		/* Background */
 		c.strokeStyle = "rgb(59, 67, 70)";
 		c.fillStyle = "rgb(150, 150, 150)";
-		c.fillRect(0, 0, 800, 800);
+		c.fillCanvas();
 		/* Text */
 		c.fillStyle = "rgb(59, 67, 70)";
 		c.textAlign = "center";
@@ -2112,8 +2146,8 @@ Player.prototype.gui = function() {
 		}
 	}
 	this.openingBefore = io.keys[68];
-};
-Player.prototype.addItem = function(item) {
+});
+Player.method("addItem", function(item) {
 	/*
 	Adds the item 'item' to the player's inventory.
 	*/
@@ -2137,8 +2171,8 @@ Player.prototype.addItem = function(item) {
 			return;
 		}
 	}
-};
-Player.prototype.hurt = function(amount, killer, ignoreDef) {
+});
+Player.method("hurt", function(amount, killer, ignoreDef) {
 	/*
 	Deals 'amount' damage to the player. 'killer' shows up in death message. If 'ignoreDef' is true, the player's defense will be ignored.
 	*/
@@ -2160,7 +2194,7 @@ Player.prototype.hurt = function(amount, killer, ignoreDef) {
 			this.defHigh += this.invSlots[i].content.defHigh;
 		}
 	}
-	var defense = Math.random() * (this.defHigh - this.defLow) + this.defLow;
+	var defense = Math.randomInRange(this.defLow, this.defHigh);
 	/* Subtract defense from damage dealt*/
 	if(ignoreDef) {
 		var damage = amount;
@@ -2179,8 +2213,8 @@ Player.prototype.hurt = function(amount, killer, ignoreDef) {
 		this.dead = true;
 		this.deathCause = killer;
 	}
-};
-Player.prototype.reset = function() {
+});
+Player.method("reset", function() {
 	/*
 	This function resets most of the player's properties. (Usually called after starting a new game)
 	*/
@@ -2238,8 +2272,8 @@ Player.prototype.reset = function() {
 			this.addItem(new WizardHat());
 			break;
 	}
-};
-Player.prototype.updatePower = function() {
+});
+Player.method("updatePower", function() {
 	/*
 	This function gives a number representing the overall quality of the player's items + health and mana upgrades. (stores in this.power)
 	*/
@@ -2251,29 +2285,29 @@ Player.prototype.updatePower = function() {
 			this.power += this.invSlots[i].content.power;
 		}
 	}
-};
-Player.prototype.hasInInventory = function(constructor) {
+});
+Player.method("hasInInventory", function(constructor) {
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		if(this.invSlots[i].content instanceof constructor) {
 			return true;
 		}
 	}
 	return false;
-};
-Player.prototype.clearInventory = function() {
+});
+Player.method("clearInventory", function() {
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		this.invSlots[i].content = "empty";
 	}
-};
-Player.prototype.loadScores = function() {
+});
+Player.method("loadScores", function() {
 	if(localStorage.getItem("scores") !== null) {
 		p.scores = JSON.parse(localStorage.getItem("scores"));
 	}
-};
-Player.prototype.saveScores = function() {
+});
+Player.method("saveScores", function() {
 	var scores = JSON.stringify(this.scores);
 	localStorage.setItem("scores", scores);
-};
+});
 var p = new Player();
 p.loadScores();
 
@@ -2292,7 +2326,7 @@ function CollisionRect(x, y, w, h, settings) {
 	this.settings.moving = this.settings.moving || false;
 	this.settings.player = p;
 };
-CollisionRect.prototype.collide = function() {
+CollisionRect.method("collide", function() {
 	/* Add a hitbox if 'SHOW_HITBOXES' is true (for debugging) */
 	if(SHOW_HITBOXES) {
 		debugging.hitboxes.push({x: this.x, y: this.y, w: this.w, h: this.h, color: this.settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
@@ -2374,57 +2408,69 @@ CollisionRect.prototype.collide = function() {
 		var thing = game.dungeon[game.theRoom].content[i];
 		if(thing instanceof Enemy) {
 			var enemy = thing;
-			if(enemy.x + p.worldX + enemy.rightX > this.x && enemy.x + p.worldX + enemy.leftX < this.x + this.w) {
-				if(enemy.y + p.worldY + enemy.bottomY >= this.y && enemy.y + p.worldY + enemy.bottomY <= this.y + enemy.velY + 1) {
+			if(enemy.x + p.worldX + enemy.hitbox.right > this.x && enemy.x + p.worldX + enemy.hitbox.left < this.x + this.w) {
+				if(enemy.y + p.worldY + enemy.hitbox.bottom >= this.y && enemy.y + p.worldY + enemy.hitbox.bottom <= this.y + enemy.velY + 1) {
 					enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
-					enemy.y = this.y - p.worldY - Math.abs(enemy.bottomY);
+					enemy.y = this.y - p.worldY - Math.abs(enemy.hitbox.bottom);
 					enemy.canJump = true;
 					if(enemy instanceof Bat && enemy.timePurified > 0) {
-						enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
+						enemy.dest = {
+							x: enemy.x + Math.randomInRange(-100, 100),
+							y: enemy.y + Math.randomInRange(-100, 100)
+						};
 					}
 				}
-				if(enemy.y + p.worldY + enemy.topY <= this.y + this.h && enemy.y + p.worldY + enemy.topY >= this.y + this.h + enemy.velY - 1) {
+				if(enemy.y + p.worldY + enemy.hitbox.top <= this.y + this.h && enemy.y + p.worldY + enemy.hitbox.top >= this.y + this.h + enemy.velY - 1) {
 					enemy.velY = 3;
-					enemy.y = this.y + this.h - p.worldY + Math.abs(enemy.topY);
+					enemy.y = this.y + this.h - p.worldY + Math.abs(enemy.hitbox.top);
 					if(enemy instanceof Bat && enemy.timePurified > 0) {
-						enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
+						enemy.dest = {
+							x: enemy.x + Math.randomInRange(-100, 100),
+							y: enemy.y + Math.randomInRange(-100, 100)
+						};
 					}
 				}
 			}
-			if(enemy.y + enemy.bottomY + p.worldY > this.y && enemy.y + enemy.topY + p.worldY < this.y + this.h) {
-				if(enemy.x + p.worldX + enemy.rightX >= this.x && enemy.x + p.worldX + enemy.rightX <= this.x + enemy.velX + 1) {
+			if(enemy.y + enemy.hitbox.bottom + p.worldY > this.y && enemy.y + enemy.hitbox.top + p.worldY < this.y + this.h) {
+				if(enemy.x + p.worldX + enemy.hitbox.right >= this.x && enemy.x + p.worldX + enemy.hitbox.right <= this.x + enemy.velX + 1) {
 					if(this.settings.illegalHandling === "teleport") {
-						enemy.y = this.y - p.worldY - Math.abs(enemy.bottomY);
+						enemy.y = this.y - p.worldY - Math.abs(enemy.hitbox.bottom);
 						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
 						enemy.canJump = true;
 					}
 					else {
 						enemy.velX = (enemy.velX > 0) ? -3 : enemy.velX;
-						enemy.x = this.x - p.worldX - Math.abs(enemy.rightX);
+						enemy.x = this.x - p.worldX - Math.abs(enemy.hitbox.right);
 						if(enemy instanceof Bat && enemy.timePurified > 0) {
-							enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
+							enemy.dest = {
+								x: enemy.x + Math.randomInRange(-100, 100),
+								y: enemy.y + Math.randomInRange(-100, 100)
+							};
 						}
 					}
 				}
-				if(enemy.x + p.worldX + enemy.leftX <= this.x + this.w && enemy.x + p.worldX + enemy.leftX >= this.x + this.w + enemy.velX - 1) {
+				if(enemy.x + p.worldX + enemy.hitbox.left <= this.x + this.w && enemy.x + p.worldX + enemy.hitbox.left >= this.x + this.w + enemy.velX - 1) {
 					if(this.settings.illegalHandling === "teleport") {
-						enemy.y = this.y - p.worldY - Math.abs(enemy.bottomY);
+						enemy.y = this.y - p.worldY - Math.abs(enemy.hitbox.bottom);
 						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
 						enemy.canJump = true;
 					}
 					else {
 						enemy.velX = (enemy.velX < 0) ? 3 : enemy.velX;
-						enemy.x = this.x + this.w - p.worldX + Math.abs(enemy.leftX);
+						enemy.x = this.x + this.w - p.worldX + Math.abs(enemy.hitbox.left);
 						if(enemy instanceof Bat && enemy.timePurified > 0) {
-							enemy.dest = {x: enemy.x + (Math.random() * 200 - 100), y: enemy.y + (Math.random() * 200 - 100)};
+							enemy.dest = {
+								x: enemy.x + Math.randomInRange(-100, 100),
+								y: enemy.y + Math.randomInRange(-100, 100)
+							};
 						}
 					}
 				}
-				if(!(typeof enemy.velX === "number") && enemy.x + enemy.rightX + p.worldX > this.x && enemy.x + enemy.rightX + p.worldX < this.x + 5) {
-					enemy.x = this.x - p.worldX - Math.abs(enemy.rightX) - 1;
+				if(!(typeof enemy.velX === "number") && enemy.x + enemy.hitbox.right + p.worldX > this.x && enemy.x + enemy.hitbox.right + p.worldX < this.x + 5) {
+					enemy.x = this.x - p.worldX - Math.abs(enemy.hitbox.right) - 1;
 				}
-				if(!(typeof enemy.velX === "number") && enemy.x + enemy.leftX + p.worldX < this.x + this.w && enemy.x + enemy.leftX + p.worldX > this.x + this.w - 5) {
-					enemy.x = this.x + this.w - p.worldX + Math.abs(enemy.leftX) + 1;
+				if(!(typeof enemy.velX === "number") && enemy.x + enemy.hitbox.left + p.worldX < this.x + this.w && enemy.x + enemy.hitbox.left + p.worldX > this.x + this.w - 5) {
+					enemy.x = this.x + this.w - p.worldX + Math.abs(enemy.hitbox.left) + 1;
 				}
 			}
 		}
@@ -2455,13 +2501,13 @@ CollisionRect.prototype.collide = function() {
 			thing.hitSomething = true;
 		}
 	}
-};
-CollisionRect.prototype.isPointInside = function(x, y) {
+});
+CollisionRect.method("isPointInside", function(x, y) {
 	return (x > this.x && x < this.x + this.w && y > this.y && y < this.y + this.h);
-};
-CollisionRect.prototype.isRectInside = function(x, y, w, h) {
+});
+CollisionRect.method("isRectInside", function(x, y, w, h) {
 	return (x + w > this.x && x < this.x + this.w && y + h > this.y && y < this.y + this.h);
-};
+});
 function CollisionCircle(x, y, r) {
 	/*
 	('x', 'y') is center, not top-left corner. Radius is 'r'
@@ -2470,7 +2516,7 @@ function CollisionCircle(x, y, r) {
 	this.y = y;
 	this.r = r;
 };
-CollisionCircle.prototype.collide = function() {
+CollisionCircle.method("collide", function() {
 	var rSquared = this.r * this.r;
 	/* Collide with player if in the same room */
 	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY) <  rSquared || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY) < rSquared) {
@@ -2481,17 +2527,20 @@ CollisionCircle.prototype.collide = function() {
 	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
 		var thing = game.dungeon[game.theRoom].content[i];
 		if(thing instanceof Enemy) {
-			while(Math.distSq(this.x, this.y, thing.x + thing.leftX, thing.y + thing.bottomY) < rSquared || Math.distSq(this.x, this.y, thing.x + thing.rightX, thing.y + thing.bottomY) < rSquared) {
+			while(Math.distSq(this.x, this.y, thing.x + thing.hitbox.left, thing.y + thing.hitbox.bottom) < rSquared || Math.distSq(this.x, this.y, thing.x + thing.hitbox.right, thing.y + thing.hitbox.bottom) < rSquared) {
 				thing.y --;
 				thing.velY = (thing.velY > 3) ? 3 : thing.velY;
 				if(thing instanceof Bat && thing.timePurified > 0) {
-					thing.dest = {x: thing.x + (Math.random() * 200 - 100), y: thing.y + (Math.random() * 200 - 100)};
+					thing.dest = {
+						x: thing.x + Math.randomInRange(-100, 100),
+						y: thing.y + Math.randomInRange(-100, 100)
+					};
 					thing.velY = 0;
 				}
 			}
 		}
 	}
-};
+});
 
 /** RENDERING **/
 function RenderingOrderObject(display, depth, zOrder) {
@@ -2518,7 +2567,7 @@ function RenderingOrderShape(type, location, color, depth, zOrder) {
 	this.depth = depth;
 	this.zOrder = zOrder || 0; // only used when 2 polygons have the same depth
 };
-RenderingOrderShape.prototype.display = function() {
+RenderingOrderShape.method("display", function() {
 	c.fillStyle = this.color;
 	if(this.type === "rect") {
 		if(typeof this.location.w === "number") {
@@ -2534,7 +2583,7 @@ RenderingOrderShape.prototype.display = function() {
 	else if(this.type === "polygon") {
 		c.fillPoly(this.location);
 	}
-};
+});
 function RenderingOrderGroup(objects, zOrder) {
 	/*
 	Represents a group of objects with the same depth that can be rendered in any order since they're all at the same depth.
@@ -2542,11 +2591,11 @@ function RenderingOrderGroup(objects, zOrder) {
 	this.objects = objects || [];
 	this.zOrder = zOrder || 0;
 };
-RenderingOrderGroup.prototype.display = function() {
+RenderingOrderGroup.method("display", function() {
 	for(var i = 0; i < this.objects.length; i ++) {
 		this.objects[i].display();
 	}
-};
+});
 
 /** IN GAME STRUCTURES **/
 function Block(x, y, w, h) {
@@ -2555,31 +2604,31 @@ function Block(x, y, w, h) {
 	this.w = w;
 	this.h = h;
 };
-Block.prototype.update = function() {
+Block.method("update", function() {
 	collisions.rect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, {walls: [true, true, true, true], illegalHandling: utilities.tempVars.partOfAStair ? "teleport" : "collide"} );
-};
-Block.prototype.exist = function() {
+});
+Block.method("exist", function() {
 	this.display();
 	this.update();
-};
-Block.prototype.display = function() {
+});
+Block.method("display", function() {
 	graphics3D.cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
-};
+});
 function Platform(x, y, w) {
 	this.x = x;
 	this.y = y;
 	this.w = w;
 };
-Platform.prototype.update = function() {
+Platform.method("update", function() {
 	collisions.rect(this.x + p.worldX, this.y + p.worldY, this.w, 3, {walls: [true, false, false, false]});
-};
-Platform.prototype.exist = function() {
+});
+Platform.method("exist", function() {
 	this.update();
 	this.display();
-};
-Platform.prototype.display = function() {
+});
+Platform.method("display", function() {
 	graphics3D.cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
-};
+});
 function Door(x, y, dest, noEntry, invertEntries, type) {
 	this.x = x;
 	this.y = y;
@@ -2589,7 +2638,7 @@ function Door(x, y, dest, noEntry, invertEntries, type) {
 	this.type = type || "same";
 	this.onPath = false;
 };
-Door.prototype.getInfo = function() {
+Door.method("getInfo", function() {
 	/* returns the text to display when the user is holding a map */
 	if(!(p.invSlots[p.activeSlot].content instanceof Map)) {
 		return ""; //not holding a map -> no explanatory text
@@ -2640,12 +2689,12 @@ Door.prototype.getInfo = function() {
 		delete game.dungeon[i].doorPathScore;
 	}
 	return "x";
-};
-Door.prototype.exist = function() {
+});
+Door.method("exist", function() {
 	this.display();
 	this.update();
-};
-Door.prototype.display = function() {
+});
+Door.method("display", function() {
 	/* Graphics */
 	var self = this;
 	var topLeft = graphics3D.point3D(this.x + p.worldX - 30, this.y + p.worldY - 60, 0.9);
@@ -2665,37 +2714,28 @@ Door.prototype.display = function() {
 				}
 				if(self.barricaded) {
 					c.save(); {
-						c.fillStyle = "rgb(139, 69, 19)";
-						c.strokeStyle = "rgb(255, 255, 255)";
 						c.lineWidth = 2;
 						function displayWoodenBoard() {
+							c.fillStyle = "rgb(139, 69, 19)";
 							c.fillRect(-40, -10, 80, 20);
-							c.fillStyle = "rgb(200, 200, 200)";
-							c.fillCircle(-30, 0, 5);
-							c.fillCircle(30, 0, 5);
-							c.strokeLine(-35, 0, -25, 0);
-							c.strokeLine(-30, -5, -30, 5);
-							c.strokeLine(35, 0, 25, 0);
-							c.strokeLine(30, -5, 30, 5);
+							function displayScrew(x, y) {
+								c.fillStyle = "rgb(200, 200, 200)";
+								c.strokeStyle = "rgb(255, 255, 255)";
+								c.fillCircle(x, y, 5);
+								c.strokeLine(x - 5, y, x + 5, y);
+								c.strokeLine(x, y - 5, x, y + 5);
+							};
+							displayScrew(-30, 0);
+							displayScrew(30, 0);
 						};
 						var doorWidth = (bottomRight.x - topLeft.x) / 2;
-						c.save(); {
-							c.translate(middle.x, bottomRight.y - 60);
-							c.rotate(Math.rad(22));
-							displayWoodenBoard();
-						} c.restore();
-
-						c.save(); {
-							c.translate(middle.x, bottomRight.y - 40);
-							c.rotate(Math.rad(-22));
-							displayWoodenBoard();
-						} c.restore();
-
-						c.save(); {
-							c.translate(middle.x, bottomRight.y - 20);
-							c.rotate(Math.rad(22));
-							displayWoodenBoard();
-						} c.restore();
+						for(var y = -20; y >= -60; y -= 20) {
+							c.save(); {
+								c.translate(middle.x, bottomRight.y + y);
+								c.rotate((y === -40) ? Math.rad(-22) : Math.rad(22));
+								displayWoodenBoard();
+							} c.restore();
+						}
 					} c.restore();
 				}
 			},
@@ -2723,8 +2763,8 @@ Door.prototype.display = function() {
 			c.fillText(">", center.x, center.y);
 		}
 	}
-};
-Door.prototype.update = function() {
+});
+Door.method("update", function() {
 	/* Resolve type (arched top vs. lintel) */
 	if(this.type === "same" || this.type === "toggle") {
 		if(this.type === "same") {
@@ -2795,12 +2835,12 @@ Door.prototype.update = function() {
 			p.updatePower();
 			var newWeights = [];
 			for(var i = 0; i < possibleRooms.length; i ++) {
-				var diffScore = Math.abs(possibleRooms[i].difficulty - p.power); //bigger # = less likely
-				var termScore = Math.abs(possibleRooms[i].extraDoors - p.terminateProb); //smaller # = less likely
+				var diffScore = Math.dist(possibleRooms[i].difficulty, p.power); //bigger # = less likely
+				var termScore = Math.dist(possibleRooms[i].extraDoors, p.terminateProb); //smaller # = less likely
 				var totalScore = termScore - diffScore;
 			}
 			/* Add selected room */
-			var roomIndex = Math.round(Math.random() * (possibleRooms.length - 1));
+			var roomIndex = possibleRooms.randomIndex();
 			possibleRooms[roomIndex].add();
 			game.dungeon[game.dungeon.length - 1].id = "?";
 			/* Reset transition variables */
@@ -2835,7 +2875,7 @@ Door.prototype.update = function() {
 							}
 						}
 					}
-					var theIndex = doorIndexes[Math.round(Math.random() * (doorIndexes.length - 1))];
+					var theIndex = doorIndexes.randomItem();
 					/* Move player to door */
 					p.worldX = 0;
 					p.worldY = 0;
@@ -2885,16 +2925,7 @@ Door.prototype.update = function() {
 						game.dungeon[i].colorScheme = null;
 					}
 					if(game.dungeon[previousRoom].colorScheme === null && hasDecorations) {
-						var chooser = Math.random();
-						if(chooser < 0.33) {
-							game.dungeon[i].colorScheme = "red";
-						}
-						else if(chooser < 0.66) {
-							game.dungeon[i].colorScheme = "green";
-						}
-						else {
-							game.dungeon[i].colorScheme = "blue";
-						}
+						game.dungeon[i].colorScheme = ["red", "green", "blue"].randomItem();
 					}
 					if(game.dungeon[previousRoom].colorScheme !== null && hasDecorations) {
 						game.dungeon[i].colorScheme = game.dungeon[previousRoom].colorScheme;
@@ -2923,10 +2954,10 @@ Door.prototype.update = function() {
 		}
 		this.entering = false;
 	}
-};
-Door.prototype.isEnemyNear = function(enemy) {
-	return enemy.x + enemy.rightX > this.x - 30 && enemy.x + enemy.leftX < this.x + 30 && enemy.y + enemy.bottomY > this.y - 60 && enemy.y + enemy.topY < this.y + 3;
-};
+});
+Door.method("isEnemyNear", function(enemy) {
+	return enemy.x + enemy.hitbox.right > this.x - 30 && enemy.x + enemy.hitbox.left < this.x + 30 && enemy.y + enemy.hitbox.bottom > this.y - 60 && enemy.y + enemy.hitbox.top < this.y + 3;
+});
 function calculatePaths() {
 	function calculated() {
 		for(var i = 0; i < game.dungeon.length; i ++) {
@@ -2965,11 +2996,11 @@ function Torch(x, y) {
 	this.lit = false;
 	this.fireParticles = [];
 };
-Torch.prototype.exist = function() {
+Torch.method("exist", function() {
 	this.update();
 	this.display();
-};
-Torch.prototype.display = function() {
+});
+Torch.method("display", function() {
 	graphics3D.cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95);
 	graphics3D.cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97);
 	var self = this;
@@ -2984,8 +3015,8 @@ Torch.prototype.display = function() {
 			1
 		)
 	);
-};
-Torch.prototype.update = function() {
+});
+Torch.method("update", function() {
 	if(this.color === "?" || this.color === undefined) {
 		if(game.dungeon[game.theRoom].colorScheme === "red") {
 			this.color = "rgb(255, 128, 0)";
@@ -3002,8 +3033,8 @@ Torch.prototype.update = function() {
 		this.lit = true;
 	}
 	if(this.lit) {
-		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.random() * -3, Math.random() * 5 + 5));
-		this.fireParticles[this.fireParticles.length - 1].z = Math.random() * 0.02 + 0.94;
+		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.randomInRange(-3, 0), Math.randomInRange(5, 10)));
+		this.fireParticles[this.fireParticles.length - 1].z = Math.randomInRange(0.94, 0.96);
 	}
 	for(var i = 0; i < this.fireParticles.length; i ++) {
 		this.fireParticles[i].update();
@@ -3013,13 +3044,13 @@ Torch.prototype.update = function() {
 			continue;
 		}
 	}
-};
+});
 function LightRay(x, w, floorY) {
 	this.x = x;
 	this.w = w;
 	this.floorY = floorY; // y-level of floor that light ray hits
 };
-LightRay.prototype.exist = function() {
+LightRay.method("exist", function() {
 	var self = this;
 	var leftBack = graphics3D.point3D(this.x + p.worldX, 0, 0.9).x;
 	var rightBack = graphics3D.point3D(this.x + p.worldX + this.w, 0, 0.9).x;
@@ -3087,7 +3118,7 @@ LightRay.prototype.exist = function() {
 			)
 		);
 	}
-};
+});
 function Tree(x, y) {
 	/*
 	dead tree, comes with the planter and everything
@@ -3095,19 +3126,19 @@ function Tree(x, y) {
 	this.x = x;
 	this.y = y;
 };
-Tree.prototype.exist = function() {
+Tree.method("exist", function() {
 	this.update();
 	this.display();
-};
-Tree.prototype.update = function() {
+});
+Tree.method("update", function() {
 	var loc = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
 	collisions.line(loc.x - 6, loc.y - 100, loc.x - 150, loc.y - 100, {walls: [true, false, false, false]});
 	collisions.line(loc.x + 6, loc.y - 120, loc.x + 150, loc.y - 120, {walls: [true, false, false, false]});
 	collisions.line(loc.x - 5, loc.y - 170, loc.x - 100, loc.y - 180, {walls: [true, false, false, false]});
 	collisions.line(loc.x + 5, loc.y - 190, loc.x + 100, loc.y - 200, {walls: [true, false, false, false]});
 	collisions.line(loc.x, loc.y - 220, loc.x - 60, loc.y - 230, {walls: [true, false, false, false]});
-};
-Tree.prototype.display = function() {
+});
+Tree.method("display", function() {
 	var loc = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
 		game.dungeon[game.theRoom].render(
 			new RenderingOrderObject(
@@ -3133,7 +3164,7 @@ Tree.prototype.display = function() {
 			)
 		);
 	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
-};
+});
 function Chest(x, y) {
 	this.x = x;
 	this.y = y;
@@ -3144,7 +3175,7 @@ function Chest(x, y) {
 	this.initialized = false;
 	this.spawnedItem = false;
 };
-Chest.prototype.exist = function() {
+Chest.method("exist", function() {
 	this.update();
 	this.display();
 	return;
@@ -3163,8 +3194,8 @@ Chest.prototype.exist = function() {
 		rotatedArray.push(newPos);
 	}
 	graphics3D.polygon3D("rgb(139, 69, 19)", "rgb(159, 89, 39)", 0.95, 1.05, rotatedArray);
-};
-Chest.prototype.update = function() {
+});
+Chest.method("update", function() {
 	/* Initialize */
 	if(!this.initialized) {
 		for(var i = 0; i < this.lidArray.length; i ++) {
@@ -3223,11 +3254,11 @@ Chest.prototype.update = function() {
 			var chooser = Math.random();
 			if(chooser < 0.25) {
 				/* give the player 6-10 arrows */
-				game.dungeon[game.inRoom].content.push(new Arrow(Math.round(Math.random() * 4 + 6)));
+				game.dungeon[game.inRoom].content.push(new Arrow(Math.round(Math.randomInRange(6, 10))));
 			}
 			else if(chooser <= 0.5) {
 				/* give the player 4-8 coins */
-				game.dungeon[game.inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
+				game.dungeon[game.inRoom].content.push(new Coin(Math.round(Math.randomInRange(6, 10))));
 			}
 			else {
 				/* give the player a random item (not coins or arrows) */
@@ -3248,10 +3279,10 @@ Chest.prototype.update = function() {
 				}
 				if(possibleItems.length === 0) {
 					/* the player already has every item in the game, so just give them coins */
-					game.dungeon[game.inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
+					game.dungeon[game.inRoom].content.push(new Coin(Math.round(Math.randomInRange(6, 10))));
 					return;
 				}
-				var selector = Math.floor(Math.random() * possibleItems.length);
+				var selector = possibleItems.randomIndex();
 				var theItem = possibleItems[selector];
 				game.dungeon[game.inRoom].content.push(new theItem());
 			}
@@ -3262,7 +3293,7 @@ Chest.prototype.update = function() {
 				chooser = 1;
 			}
 			if(chooser <= 0.5) {
-				game.dungeon[game.inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
+				game.dungeon[game.inRoom].content.push(new Coin(Math.round(Math.randomInRange(6, 10))));
 			}
 			else {
 				/* give the player a random item (not coins or arrows) */
@@ -3283,17 +3314,17 @@ Chest.prototype.update = function() {
 				}
 				if(possibleItems.length === 0) {
 					/* the player already has every item in the game, so just give them coins */
-					game.dungeon[game.inRoom].content.push(new Coin(Math.round(Math.random() * 4 + 6)));
+					game.dungeon[game.inRoom].content.push(new Coin(Math.round(Math.randomInRange(6, 10))));
 					return;
 				}
-				var selector = Math.floor(Math.random() * possibleItems.length);
+				var selector = possibleItems.randomIndex();
 				var theItem = possibleItems[selector];
 				game.dungeon[game.inRoom].content.push(new theItem());
 			}
 		}
 	}
-};
-Chest.prototype.display = function() {
+});
+Chest.method("display", function() {
 	// openDir is which corner the chest is rotating around
 	var self = this;
 	var centerOfRotation = {
@@ -3399,22 +3430,22 @@ Chest.prototype.display = function() {
 	);
 	/* draw box for chest */
 	graphics3D.cube(this.x + p.worldX - 20, this.y + p.worldY - 30, 40, 30, 0.95, 1.05, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-};
+});
 function FallBlock(x, y) {
 	this.x = x;
 	this.y = y;
 	this.velY = 0;
-	this.origY = y;
+	this.ORIGINAL_Y = y;
 	this.falling = false;
 	this.timeShaking = 0;
 	this.steppedOn = false;
 	this.allDone = false;
 };
-FallBlock.prototype.exist = function() {
+FallBlock.method("exist", function() {
 	this.update();
 	this.display();
-};
-FallBlock.prototype.update = function() {
+});
+FallBlock.method("update", function() {
 	/* Top face */
 	collisions.line(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
 	/* left face */
@@ -3439,15 +3470,15 @@ FallBlock.prototype.update = function() {
 		this.y += this.velY;
 	}
 	if(game.transitions.opacity >= 0.9 && p.enteringDoor) {
-		this.y = this.origY;
+		this.y = this.ORIGINAL_Y;
 		this.velY = 0;
 		this.falling = false;
 		this.allDone = false;
 	}
-};
-FallBlock.prototype.display = function() {
-	var shakeX = Math.random() * (this.timeShaking * 2) - this.timeShaking;
-	var shakeY = Math.random() * (this.timeShaking * 2) - this.timeShaking;
+});
+FallBlock.method("display", function() {
+	var shakeX = Math.randomInRange(-this.timeShaking, this.timeShaking);
+	var shakeY = Math.randomInRange(-this.timeShaking, this.timeShaking);
 	graphics3D.polygon3D(
 		"rgb(110, 110, 110)", "rgb(150, 150, 150)",
 		0.9, 1.1,
@@ -3466,7 +3497,7 @@ FallBlock.prototype.display = function() {
 			}
 		]
 	);
-};
+});
 function Stairs(x, y, numSteps, dir) {
 	this.x = x;
 	this.y = y;
@@ -3485,24 +3516,24 @@ function Stairs(x, y, numSteps, dir) {
 		}
 	}
 };
-Stairs.prototype.exist = function() {
+Stairs.method("exist", function() {
 	this.update();
 	this.display();
-};
-Stairs.prototype.display = function() {
+});
+Stairs.method("display", function() {
 	utilities.tempVars.partOfAStair = true;
 	for(var i = 0; i < this.steps.length; i ++) {
 		this.steps[i].display();
 	}
 	utilities.tempVars.partOfAStair = false;
-};
-Stairs.prototype.update = function() {
+});
+Stairs.method("update", function() {
 	utilities.tempVars.partOfAStair = true;
 	for(var i = 0; i < this.steps.length; i ++) {
 		this.steps[i].update();
 	}
 	utilities.tempVars.partOfAStair = false;
-};
+});
 function Altar(x, y, type) {
 	/* Only represents the particles of the altar. The actual stairs + platform are created using Blocks and Stairs. */
 	this.x = x;
@@ -3510,11 +3541,11 @@ function Altar(x, y, type) {
 	this.type = type;
 	this.particles = [];
 };
-Altar.prototype.exist = function() {
+Altar.method("exist", function() {
 	this.update();
 	this.display();
-};
-Altar.prototype.update = function() {
+});
+Altar.method("update", function() {
 	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 46 > this.y + p.worldY - 20 && p.y - 5 < this.y + p.worldY + 20) {
 		if(this.type === "health") {
 			p.health += 10;
@@ -3533,20 +3564,20 @@ Altar.prototype.update = function() {
 			continue;
 		}
 	}
-};
-Altar.prototype.display = function() {
+});
+Altar.method("display", function() {
 	for(var i = 0; i < 5; i ++) {
-		this.particles.push(new Particle(this.type === "health" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)", this.x + Math.random() * 40 - 20, this.y + Math.random() * 40 - 20, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
+		this.particles.push(new Particle(this.type === "health" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)", this.x + Math.randomInRange(-20, 20), this.y + Math.randomInRange(-20, 20), Math.randomInRange(-1, 1), Math.randomInRange(-1, 1), 10));
 	}
 	for(var i = 0; i < this.particles.length; i ++) {
 		this.particles[i].display();
 	}
-};
-Altar.prototype.remove = function() {
+});
+Altar.method("remove", function() {
 	for(var i = 0; i < this.particles.length; i ++) {
 		game.dungeon[game.theRoom].content.push(this.particles[i]);
 	}
-};
+});
 function Forge(x, y) {
 	this.x = x;
 	this.y = y;
@@ -3556,11 +3587,11 @@ function Forge(x, y) {
 
 	this.DEPTH = 0.99;
 };
-Forge.prototype.exist = function() {
+Forge.method("exist", function() {
 	this.display();
 	this.update();
-};
-Forge.prototype.display = function() {
+});
+Forge.method("display", function() {
 	/* fire */
 	for(var i = 0; i < this.particles.length; i ++) {
 		this.particles[i].display();
@@ -3572,7 +3603,7 @@ Forge.prototype.display = function() {
 			c.save(); {
 				c.scale(scale, 1);
 				c.fillRect(50, -76, 50, 76);
-				c.fillArc(50, -75, 50, Math.rad(-90), Math.rad(0));
+				c.fillArc(50, -75, 50, Math.rad(-90), Math.rad(0), true);
 			} c.restore();
 		}
 		c.fillRect(-50 - 1, -300 - 1, 100 + 2, 200);
@@ -3622,8 +3653,8 @@ Forge.prototype.display = function() {
 	/* crop out dark gray parts on side of forge */
 	graphics3D.plane3D(this.x + p.worldX + 50, this.y + p.worldY - 75, this.x + p.worldX + 50, this.y + p.worldY - 125, 0.9, this.DEPTH, "rgb(150, 150, 150)");
 	graphics3D.plane3D(this.x + p.worldX - 50, this.y + p.worldY - 75, this.x + p.worldX - 50, this.y + p.worldY - 125, 0.9, this.DEPTH, "rgb(150, 150, 150)");
-};
-Forge.prototype.update = function() {
+});
+Forge.method("update", function() {
 	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && !this.used && p.guiOpen === "none") {
 		ui.infoBar.actions.s = "use forge";
 		if(io.keys[83]) {
@@ -3639,15 +3670,15 @@ Forge.prototype.update = function() {
 	}
 	if(!this.used) {
 		for(var i = 0; i < 5; i ++) {
-			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 10, Math.random() * 2 - 1, Math.random() * -2, 10));
+			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.randomInRange(-50, 50), this.y - 10, Math.randomInRange(-1, 1), Math.randomInRange(-2, 0), 10));
 			this.particles.lastItem().z = Math.randomInRange(this.DEPTH - 0.15, this.DEPTH);
 		}
 		for(var i = 0; i < 5; i ++) {
-			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.random() * 100 - 50, this.y - 60, Math.random() * 2 - 1, Math.random() * -2, 10));
+			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.randomInRange(-50, 50), this.y - 60, Math.randomInRange(-1, 1), Math.randomInRange(-2, 0), 10));
 			this.particles.lastItem().z = Math.randomInRange(this.DEPTH - 0.15, this.DEPTH);
 		}
 	}
-};
+});
 function Pulley(x1, w1, x2, w2, y, maxHeight) {
 	this.x1 = x1;
 	this.y1 = y;
@@ -3656,14 +3687,14 @@ function Pulley(x1, w1, x2, w2, y, maxHeight) {
 	this.y2 = y;
 	this.w2 = w2;
 	this.velY = 0;
-	this.origY = y;
+	this.ORIGINAL_Y = y;
 	this.maxHeight = maxHeight;
 };
-Pulley.prototype.exist = function() {
+Pulley.method("exist", function() {
 	this.update();
 	this.display();
-};
-Pulley.prototype.display = function() {
+});
+Pulley.method("display", function() {
 	function platform(x, y, w) {
 		new Platform(x, y, w).display();
 		x += p.worldX;
@@ -3677,18 +3708,18 @@ Pulley.prototype.display = function() {
 	};
 	platform(this.x1, this.y1, this.w1);
 	platform(this.x2, this.y2, this.w2);
-};
-Pulley.prototype.update = function() {
+});
+Pulley.method("update", function() {
 	new Platform(this.x1, this.y1, this.w1).update();
 	new Platform(this.x2, this.y2, this.w2).update();
 	/* Moving */
 	this.steppedOn1 = false;
 	this.steppedOn2 = false;
-	if(p.x + 5 > this.x1 + p.worldX && p.x - 5 < this.x1 + this.w1 + p.worldX && p.canJump && this.y1 < this.origY + this.maxHeight) {
+	if(p.x + 5 > this.x1 + p.worldX && p.x - 5 < this.x1 + this.w1 + p.worldX && p.canJump && this.y1 < this.ORIGINAL_Y + this.maxHeight) {
 		this.velY += (this.velY < 3) ? 0.1 : 0;
 		this.steppedOn1 = true;
 	}
-	if(p.x + 5 > this.x2 + p.worldX && p.x - 5 < this.x2 + this.w2 + p.worldX && p.canJump && this.y2 < this.origY + this.maxHeight) {
+	if(p.x + 5 > this.x2 + p.worldX && p.x - 5 < this.x2 + this.w2 + p.worldX && p.canJump && this.y2 < this.ORIGINAL_Y + this.maxHeight) {
 		this.velY += (this.velY > -3) ? -0.1 : 0;
 		this.steppedOn2 = true;
 	}
@@ -3703,23 +3734,23 @@ Pulley.prototype.update = function() {
 	if(!this.steppedOn1 && !this.steppedOn2) {
 		this.velY = 0;
 	}
-	if(this.y1 > this.origY + this.maxHeight) {
+	if(this.y1 > this.ORIGINAL_Y + this.maxHeight) {
 		this.steppedOn1 = false;
 	}
-	if(this.y2 > this.origY + this.maxHeight) {
+	if(this.y2 > this.ORIGINAL_Y + this.maxHeight) {
 		this.steppedOn2 = false;
 	}
-};
+});
 function Pillar(x, y, h) {
 	this.x = x;
 	this.y = y;
 	this.h = h;
 };
-Pillar.prototype.exist = function() {
+Pillar.method("exist", function() {
 	this.update();
 	this.display();
-};
-Pillar.prototype.display = function() {
+});
+Pillar.method("display", function() {
 	/* Base */
 	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, 0.9, 1.1);
 	graphics3D.cube(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, 0.9, 1.1);
@@ -3731,15 +3762,15 @@ Pillar.prototype.display = function() {
 	/* manual override to make sure enemies and stuff get displayed in front of the pillar (even though the pillar is technically in front) */
 	game.dungeon[game.theRoom].renderingObjects.lastItem().depth = 1;
 	game.dungeon[game.theRoom].renderingObjects.lastItem().zOrder = -1;
-};
-Pillar.prototype.update = function() {
+});
+Pillar.method("update", function() {
 	/* Base collisions */
 	collisions.rect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	collisions.rect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	/* Top collisions */
 	collisions.rect(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12);
 	collisions.rect(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10);
-};
+});
 function Statue(x, y) {
 	this.x = x;
 	this.y = y;
@@ -3758,15 +3789,15 @@ function Statue(x, y) {
 			}
 		}
 	}
-	this.itemHolding = new possibleItems[Math.floor(Math.random() * (possibleItems.length - 1))]();
-	this.facing = Math.random() < 0.5 ? "left" : "right";
-	this.pose = (Math.random() < 0.5) ? "standing" : "kneeling";
+	this.itemHolding = new (possibleItems.randomItem()) ();
+	this.facing = ["left", "right"].randomItem();
+	this.pose = ["kneeling", "standing"].randomItem();
 };
-Statue.prototype.exist = function() {
+Statue.method("exist", function() {
 	this.update();
 	this.display();
-};
-Statue.prototype.display = function() {
+});
+Statue.method("display", function() {
 	/* item in hands */
 	var self = this;
 	if(!this.itemStolen) {
@@ -3775,47 +3806,25 @@ Statue.prototype.display = function() {
 				function() {
 					if(self.itemHolding instanceof MeleeWeapon) {
 						if(self.pose === "standing") {
-							if(self.facing === "left") {
-								c.translate(self.x + p.worldX - 20, self.y + p.worldY + 72);
-								c.rotate(Math.rad(-45));
-								self.itemHolding.display("attacking");
-							}
-							else {
-								c.translate(self.x + p.worldX + 20, self.y + p.worldY + 72);
-								c.rotate(Math.rad(45));
-								self.itemHolding.display("attacking");
-							}
+							c.translate(self.x + p.worldX, self.y + p.worldY + 72);
+							c.scale((self.facing === "left" ? -1 : 1), 1);
+							c.translate(20, 0);
+							c.rotate(Math.rad(45));
+							self.itemHolding.display("attacking");
 						}
 						else {
-							if(self.facing === "left") {
-								c.save(); {
-									c.translate(self.x + p.worldX - 24, self.y + p.worldY + 52);
-									self.itemHolding.display("attacking");
-								} c.restore();
-							}
-							else {
-								c.save(); {
-									c.translate(self.x + p.worldX + 24, self.y + p.worldY + 52);
-									self.itemHolding.display("attacking");
-								} c.restore();
-							}
+							c.translate(self.x + p.worldX, self.y + p.worldY + 52);
+							c.scale((self.facing === "left" ? -1 : 1), 1);
+							c.translate(24, 0);
+							self.itemHolding.display("attacking");
 						}
 					}
 					else {
-						if(self.facing === "left") {
-							c.save(); {
-								c.translate(self.x + p.worldX - (self.itemHolding instanceof MagicWeapon ? 28 : 20), self.y + p.worldY + (self.itemHolding instanceof MagicWeapon ? 32 : 52));
-								c.scale(-2, 2);
-								self.itemHolding.display("aiming");
-							} c.restore();
-						}
-						else {
-							c.save(); {
-								c.translate(self.x + p.worldX + (self.itemHolding instanceof MagicWeapon ? 28 : 20), self.y + p.worldY + (self.itemHolding instanceof MagicWeapon ? 32 : 52));
-								c.scale(2, 2);
-								self.itemHolding.display("aiming");
-							} c.restore();
-						}
+						c.translate(self.x + p.worldX, self.y + p.worldY + (self.itemHolding instanceof MagicWeapon ? 32 : 52));
+						c.scale((self.facing === "left" ? -1 : 1), 1);
+						c.translate((self.itemHolding instanceof MagicWeapon ? 28 : 20), 0);
+						c.scale(2, 2);
+						self.itemHolding.display("aiming");
 					}
 				},
 				1,
@@ -3879,27 +3888,19 @@ Statue.prototype.display = function() {
 	);
 	/* pedestal */
 	graphics3D.cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 34, 0.95, 1.05, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
-	game.dungeon[game.theRoom].render(
-		new RenderingOrderObject(
-			function() {
-
-			},
-			1
-		)
-	);
-};
-Statue.prototype.update = function() {
+});
+Statue.method("update", function() {
 	/* stealing Weapons */
 	if(io.keys[83] && Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) <= 100 && !this.itemStolen) {
 		this.itemStolen = true;
 		p.addItem(this.itemHolding);
 	}
-};
+});
 function TiltPlatform(x, y) {
 	this.x = x;
 	this.y = y;
-	this.origX = x;
-	this.origY = y;
+	this.ORIGINAL_X = x;
+	this.ORIGINAL_Y = y;
 	this.tilt = 0;
 	this.tiltDir = 0;
 	this.platX = 0;
@@ -3909,12 +3910,12 @@ function TiltPlatform(x, y) {
 	this.velX = 0;
 	this.velY = 0;
 };
-TiltPlatform.prototype.exist = function() {
+TiltPlatform.method("exist", function() {
 	this.update();
 	this.display();
-};
-TiltPlatform.prototype.display = function() {
-	graphics3D.cube(this.origX + p.worldX - 5, this.origY + p.worldY + 10, 10, 8000, 0.99, 1.01);
+});
+TiltPlatform.method("display", function() {
+	graphics3D.cube(this.ORIGINAL_X + p.worldX - 5, this.ORIGINAL_Y + p.worldY + 10, 10, 8000, 0.99, 1.01);
 	graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
 		{
 			x: this.p1.x + this.x + p.worldX,
@@ -3933,8 +3934,8 @@ TiltPlatform.prototype.display = function() {
 			y: -(this.p2.y) + this.y + p.worldY
 		}
 	]);
-};
-TiltPlatform.prototype.update = function() {
+});
+TiltPlatform.method("update", function() {
 	this.p1 = Math.rotate(-75, -10, Math.floor(this.tilt));
 	this.p2 = Math.rotate(75, -10, Math.floor(this.tilt));
 	/* hitbox */
@@ -3952,7 +3953,7 @@ TiltPlatform.prototype.update = function() {
 		this.tiltDir *= 0.99;
 	}
 	this.tilt += this.tiltDir;
-	this.tilt = this.tilt.mod(360);
+	this.tilt = Math.modulateIntoRange(this.tilt, 0, 360);
 	/* falling */
 	this.y += 5;
 	this.collides = function() {
@@ -3962,7 +3963,7 @@ TiltPlatform.prototype.update = function() {
 		c.lineTo(-this.p1.x + this.x, -this.p1.y + this.y);
 		c.lineTo(-this.p2.x + this.x, -this.p2.y + this.y);
 		for(var x = -5; x <= 5; x += 10) {
-			if(c.isPointInPath(this.origX + x, this.origY + 10)) {
+			if(c.isPointInPath(this.ORIGINAL_X + x, this.ORIGINAL_Y + 10)) {
 				return true;
 			}
 		}
@@ -3971,19 +3972,19 @@ TiltPlatform.prototype.update = function() {
 	while(this.collides()) {
 		this.y --;
 	};
-	if(this.tilt > 45 && this.tilt < 90 && this.x < this.origX + 10) {
+	if(this.tilt > 45 && this.tilt < 90 && this.x < this.ORIGINAL_X + 10) {
 		this.velX += 0.1;
 	}
-	if(this.tilt < 315 && this.tilt > 270 && this.x > this.origX - 10) {
+	if(this.tilt < 315 && this.tilt > 270 && this.x > this.ORIGINAL_X - 10) {
 		this.velX -= 0.1;
 	}
-	if(this.y - this.origY > 800) {
+	if(this.y - this.ORIGINAL_Y > 800) {
 		this.x = -8000; // move offscreen
 	}
 	this.x += this.velX;
 	p.onGroundBefore = p.canJump;
-};
-TiltPlatform.prototype.collides = function(x, y) {
+});
+TiltPlatform.method("collides", function(x, y) {
 	var p1 = graphics3D.point3D(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, 1.1);
 	var p2 = graphics3D.point3D(this.p2.x + this.x + p.worldX, this.p2.y + this.y + p.worldY, 1.1);
 	var p3 = graphics3D.point3D(-this.p1.x + this.x + p.worldX, -this.p1.y + this.y + p.worldY, 1.1);
@@ -3996,12 +3997,12 @@ TiltPlatform.prototype.collides = function(x, y) {
 		p4
 	);
 	return c.isPointInPath(x, y);
-};
+});
 function Bridge(x, y) {
 	this.x = x;
 	this.y = y;
 };
-Bridge.prototype.exist = function() {
+Bridge.method("exist", function() {
 	this.update();
 	this.display();
 	return;
@@ -4049,8 +4050,8 @@ Bridge.prototype.exist = function() {
 			c.fill("evenodd");
 		} c.restore();
 	}
-};
-Bridge.prototype.display = function() {
+});
+Bridge.method("display", function() {
 	function displayBridge() {
 		/* clip out arches */
 		c.lineWidth = 4;
@@ -4097,32 +4098,32 @@ Bridge.prototype.display = function() {
 			1.1
 		)
 	);
-};
-Bridge.prototype.update = function() {
+});
+Bridge.method("update", function() {
 	collisions.collisions.push(new CollisionCircle(this.x, this.y + 500, 500));
 
-};
+});
 function BookShelf(x, y) {
 	this.x = x;
 	this.y = y;
 };
-BookShelf.prototype.exist = function() {
+BookShelf.method("exist", function() {
 	this.update();
 	this.display();
-};
-BookShelf.prototype.display = function() {
+});
+BookShelf.method("display", function() {
 	/* graphics */
 	for(var y = this.y; y >= this.y - 200; y -= 50) {
 		graphics3D.cube(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	}
 	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + 90, this.y + p.worldY - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-};
-BookShelf.prototype.update = function() {
+});
+BookShelf.method("update", function() {
 	for(var y = this.y; y >= this.y - 200; y -= 50) {
 		collisions.rect(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, {walls: [true, false, false, false]});
 	}
-};
+});
 function Chandelier(x, y) {
 	this.x = x;
 	this.y = y;
@@ -4138,11 +4139,11 @@ function Chandelier(x, y) {
 	}
 	this.particles = [];
 };
-Chandelier.prototype.exist = function() {
+Chandelier.method("exist", function() {
 	this.update();
 	this.display();
-};
-Chandelier.prototype.display = function() {
+});
+Chandelier.method("display", function() {
 	/*
 	this function breaks the graphics into multiple sub-functions so that they can be called in different orders depending on perspective.
 	*/
@@ -4235,14 +4236,14 @@ Chandelier.prototype.display = function() {
 			if(indexes[i].type === "cord") {
 				var edge = graphics3D.point3D(self.points[indexes[i].index].x + p.worldX, self.points[indexes[i].index].y + p.worldY, self.points[indexes[i].index].z);
 				c.strokeStyle = "rgb(139, 69, 19)";
-				c.beginPath();
-				c.moveTo(self.x + p.worldX, self.y + p.worldY - 600);
-				c.lineTo(edge.x, edge.y);
-				c.stroke();
+				c.strokeLine(
+					self.x + p.worldX, self.y + p.worldY - 600,
+					edge.x, edge.y
+				);
 			}
 			else {
 				graphics3D.cube(p.worldX + self.points[indexes[i].index].x - 5, p.worldY + self.points[indexes[i].index].y - 10, 10, 10, self.points[indexes[i].index].z - 0.01, self.points[indexes[i].index].z + 0.01, null, null);
-				self.particles.push(new Particle("rgb(255, 128, 0)", self.points[indexes[i].index].x, self.points[indexes[i].index].y - 10, Math.random() * 2 - 1, Math.random() * -2, 5));
+				self.particles.push(new Particle("rgb(255, 128, 0)", self.points[indexes[i].index].x, self.points[indexes[i].index].y - 10, Math.randomInRange(-1, 1), Math.randomInRange(-2, 0)));
 				self.particles[self.particles.length - 1].z = self.points[indexes[i].index].z;
 			}
 		}
@@ -4253,18 +4254,18 @@ Chandelier.prototype.display = function() {
 				continue;
 			}
 		}
-		c.beginPath();
-		c.moveTo(self.x + p.worldX, self.y + p.worldY - 600);
-		c.lineTo(self.x + p.worldX, 0);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(self.x + p.worldX - 72, self.y + p.worldY - 150);
-		c.lineTo(self.x + p.worldX + 72, self.y + p.worldY - 150);
-		c.stroke();
-		c.beginPath();
-		c.moveTo(self.x + p.worldX - 54, self.y + p.worldY - 300);
-		c.lineTo(self.x + p.worldX + 54, self.y + p.worldY - 300);
-		c.stroke();
+		c.strokeLine(
+			self.x + p.worldX, self.y + p.worldY - 600,
+			self.x + p.worldX, 0
+		);
+		c.strokeLine(
+			self.x + p.worldX - 72, self.y + p.worldY - 150,
+			self.x + p.worldX + 72, self.y + p.worldY - 150
+		);
+		c.strokeLine(
+			self.x + p.worldX - 54, self.y + p.worldY - 300,
+			self.x + p.worldX + 54, self.y + p.worldY - 300
+		);
 	};
 	if(this.y + p.worldY < 400) {
 		cords();
@@ -4278,43 +4279,43 @@ Chandelier.prototype.display = function() {
 		topDisc();
 		cords();
 	}
-};
-Chandelier.prototype.update = function() {
+});
+Chandelier.method("update", function() {
 	collisions.rect(this.x + p.worldX - 100, this.y + p.worldY, 200, 20);
 	collisions.rect(this.x + p.worldX - 72, this.y + p.worldY - 150, 144, 3, {walls: [true, false, false, false]});
 	collisions.rect(this.x + p.worldX - 54, this.y + p.worldY - 300, 108, 3, {walls: [true, false, false, false]});
-};
+});
 function Table(x, y) {
 	this.x = x;
 	this.y = y;
 };
-Table.prototype.exist = function() {
+Table.method("exist", function() {
 	this.display();
 	this.update();
-};
-Table.prototype.display = function() {
+});
+Table.method("display", function() {
 	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
 	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + 40, this.y + p.worldY - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
 	graphics3D.cube(this.x + p.worldX + 40, this.y + p.worldY - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 100, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-};
-Table.prototype.update = function() {
+});
+Table.method("update", function() {
 	/* Nothing to update */
-};
+});
 function Chair(x, y, dir) {
 	this.x = x;
 	this.y = y;
 	this.dir = dir;
 };
-Chair.prototype.exist = function() {
+Chair.method("exist", function() {
 	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 50, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	graphics3D.cube(this.x + p.worldX + ((this.dir === "right") ? -25 : 15), this.y + p.worldY - 60, 10, 35, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-};
+});
 function SpikeBall(x, y, dir) {
 	/*
 	Used for the unimplemented mace weapon.
@@ -4325,7 +4326,7 @@ function SpikeBall(x, y, dir) {
 	this.velX = 0;
 	this.velY = 0;
 };
-SpikeBall.prototype.exist = function() {
+SpikeBall.method("exist", function() {
 	c.fillStyle = "rgb(60, 60, 60)";
 	c.strokeStyle = "rgb(60, 60, 60)";
 	/* graphics - chain */
@@ -4366,11 +4367,11 @@ SpikeBall.prototype.exist = function() {
 		for(var r = 0; r < 360; r += (360 / 6)) {
 			c.save(); {
 				c.rotate(Math.rad(r + (this.x + this.y)));
-				c.beginPath();
-				c.moveTo(-5, 0);
-				c.lineTo(5, 0);
-				c.lineTo(0, -20);
-				c.fill();
+				c.fillPoly(
+					-5, 0,
+					5, 0,
+					0, -20
+				);
 			} c.restore();
 		}
 	} c.restore();
@@ -4379,7 +4380,7 @@ SpikeBall.prototype.exist = function() {
 	this.y += this.velY;
 	this.velY += 0.01;
 	if(Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) > 100) {
-		if(Math.abs((this.x + p.worldX) - p.x) < Math.abs((this.y + p.worldY) - p.y)) {
+		if(Math.dist(this.x + p.worldX, p.x) < Math.dist(this.y + p.worldY, p.y)) {
 			if(this.y + p.worldY > p.y) {
 				this.velY = -1;
 			}
@@ -4396,7 +4397,7 @@ SpikeBall.prototype.exist = function() {
 			}
 		}
 	}
-};
+});
 function Decoration(x, y) {
 	/*
 	Never actually displayed in-game. Selects one of the specific types of decorations to display.
@@ -4405,7 +4406,7 @@ function Decoration(x, y) {
 	this.y = y;
 	this.type = null;
 };
-Decoration.prototype.exist = function() {
+Decoration.method("exist", function() {
 	if(this.type === null) {
 		/* find self in the current room */
 		var selfIndex = null;
@@ -4437,30 +4438,31 @@ Decoration.prototype.exist = function() {
 		}
 		/* randomize decoration if none other to mimic */
 		if(!resolved) {
-			var chooser = Math.random();
-			if(TESTING_MODE) {
-				chooser = 1;
-			}
-			if(chooser < 0.33) {
-				game.dungeon[game.theRoom].content[selfIndex] = new Torch(this.x, this.y);
+			function torch(x, y) {
+				game.dungeon[game.theRoom].content[selfIndex] = new Torch(x, y);
 				game.dungeon[game.theRoom].content[selfIndex].lit = true;
+			};
+			function banner(x, y) {
+				game.dungeon[game.theRoom].content[selfIndex] = new Banner(x, y - 30);
+			};
+			function window(x, y) {
+				game.dungeon[game.theRoom].content[selfIndex] = new GlassWindow(x, y, game.dungeon[game.theRoom].colorScheme);
+			};
+			var decoration = [torch, banner, window].randomItem();
+			if(TESTING_MODE) {
+				// decoration = torch;
 			}
-			else if(chooser < 0.66) {
-				game.dungeon[game.theRoom].content[selfIndex] = new Banner(this.x, this.y - 30);
-			}
-			else {
-				game.dungeon[game.theRoom].content[selfIndex] = new GlassWindow(this.x, this.y, game.dungeon[game.theRoom].colorScheme);
-			}
+			decoration(this.x, this.y);
 		}
 	}
-};
+});
 function Banner(x, y, color) {
 	this.x = x;
 	this.y = y;
 	this.color = color;
 	this.graphic = null;
 };
-Banner.prototype.exist = function() {
+Banner.method("exist", function() {
 	if(this.color === undefined || this.color === "?") {
 		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
 			if(game.dungeon[game.theRoom].content[i] instanceof Banner && game.dungeon[game.theRoom].content[i].color !== undefined && game.dungeon[game.theRoom].content[i].color !== "?") {
@@ -4480,13 +4482,7 @@ Banner.prototype.exist = function() {
 			}
 		}
 		if(this.graphic === null) {
-			var chooser = Math.random();
-			if(chooser < 0.5) {
-				this.graphic = "gradient";
-			}
-			else {
-				this.graphic = "border";
-			}
+			this.graphic = ["gradient", "border"].randomItem();
 		}
 		if(TESTING_MODE) {
 			this.graphic = "border";
@@ -4543,13 +4539,13 @@ Banner.prototype.exist = function() {
 		));
 	}
 	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - 50, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-};
+});
 function GlassWindow(x, y, color) {
 	this.x = x;
 	this.y = y;
 	this.color = color;
 };
-GlassWindow.prototype.exist = function() {
+GlassWindow.method("exist", function() {
 	game.dungeon[game.theRoom].background = "plain";
 	c.save(); {
 		var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.9);
@@ -4561,7 +4557,7 @@ GlassWindow.prototype.exist = function() {
 			c.clip();
 		};
 		c.fillStyle = "rgb(100, 100, 100)";
-		c.fillRect(0, 0, 800, 800);
+		c.fillCanvas();
 		/* background */
 		graphics3D.cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null);
 		graphics3D.cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null);
@@ -4609,36 +4605,22 @@ GlassWindow.prototype.exist = function() {
 				}
 				c.fillRect(center.x - 25, center.y - 100, 50, 100);
 				c.strokeRect(center.x - 25, center.y - 100, 50, 100);
-				c.beginPath();
-				c.arc(center.x, center.y - 100, 25, Math.PI, 2 * Math.PI);
-				c.fill();
+				c.fillArc(center.x, center.y - 100, 25, Math.rad(180), Math.rad(360));
 				c.stroke();
 			},
 			0.9
 		));
 	} c.restore();
-};
+});
 function Roof(x, y, w) {
 	this.x = x;
 	this.y = y;
 	this.w = w;
 	this.type = null;
 };
-Roof.prototype.exist = function() {
+Roof.method("exist", function() {
 	if(this.type === null) {
-		var chooser = Math.random();
-		if(chooser < 0.25) {
-			this.type = "none";
-		}
-		else if(chooser < 0.5) {
-			this.type = "flat";
-		}
-		else if(chooser < 0.75) {
-			this.type = "sloped";
-		}
-		else {
-			this.type = "curved";
-		}
+		this.type = ["none", "flat", "sloped", "curved"].randomItem();
 	}
 	if(this.type === "flat") {
 		graphics3D.cube(-100, this.y + p.worldY - 1100, 1000, 1000, 0.9, 1.1);
@@ -4701,20 +4683,20 @@ Roof.prototype.exist = function() {
 		}
 		array.splice(0, 0, {x: -100, y: -100}, {x: -100, y: this.y + p.worldY}, {x: this.x + p.worldX - this.w, y: this.y + p.worldY});
 		array.push({x: this.x + p.worldX + this.w, y: this.y + p.worldY});
-		array.push({x: 900, y: this.y + p.worldY});
-		array.push({x: 900, y: -100});
+		array.push({x: canvas.width + 100, y: this.y + p.worldY});
+		array.push({x: canvas.width + 100, y: -100});
 		graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, array);
 		while(Math.distSq(p.x + p.worldX, this.y - (this.y - (p.y + p.worldY - 7)) / 2, this.x, this.y) > (this.w / 2) * (this.w / 2) && p.y - 7 < this.y) {
 			p.y ++;
 		}
 	}
-};
+});
 function Fountain(x, y) {
 	this.x = x;
 	this.y = y;
 	this.waterAnimations = [];
 };
-Fountain.prototype.exist = function() {
+Fountain.method("exist", function() {
 	/* water slot */
 	graphics3D.cutoutRect(this.x + p.worldX - 50, this.y + p.worldY - 160, 100, 10, "rgba(0, 0, 0, 0)", "rgba(150, 150, 150)", 0.8, 0.9);
 
@@ -4798,7 +4780,7 @@ Fountain.prototype.exist = function() {
 			}
 		}
 		if(utilities.frameCount % 15 === 0) {
-			this.waterAnimations.push( {x: Math.random() * 100 - 50, y: -50} );
+			this.waterAnimations.push( {x: Math.randomInRange(-50, 50), y: -50} );
 		}
 	} c.restore();
 	/* base */
@@ -4806,7 +4788,7 @@ Fountain.prototype.exist = function() {
 	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 10, 50, 0.9, 1);
 	graphics3D.cube(this.x + p.worldX + 90, this.y + p.worldY - 50, 10, 50, 0.9, 1);
 	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 200, 50, 0.98, 1);
-};
+});
 function Gear(x, y, size, dir) {
 	this.x = x;
 	this.y = y;
@@ -4822,7 +4804,7 @@ function Gear(x, y, size, dir) {
 		});
 	}
 };
-Gear.prototype.exist = function() {
+Gear.method("exist", function() {
 	var centerB = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
 	var centerF = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 1.05);
 	/* sides */
@@ -4830,12 +4812,12 @@ Gear.prototype.exist = function() {
 	c.fillStyle = "rgb(150, 150, 150)";
 	for(var r = this.rot; r < this.rot + 360; r += 3) {
 		var rotation = r;
-		rotation = rotation.mod(360);
+		rotation = Math.modulateIntoRange(rotation, 0, 360);
 		if((rotation - this.rot) % 30 === 0) {
 			gearType = (gearType === "inside") ? "outside" : "inside";
 		}
 		var next = r + 3;
-		next = next.mod(360);
+		next = Math.modulateIntoRange(next, 0, 360);
 		if(gearType === "inside") {
 			if((next - this.rot) % 30 !== 0) {
 				var currentIndex = Math.floor(rotation / 360 * (this.smallArr.length - 1));
@@ -4915,7 +4897,7 @@ Gear.prototype.exist = function() {
 	gearType = "inside";
 	for(var r = this.rot; r <= this.rot + 360; r += 3) {
 		var rotation = r;
-		rotation = rotation.mod(360);
+		rotation = Math.modulateIntoRange(rotation, 0, 360);
 		if((rotation - this.rot) % 30 === 0) {
 			gearType = (gearType === "inside") ? "outside" : "inside";
 		}
@@ -4940,7 +4922,7 @@ Gear.prototype.exist = function() {
 	}
 	c.fill();
 	this.rot += (this.dir === "right") ? 0.5 : -0.5;
-};
+});
 function MovingWall(x, y, w, h, startZ) {
 	this.x = x;
 	this.y = y;
@@ -4949,7 +4931,7 @@ function MovingWall(x, y, w, h, startZ) {
 	this.z = startZ || 0.9;
 	this.zDir = 0;
 };
-MovingWall.prototype.exist = function() {
+MovingWall.method("exist", function() {
 	if(this.z >= 1) {
 		collisions.rect(this.x + p.worldX, this.y + p.worldY, this.w, this.h);
 	}
@@ -4961,7 +4943,7 @@ MovingWall.prototype.exist = function() {
 	this.z += this.zDir;
 	this.z = Math.max(0.9, this.z);
 	this.z = Math.min(1.1, this.z);
-};
+});
 
 /** ROOM DATA **/
 function Room(type, content, id, minWorldY, background) {
@@ -4974,13 +4956,13 @@ function Room(type, content, id, minWorldY, background) {
 	this.colorScheme = null;
 	this.renderingObjects = [];
 };
-Room.prototype.exist = function(index) {
+Room.method("exist", function(index) {
 	c.globalAlpha = 1;
 	c.fillStyle = "rgb(100, 100, 100)";
 	c.resetTransform();
-	c.fillRect(0, 0, 800, 800);
+	c.fillCanvas();
 	if(this.background === null) {
-		this.background = (Math.random() < 0.5) ? "plain" : "bricks";
+		this.background = ["plain", "bricks"].randomItem();
 	}
 	graphics3D.boxFronts = [];
 	graphics3D.extraGraphics = [];
@@ -5003,23 +4985,23 @@ Room.prototype.exist = function(index) {
 		if(!obj.initialized && typeof obj.init === "function") {
 			obj.init();
 		}
-		if(this.content[i] instanceof Enemy) {
-			this.content[i].seesPlayer = true;
-			this.content[i].displayStats();
-			c.globalAlpha = Math.max(0, this.content[i].opacity);
-			this.content[i].exist("player");
+		if(obj instanceof Enemy) {
+			obj.seesPlayer = true;
+			obj.displayStats();
+			c.globalAlpha = Math.max(0, obj.opacity);
+			obj.exist("player");
 			c.globalAlpha = 1;
 			/* simple enemy attack */
-			if(this.content[i].x + p.worldX + this.content[i].rightX > p.x - 5 && this.content[i].x + p.worldX + this.content[i].leftX < p.x + 5 && this.content[i].y + p.worldY + this.content[i].bottomY > p.y - 5 && this.content[i].y + p.worldY + this.content[i].topY < p.y + 46 && this.content[i].attackRecharge < 0 && !this.content[i].complexAttack && this.content[i].timePurified <= 0) {
-				this.content[i].attackRecharge = 45;
-				var damage = Math.random() * (this.content[i].damHigh - this.content[i].damLow) + this.content[i].damLow;
-				p.hurt(damage, this.content[i].name);
+			if(obj.x + p.worldX + obj.hitbox.right > p.x - 5 && obj.x + p.worldX + obj.hitbox.left < p.x + 5 && obj.y + p.worldY + obj.hitbox.bottom > p.y - 5 && obj.y + p.worldY + obj.hitbox.top < p.y + 46 && obj.attackRecharge < 0 && !obj.complexAttack && obj.timePurified <= 0) {
+				obj.attackRecharge = 45;
+				var damage = Math.randomInRange(obj.damLow, obj.damHigh);
+				p.hurt(damage, obj.name);
 			}
 			/* remove dead enemies */
-			if(this.content[i].splicing && this.content[i].opacity <= 0) {
-				if(this.content[i] instanceof Wraith) {
-					for(var j = 0; j < this.content[i].particles.length; j ++) {
-						this.content.push(Object.create(this.content[i].particles[j]));
+			if(obj.splicing && obj.opacity <= 0) {
+				if(obj instanceof Wraith) {
+					for(var j = 0; j < obj.particles.length; j ++) {
+						this.content.push(Object.create(obj.particles[j]));
 						continue;
 					}
 				}
@@ -5029,28 +5011,28 @@ Room.prototype.exist = function(index) {
 			}
 			/* show hitboxes */
 			if(SHOW_HITBOXES) {
-				debugging.hitboxes.push({x: this.content[i].x + p.worldX + this.content[i].leftX, y: this.content[i].y + p.worldY + this.content[i].topY, w: (this.content[i].rightX + Math.abs(this.content[i].leftX)), h: (this.content[i].bottomY + Math.abs(this.content[i].topY)), color: "green"});
+				debugging.hitboxes.push({x: obj.x + p.worldX + obj.hitbox.left, y: obj.y + p.worldY + obj.hitbox.top, w: Math.dist(obj.hitbox.left, obj.hitbox.right), h: Math.dist(obj.hitbox.top, obj.hitbox.bottom), color: "green"});
 			}
 		}
-		else if(this.content[i] instanceof Boulder) {
-			if(this.content[i].splicing) {
+		else if(obj instanceof Boulder) {
+			if(obj.splicing) {
 				this.content.splice(i, 1);
 				continue;
 			}
 			boulderIndexes.push(i);
 		}
 		else {
-			this.content[i].exist();
+			obj.exist();
 		}
-		if(this.content[i].splicing) {
-			if(typeof this.content[i].remove === "function") {
-				this.content[i].remove();
+		if(obj.splicing) {
+			if(typeof obj.remove === "function") {
+				obj.remove();
 			}
 			this.content.splice(i, 1);
 			i --;
 			continue;
 		}
-		if(this.content[i] instanceof BoulderVoid) {
+		if(obj instanceof BoulderVoid) {
 			p.canUseEarth = false;
 		}
 	}
@@ -5078,8 +5060,8 @@ Room.prototype.exist = function(index) {
 		}
 		c.strokeRect(debugging.hitboxes[i].x, debugging.hitboxes[i].y, debugging.hitboxes[i].w, debugging.hitboxes[i].h);
 	}
-};
-Room.prototype.display = function() {
+});
+Room.method("display", function() {
 	/* Displays the objects in the room in order. */
 	var sorter = function(a, b) {
 		if(a.depth === b.depth) {
@@ -5102,8 +5084,8 @@ Room.prototype.display = function() {
 			this.renderingObjects[i].display();
 		} c.restore();
 	}
-};
-Room.prototype.displayBackground = function() {
+});
+Room.method("displayBackground", function() {
 	if(this.background === "bricks") {
 		c.save(); {
 			c.translate((p.worldX * 0.9) % 100, (p.worldY * 0.9) % 100);
@@ -5117,16 +5099,16 @@ Room.prototype.displayBackground = function() {
 			}
 		} c.restore();
 	}
-};
-Room.prototype.displayShadowEffect = function() {
+});
+Room.method("displayShadowEffect", function() {
 	var gradient = c.createRadialGradient(400, 400, 0, 400, 400, 600);
 	c.globalAlpha = 1;
 	gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
 	gradient.addColorStop(1, "rgba(0, 0, 0, 255)");
 	c.fillStyle = gradient;
-	c.fillRect(0, 0, 800, 800);
-};
-Room.prototype.render = function(object) {
+	c.fillCanvas();
+});
+Room.method("render", function(object) {
 	/*
 	Parameter: a RenderingOrderObject or RenderingOrderShape to be rendered.
 	*/
@@ -5138,26 +5120,36 @@ Room.prototype.render = function(object) {
 		this.renderingObjects.push(object);
 	}
 	this.renderingObjects[this.renderingObjects.length - 1].renderingStyle = this.renderingStyle;
-};
-Room.prototype.beginRenderingGroup = function() {
+});
+Room.method("beginRenderingGroup", function() {
 	this.groupingRenderedObjects = true;
 	this.renderingObjects.push(new RenderingOrderGroup());
-};
-Room.prototype.endRenderingGroup = function() {
+});
+Room.method("endRenderingGroup", function() {
 	this.groupingRenderedObjects = false;
-};
-Room.prototype.setRenderingStyle = function(func) {
+});
+Room.method("setRenderingStyle", function(func) {
 	/*
 	Allows you to set a function that will be run before every shape is rendered until it is turned off using Room.clearRenderingStyle().
 	*/
 	this.renderingStyle = func;
-};
-Room.prototype.clearRenderingStyle = function(func) {
+});
+Room.method("clearRenderingStyle", function(func) {
 	/*
 	Allows you to set a function that will be run before every shape is rendered until it is turned off using Room.clearRenderingStyle().
 	*/
 	this.renderingStyle = undefined;
-};
+});
+Room.method("getInstancesOf", function(type) {
+	var objects = [];
+	for(var i = 0; i < this.content.length; i ++) {
+		var obj = this.content[i];
+		if(obj instanceof type) {
+			objects.push(obj);
+		}
+	}
+	return objects;
+});
 
 
 
@@ -5167,7 +5159,7 @@ function Item() {
 	this.initialized = false;
 	this.mode = "visual"; // the mode of the item - "visual" for when it is coming out of a chest and "held" if it is in the inventory.
 };
-Item.prototype.init = function() {
+Item.method("init", function() {
 	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 		if(game.dungeon[game.inRoom].content[i].requestingItem && game.dungeon[game.inRoom].content[i] instanceof Chest) {
 			this.x = game.dungeon[game.inRoom].content[i].x;
@@ -5179,8 +5171,8 @@ Item.prototype.init = function() {
 	this.initialized = true;
 	this.velY = -4;
 	this.opacity = 1;
-};
-Item.prototype.animate = function() {
+});
+Item.method("animate", function() {
 	/**
 	Run the animation for the item when coming out of chests
 	**/
@@ -5192,12 +5184,12 @@ Item.prototype.animate = function() {
 			this.splicing = true;
 		}
 	}
-};
-Item.prototype.remove = function() {
+});
+Item.method("remove", function() {
 	this.opacity = 1;
 	p.addItem(this);
-};
-Item.prototype.exist = function() {
+});
+Item.method("exist", function() {
 	this.animate();
 	/* display (clipped into only where it overlaps the nearest chest horizontally) */
 	var nearestChest = game.dungeon[game.theRoom].content[0];
@@ -5223,8 +5215,8 @@ Item.prototype.exist = function() {
 		},
 		1
 	));
-};
-Item.prototype.displayDesc = function(x, y, dir) {
+});
+Item.method("displayDesc", function(x, y, dir) {
 	dir = dir || "left";
 	/* add special stat text for elemental weapons */
 	if(this instanceof Weapon && this.element !== "none" && !(this instanceof ElementalStaff)) {
@@ -5312,7 +5304,7 @@ Item.prototype.displayDesc = function(x, y, dir) {
 			textY = c.displayTextOverLines(this.desc[i].content, x - 205, textY + 12, 190, 12);
 		}
 	}
-};
+});
 
 /* weapons */
 function Weapon(modifier) {
@@ -5323,7 +5315,7 @@ function Weapon(modifier) {
 	this.particles = [];
 };
 Weapon.extends(Item);
-Weapon.prototype.displayParticles = function() {
+Weapon.method("displayParticles", function() {
 	if(this.element === null || this.element === "none") {
 		return;
 	}
@@ -5341,7 +5333,7 @@ Weapon.prototype.displayParticles = function() {
 		else if(this.element === "air") {
 			color = "rgb(255, 255, 255)";
 		}
-		this.particles.push(new Particle(color, Math.random() * 50 + 10, Math.random() * 50 + 10, Math.random() * 4 - 2, Math.random() * 4 - 2, Math.random() * 1 + 5));
+		this.particles.push(new Particle(color, Math.randomInRange(10, 60), Math.randomInRange(10, 60), Math.randomInRange(-2, 2), Math.randomInRange(-2, 2), Math.randomInRange(5, 6)));
 		this.particles[this.particles.length - 1].opacity = 0.25;
 	}
 	for(var i = 0; i < this.particles.length; i ++) {
@@ -5352,16 +5344,16 @@ Weapon.prototype.displayParticles = function() {
 			continue;
 		}
 	}
-};
+});
 function MeleeWeapon(modifier) {
 	Weapon.call(this, modifier);
 	this.attackSpeed = (this.modifier === "none") ? "normal" : (this.modifier === "light" ? "fast" : "slow");
 	this.attackSpeed = "normal";
 };
 MeleeWeapon.extends(Weapon);
-MeleeWeapon.prototype.attack = function() {
+MeleeWeapon.method("attack", function() {
 	p.attackingWith = this;
-};
+});
 function Dagger(modifier) {
 	MeleeWeapon.call(this, modifier);
 	this.name = "dagger";
@@ -5371,7 +5363,7 @@ function Dagger(modifier) {
 	this.power = 2;
 };
 Dagger.extends(MeleeWeapon);
-Dagger.prototype.getDesc = function() {
+Dagger.method("getDesc", function() {
 	var desc = [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
@@ -5402,8 +5394,8 @@ Dagger.prototype.getDesc = function() {
 		}
 	];
 	return desc;
-};
-Dagger.prototype.display = function(type) {
+});
+Dagger.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(139, 69, 19)";
 	if(type !== "attacking") {
@@ -5424,7 +5416,7 @@ Dagger.prototype.display = function(type) {
 		{ x: 3, y: -10 },
 		{ x: 0, y: -30 }
 	);
-};
+});
 function Sword(modifier) {
 	MeleeWeapon.call(this, modifier);
 	this.name = "sword";
@@ -5434,7 +5426,7 @@ function Sword(modifier) {
 	this.power = 3;
 };
 Sword.extends(MeleeWeapon);
-Sword.prototype.display = function(type) {
+Sword.method("display", function(type) {
 	type = type || "item";
 	c.save(); {
 		// debugger;
@@ -5459,8 +5451,8 @@ Sword.prototype.display = function(type) {
 		);
 		c.globalAlpha = 1;
 	} c.restore();
-};
-Sword.prototype.getDesc = function() {
+});
+Sword.method("getDesc", function() {
 	var desc = [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
@@ -5491,7 +5483,7 @@ Sword.prototype.getDesc = function() {
 		}
 	];
 	return desc;
-};
+});
 function Spear(modifier) {
 	MeleeWeapon.call(this, modifier);
 	this.name = "spear";
@@ -5501,7 +5493,7 @@ function Spear(modifier) {
 	this.power = 3;
 };
 Spear.extends(MeleeWeapon);
-Spear.prototype.display = function(type) {
+Spear.method("display", function(type) {
 	type = type || "item";
 	c.save(); {
 		if(type !== "attacking") {
@@ -5523,8 +5515,8 @@ Spear.prototype.display = function(type) {
 			{ x: 0, y: -35 }
 		);
 	} c.restore();
-};
-Spear.prototype.getDesc = function() {
+});
+Spear.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
@@ -5554,7 +5546,7 @@ Spear.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 function Mace(modifier) {
 	MeleeWeapon.call(this, modifier);
 	this.name = "mace";
@@ -5564,7 +5556,7 @@ function Mace(modifier) {
 	this.power = 4;
 };
 Mace.extends(MeleeWeapon);
-Mace.prototype.display = function(type) {
+Mace.method("display", function(type) {
 	type = type || "item";
 	if(type === "item" || type === "holding") {
 		c.fillStyle = "rgb(60, 60, 60)";
@@ -5594,8 +5586,8 @@ Mace.prototype.display = function(type) {
 		c.strokeCircle(-10, -6, 3);
 		c.strokeCircle(-5, -6, 3);
 	}
-};
-Mace.prototype.getDesc = function() {
+});
+Mace.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ")
@@ -5625,7 +5617,7 @@ Mace.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 
 function RangedWeapon(modifier) {
 	Weapon.call(this, modifier);
@@ -5640,7 +5632,7 @@ function Arrow(quantity) {
 	this.stackable = true;
 };
 Arrow.extends(RangedWeapon);
-Arrow.prototype.display = function(type) {
+Arrow.method("display", function(type) {
 	type = type || "item";
 	if(type === "item" || type === "holding") {
 		c.strokeStyle = "rgb(139, 69, 19)";
@@ -5660,8 +5652,8 @@ Arrow.prototype.display = function(type) {
 			c.strokeLine(-x, x, -x - 8, x);
 		}
 	}
-};
-Arrow.prototype.getDesc = function() {
+});
+Arrow.method("getDesc", function() {
 	return [
 		{
 			content: "Arrow [" + this.quantity + "]",
@@ -5674,7 +5666,7 @@ Arrow.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 function WoodBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.name = "bow";
@@ -5687,7 +5679,7 @@ function WoodBow(modifier) {
 	*/
 };
 WoodBow.extends(RangedWeapon);
-WoodBow.prototype.display = function(type) {
+WoodBow.method("display", function(type) {
 	type = type || "item";
 	if(type === "holding" || type === "item") {
 		c.strokeStyle = "rgb(139, 69, 19)";
@@ -5703,8 +5695,8 @@ WoodBow.prototype.display = function(type) {
 		c.lineWidth = 1;
 		c.strokeLine(-7, -22, -7, 22);
 	}
-};
-WoodBow.prototype.getDesc = function() {
+});
+WoodBow.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Wooden Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
@@ -5727,7 +5719,7 @@ WoodBow.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 function MetalBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.name = "bow";
@@ -5737,7 +5729,7 @@ function MetalBow(modifier) {
 	this.power = 4;
 };
 MetalBow.extends(RangedWeapon);
-MetalBow.prototype.display = function(type) {
+MetalBow.method("display", function(type) {
 	type = type || "item";
 	if(type === "holding" || type === "item") {
 		c.strokeStyle = "rgb(200, 200, 200)";
@@ -5753,8 +5745,8 @@ MetalBow.prototype.display = function(type) {
 		c.lineWidth = 1;
 		c.strokeLine(-7, -22, -7, 22);
 	}
-};
-MetalBow.prototype.getDesc = function() {
+});
+MetalBow.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Metal Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
@@ -5777,7 +5769,7 @@ MetalBow.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 function MechBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.name = "bow";
@@ -5788,7 +5780,7 @@ function MechBow(modifier) {
 	this.power = 4;
 };
 MechBow.extends(RangedWeapon);
-MechBow.prototype.display = function(type) {
+MechBow.method("display", function(type) {
 	type = type || "item";
 	c.save(); {
 		if(type === "aiming") {
@@ -5830,8 +5822,8 @@ MechBow.prototype.display = function(type) {
 			}
 		} c.restore();
 	} c.restore();
-};
-MechBow.prototype.getDesc = function() {
+});
+MechBow.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Mechanical Bow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
@@ -5859,7 +5851,7 @@ MechBow.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	]
-};
+});
 function LongBow(modifier) {
 	RangedWeapon.call(this, modifier);
 	this.name = "longbow";
@@ -5869,7 +5861,7 @@ function LongBow(modifier) {
 	this.power = 5;
 };
 LongBow.extends(RangedWeapon);
-LongBow.prototype.display = function(type) {
+LongBow.method("display", function(type) {
 	type = type || "item";
 	c.save(); {
 		if(type === "aiming") {
@@ -5886,8 +5878,8 @@ LongBow.prototype.display = function(type) {
 		/* 2nd bowstring */
 		c.strokeLine(-13, -15, 15, 13);
 	} c.restore();
-};
-LongBow.prototype.getDesc = function() {
+});
+LongBow.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Longbow" + ((this.element === "none") ? "" : " of " + this.element.substr(0, 1).toUpperCase() + this.element.substr(1, this.element.length)),
@@ -5915,7 +5907,7 @@ LongBow.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 
 function MagicWeapon(modifier) {
 	Weapon.call(this, modifier);
@@ -5931,7 +5923,7 @@ function EnergyStaff(modifier) {
 	this.power = 3;
 };
 EnergyStaff.extends(MagicWeapon);
-EnergyStaff.prototype.display = function(type) {
+EnergyStaff.method("display", function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
 	c.save(); {
@@ -5940,10 +5932,10 @@ EnergyStaff.prototype.display = function(type) {
 			c.rotate(Math.rad(45));
 		}
 		c.strokeLine(0, -10, 0, 30);
-		c.strokeArc(0, -14, 5, Math.rad(90), Math.rad(180), true);
+		c.strokeArc(0, -14, 5, Math.rad(180), Math.rad(90));
 	} c.restore();
-};
-EnergyStaff.prototype.getDesc = function() {
+});
+EnergyStaff.method("getDesc", function() {
 	return [
 		{
 			content: (this.modifier === "none" ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Energy",
@@ -5966,7 +5958,7 @@ EnergyStaff.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 function ElementalStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.name = "staff";
@@ -5977,7 +5969,7 @@ function ElementalStaff(modifier) {
 	this.power = 4;
 };
 ElementalStaff.extends(MagicWeapon);
-ElementalStaff.prototype.display = function(type) {
+ElementalStaff.method("display", function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
 	c.fillStyle = "rgb(139, 69, 19)";
@@ -6028,15 +6020,13 @@ ElementalStaff.prototype.display = function(type) {
 			c.strokeStyle = "rgb(220, 220, 220)";
 		}
 		c.lineWidth = 1;
-		c.beginPath();
-		c.polygon(
+		c.fillPoly(
 			0, -10,
 			7, -17,
 			0, -20,
 			-7, -17,
 			0, -10
 		);
-		c.fill();
 		c.stroke();
 
 		c.strokeLine(0, -10, 0, -20);
@@ -6046,8 +6036,8 @@ ElementalStaff.prototype.display = function(type) {
 	if(this.element !== "none") {
 		this.chargeType = this.element;
 	}
-};
-ElementalStaff.prototype.getDesc = function() {
+});
+ElementalStaff.method("getDesc", function() {
 	if(this.element === "none") {
 		return [
 			{
@@ -6158,7 +6148,7 @@ ElementalStaff.prototype.getDesc = function() {
 			}
 		];
 	}
-};
+});
 function ChaosStaff(modifier) {
 	MagicWeapon.call(this, modifier);
 	this.name = "staff";
@@ -6169,7 +6159,7 @@ function ChaosStaff(modifier) {
 	this.power = 2;
 };
 ChaosStaff.extends(MagicWeapon);
-ChaosStaff.prototype.display = function(type) {
+ChaosStaff.method("display", function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";
 	c.save(); {
@@ -6192,8 +6182,8 @@ ChaosStaff.prototype.display = function(type) {
 			10, -10
 		);
 	} c.restore();
-};
-ChaosStaff.prototype.getDesc = function() {
+});
+ChaosStaff.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, this.modifier.length) + " ") + "Staff of Chaos",
@@ -6211,7 +6201,7 @@ ChaosStaff.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 
 /* equipables */
 function Equipable(modifier) {
@@ -6229,7 +6219,7 @@ function WizardHat(modifier) {
 	this.power = 3;
 };
 WizardHat.extends(Equipable);
-WizardHat.prototype.display = function() {
+WizardHat.method("display", function() {
 	c.fillStyle = "rgb(109, 99, 79)";
 	c.fillPoly(
 		-30, 20,
@@ -6238,8 +6228,8 @@ WizardHat.prototype.display = function() {
 		0, -20,
 		-10, 15
 	);
-};
-WizardHat.prototype.getDesc = function() {
+});
+WizardHat.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, Infinity) + " ") + "Wizard Hat",
@@ -6262,7 +6252,7 @@ WizardHat.prototype.getDesc = function() {
 			font: "10pt Cursive"
 		}
 	];
-};
+});
 function MagicQuiver(modifier) {
 	Equipable.call(this, modifier);
 	this.name = "quiver";
@@ -6272,7 +6262,7 @@ function MagicQuiver(modifier) {
 	this.power = 2;
 };
 MagicQuiver.extends(Equipable);
-MagicQuiver.prototype.display = function() {
+MagicQuiver.method("display", function() {
 	c.save(); {
 		c.fillStyle = "rgb(139, 69, 19)";
 		c.translate(-5, 5);
@@ -6283,8 +6273,8 @@ MagicQuiver.prototype.display = function() {
 		new ShotArrow(-3, -20, 0, -2).exist();
 		new ShotArrow(3, -30, 0, -2).exist();
 	} c.restore();
-};
-MagicQuiver.prototype.getDesc = function() {
+});
+MagicQuiver.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, Infinity) + " ") + "Magic Quiver",
@@ -6307,7 +6297,7 @@ MagicQuiver.prototype.getDesc = function() {
 			font: "10pt Cursive"
 		}
 	];
-};
+});
 function Helmet(modifier) {
 	Equipable.call(this, modifier);
 	this.name = "helmet";
@@ -6317,7 +6307,7 @@ function Helmet(modifier) {
 	this.power = 3;
 };
 Helmet.extends(Equipable);
-Helmet.prototype.display = function() {
+Helmet.method("display", function() {
 	c.save(); {
 		c.translate(0, -7);
 		c.scale(0.4, 0.4);
@@ -6353,8 +6343,8 @@ Helmet.prototype.display = function() {
 		);
 
 	} c.restore();
-};
-Helmet.prototype.getDesc = function() {
+});
+Helmet.method("getDesc", function() {
 	return [
 		{
 			content: ((this.modifier === "none") ? "" : (this.modifier.substr(0, 1).toUpperCase() + this.modifier.substr(1, Infinity + " "))) + " Helmet of Regeneration",
@@ -6377,7 +6367,7 @@ Helmet.prototype.getDesc = function() {
 			font: "10pt Cursive"
 		}
 	];
-};
+});
 
 /* extras */
 function Extra() {
@@ -6389,7 +6379,7 @@ function Crystal() {
 	this.consumed = false;
 };
 Crystal.extends(Extra);
-Crystal.prototype.graphics = function(type) {
+Crystal.method("graphics", function(type) {
 	/* called in the subclass's method 'display' */
 	if(type === "holding") {
 		c.translate(0, 13);
@@ -6424,23 +6414,23 @@ Crystal.prototype.graphics = function(type) {
 		8, -15
 	);
 	c.strokeLine(0, 0, 0, -23);
-};
-Crystal.prototype.use = function() {
+});
+Crystal.method("use", function() {
 	p.guiOpen = "crystal-infusion";
 	p.infusedGui = (this instanceof FireCrystal || this instanceof WaterCrystal) ? (this instanceof FireCrystal ? "fire" : "water") : (this instanceof EarthCrystal ? "earth" : "air");
 	this.toBeConsumed = true;
-};
+});
 function FireCrystal() {
 	Crystal.call(this);
 };
 FireCrystal.extends(Crystal);
-FireCrystal.prototype.display = function(type) {
+FireCrystal.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(255, 100, 0)";
 	c.strokeStyle = "rgb(255, 0, 0)";
 	this.graphics(type);
-};
-FireCrystal.prototype.getDesc = function() {
+});
+FireCrystal.method("getDesc", function() {
 	return [
 		{
 			content: "Fire Crystal",
@@ -6459,18 +6449,18 @@ FireCrystal.prototype.getDesc = function() {
 		}
 	];
 
-};
+});
 function WaterCrystal() {
 	Crystal.call(this);
 };
 WaterCrystal.extends(Crystal);
-WaterCrystal.prototype.display = function(type) {
+WaterCrystal.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(0, 255, 255)";
 	c.strokeStyle = "rgb(0, 128, 255)";
 	this.graphics(type);
-};
-WaterCrystal.prototype.getDesc = function() {
+});
+WaterCrystal.method("getDesc", function() {
 	return [
 		{
 			content: "Water Crystal",
@@ -6488,18 +6478,18 @@ WaterCrystal.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 function EarthCrystal() {
 	Crystal.call(this);
 };
 EarthCrystal.extends(Crystal);
-EarthCrystal.prototype.display = function(type) {
+EarthCrystal.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(0, 128, 128)";
 	c.strokeStyle = "rgb(0, 128, 0)";
 	this.graphics(type);
-};
-EarthCrystal.prototype.getDesc = function() {
+});
+EarthCrystal.method("getDesc", function() {
 	return [
 		{
 			content: "Earth Crystal",
@@ -6517,7 +6507,7 @@ EarthCrystal.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		},
 	]
-};
+});
 function Boulder(x, y, damage) {
 	this.x = x;
 	this.y = y;
@@ -6526,7 +6516,7 @@ function Boulder(x, y, damage) {
 	this.hitSomething = false;
 	this.opacity = 1;
 };
-Boulder.prototype.exist = function() {
+Boulder.method("exist", function() {
 	var p1b = graphics3D.point3D(this.x + p.worldX - 40, this.y + p.worldY, 0.9);
 	var p2b = graphics3D.point3D(this.x + p.worldX + 40, this.y + p.worldY, 0.9);
 	var p3b = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY - 100, 0.9);
@@ -6553,7 +6543,7 @@ Boulder.prototype.exist = function() {
 			if(thing instanceof Block && this.x + 40 > thing.x && this.x - 40 < thing.x + thing.w && this.y > thing.y && this.y < thing.y + 10) {
 				this.hitSomething = true;
 			}
-			else if(thing instanceof Enemy && this.x + 40 > thing.x + thing.leftX && this.x - 40 < thing.x + thing.rightX && this.y > thing.y + thing.topY && this.y < thing.y + thing.bottomY && !this.hitAnEnemy) {
+			else if(thing instanceof Enemy && this.x + 40 > thing.x + thing.hitbox.left && this.x - 40 < thing.x + thing.hitbox.right && this.y > thing.y + thing.hitbox.top && this.y < thing.y + thing.hitbox.bottom && !this.hitAnEnemy) {
 				thing.hurt(this.damage, true);
 				this.hitAnEnemy = true;
 			}
@@ -6569,13 +6559,13 @@ Boulder.prototype.exist = function() {
 	if(this.opacity < 0) {
 		this.splicing = true;
 	}
-};
+});
 function BoulderVoid(x, y) {
 	this.x = x;
 	this.y = y;
 	this.opacity = 1;
 };
-BoulderVoid.prototype.exist = function() {
+BoulderVoid.method("exist", function() {
 	var p1b = graphics3D.point3D(this.x + p.worldX - 40, this.y + p.worldY, 0.9);
 	var p2b = graphics3D.point3D(this.x + p.worldX + 40, this.y + p.worldY, 0.9);
 	var p3b = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY - 100, 0.9);
@@ -6609,18 +6599,18 @@ BoulderVoid.prototype.exist = function() {
 		pos3: p3f,
 		pos4: p2f
 	});
-};
+});
 function AirCrystal() {
 	Crystal.call(this);
 };
 AirCrystal.extends(Crystal);
-AirCrystal.prototype.display = function(type) {
+AirCrystal.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(150, 150, 150)";
 	c.strokeStyle = "rgb(220, 220, 220)";
 	this.graphics(type);
-};
-AirCrystal.prototype.getDesc = function() {
+});
+AirCrystal.method("getDesc", function() {
 	return [
 		{
 			content: "Air Crystal",
@@ -6638,7 +6628,7 @@ AirCrystal.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	]
-};
+});
 function WindBurst(x, y, dir, noDisplay) {
 	this.x = x;
 	this.y = y;
@@ -6647,11 +6637,11 @@ function WindBurst(x, y, dir, noDisplay) {
 	this.noDisplay = noDisplay || false;
 	this.opacity = 1;
 };
-WindBurst.prototype.exist = function() {
+WindBurst.method("exist", function() {
 	this.display();
 	this.update();
-};
-WindBurst.prototype.display = function() {
+});
+WindBurst.method("display", function() {
 	if(this.noDisplay) {
 		return;
 	}
@@ -6668,19 +6658,19 @@ WindBurst.prototype.display = function() {
 		c.strokeLine(0, 0 - 5, 30, 0 - 5);
 		c.strokeArc(17, 0 - 12, 7, Math.rad(90), Math.rad(360));
 	} c.restore();
-};
-WindBurst.prototype.update = function() {
+});
+WindBurst.method("update", function() {
 	this.x += this.velX;
 	this.velX *= 0.98;
 	this.opacity -= 0.05;
 	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 		if(game.dungeon[game.inRoom].content[i] instanceof Enemy && !(game.dungeon[game.inRoom].content[i] instanceof Wraith)) {
 			var enemy = game.dungeon[game.inRoom].content[i];
-			if(enemy.x + enemy.rightX > this.x && enemy.x + enemy.leftX < this.x + 49 && enemy.y + enemy.bottomY > this.y - 34 && enemy.y + enemy.topY < this.y && this.dir === "right") {
+			if(enemy.x + enemy.hitbox.right > this.x && enemy.x + enemy.hitbox.left < this.x + 49 && enemy.y + enemy.hitbox.bottom > this.y - 34 && enemy.y + enemy.hitbox.top < this.y && this.dir === "right") {
 				enemy.velX = 3;
 				enemy.x += this.velX;
 			}
-			if(enemy.x + enemy.rightX > this.x - 49 && enemy.x + enemy.leftX < this.x && enemy.y + enemy.bottomY > this.y - 34 && enemy.y + enemy.topY < this.y && this.dir === "left") {
+			if(enemy.x + enemy.hitbox.right > this.x - 49 && enemy.x + enemy.hitbox.left < this.x && enemy.y + enemy.hitbox.bottom > this.y - 34 && enemy.y + enemy.hitbox.top < this.y && this.dir === "left") {
 				enemy.velX = -3;
 				enemy.x += this.velX;
 			}
@@ -6689,12 +6679,12 @@ WindBurst.prototype.update = function() {
 	if(this.opacity < 0) {
 		this.splicing = true;
 	}
-};
+});
 function Map() {
 	Extra.call(this);
 };
 Map.extends(Extra);
-Map.prototype.display = function() {
+Map.method("display", function() {
 	c.save(); {
 
 		c.fillStyle = "rgb(255, 255, 200)";
@@ -6706,15 +6696,15 @@ Map.prototype.display = function() {
 		c.strokeStyle = "rgb(0, 0, 0)";
 		c.setLineDash([3, 3]);
 		c.lineWidth = 1;
-		c.beginPath();
-		c.moveTo(10, -5);
-		c.lineTo(10, 5);
-		c.lineTo(-5, 5);
-		c.lineTo(-20, 20);
-		c.stroke();
+		c.strokeLine(
+			10, -5,
+			10, 5,
+			-5, 5,
+			-20, 20
+		)
 	} c.restore();
-};
-Map.prototype.getDesc = function() {
+});
+Map.method("getDesc", function() {
 	return [
 		{
 			content: "Map",
@@ -6732,14 +6722,14 @@ Map.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
+});
 
 function Barricade() {
 	Extra.call(this);
 	this.consumed = false;
 };
 Barricade.extends(Extra);
-Barricade.prototype.display = function(type) {
+Barricade.method("display", function(type) {
 	type = type || "item";
 	var scaleFactor = (type === "item") ? 0.75 : 1;
 	if(type === "item" || type === "holding") {
@@ -6770,8 +6760,8 @@ Barricade.prototype.display = function(type) {
 			}
 		} c.restore();
 	}
-};
-Barricade.prototype.getDesc = function() {
+});
+Barricade.method("getDesc", function() {
 	return [
 		{
 			content: "Barricade",
@@ -6789,8 +6779,8 @@ Barricade.prototype.getDesc = function() {
 			color: "rgb(150, 150, 150)"
 		}
 	];
-};
-Barricade.prototype.use = function() {
+});
+Barricade.method("use", function() {
 	var doorNearby = false;
 	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 		var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x + p.worldX, game.dungeon[game.inRoom].content[i].y + p.worldY, 0.9);
@@ -6822,7 +6812,7 @@ Barricade.prototype.use = function() {
 		}
 	}
 	this.consumed = true;
-};
+});
 
 function Coin(quantity) {
 	Extra.call(this);
@@ -6830,7 +6820,7 @@ function Coin(quantity) {
 	this.stackable = true;
 };
 Coin.extends(Extra);
-Coin.prototype.getDesc = function() {
+Coin.method("getDesc", function() {
 	var desc = [
 		{
 			content: "Coin [" + this.quantity + "]",
@@ -6859,8 +6849,8 @@ Coin.prototype.getDesc = function() {
 		}
 	];
 	return desc;
-};
-Coin.prototype.display = function(type) {
+});
+Coin.method("display", function(type) {
 	type = type || "item";
 
 	c.lineWidth = 2;
@@ -6873,7 +6863,7 @@ Coin.prototype.display = function(type) {
 	c.font = "bolder 20px monospace";
 	c.textAlign = "center";
 	c.fillText(this.quantity, 0, 7);
-};
+});
 function ShotArrow(x, y, velX, velY, damage, shotBy, element, name) {
 	this.x = x;
 	this.y = y;
@@ -6886,11 +6876,11 @@ function ShotArrow(x, y, velX, velY, damage, shotBy, element, name) {
 	this.name = name;
 	this.hitSomething = false;
 };
-ShotArrow.prototype.exist = function() {
+ShotArrow.method("exist", function() {
 	this.update();
 	this.display();
-};
-ShotArrow.prototype.display = function() {
+});
+ShotArrow.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -6924,8 +6914,8 @@ ShotArrow.prototype.display = function() {
 		},
 		1
 	));
-};
-ShotArrow.prototype.update = function() {
+});
+ShotArrow.method("update", function() {
 	if(!this.hitSomething) {
 		this.x += this.velX;
 		this.y += this.velY;
@@ -6933,12 +6923,12 @@ ShotArrow.prototype.update = function() {
 		for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 			if(game.dungeon[game.inRoom].content[i] instanceof Enemy && this.shotBy === "player") {
 				var enemy = game.dungeon[game.inRoom].content[i];
-				if(this.x > enemy.x + enemy.leftX && this.x < enemy.x + enemy.rightX && this.y > enemy.y + enemy.topY && this.y < enemy.y + enemy.bottomY) {
-					if(this.origX === undefined) {
+				if(this.x > enemy.x + enemy.hitbox.left && this.x < enemy.x + enemy.hitbox.right && this.y > enemy.y + enemy.hitbox.top && this.y < enemy.y + enemy.hitbox.bottom) {
+					if(this.ORIGINAL_X === undefined) {
 						enemy.hurt(this.damage);
 					}
 					else {
-						enemy.hurt(this.damage + Math.round(Math.abs(this.x - this.origX) / 50));
+						enemy.hurt(this.damage + Math.round(Math.dist(this.x, this.ORIGINAL_X) / 50));
 					}
 					if(this.element === "fire") {
 						enemy.timeBurning = (enemy.timeBurning <= 0) ? 120 : enemy.timeBurning;
@@ -6964,7 +6954,7 @@ ShotArrow.prototype.update = function() {
 							}
 						}
 						game.dungeon[game.inRoom].content.push(new BoulderVoid(this.x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h));
-						game.dungeon[game.inRoom].content.push(new Boulder(this.x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.random() * 2 + 2));
+						game.dungeon[game.inRoom].content.push(new Boulder(this.x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.randomInRange(2, 4)));
 					}
 					this.hitSomething = true;
 				}
@@ -6981,7 +6971,7 @@ ShotArrow.prototype.update = function() {
 			this.splicing = true;
 		}
 	}
-};
+});
 
 /** ENEMIES **/
 function RandomEnemy(x, y, notEnemy) {
@@ -6989,13 +6979,13 @@ function RandomEnemy(x, y, notEnemy) {
 	this.y = y;
 	this.notEnemy = notEnemy; // use this to specify any enemy BUT a certain enemy
 };
-RandomEnemy.prototype.exist = function() {
+RandomEnemy.method("exist", function() {
 	if(!this.splicing) {
 		this.generate();
 		this.splicing = true;
 	}
-};
-RandomEnemy.prototype.generate = function() {
+});
+RandomEnemy.method("generate", function() {
 	/* Wait until the decorations are resolved before generating enemy */
 	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
 		if(game.dungeon[game.theRoom].content[i] instanceof Decoration) {
@@ -7031,9 +7021,9 @@ RandomEnemy.prototype.generate = function() {
 		}
 	}
 	/* Pick an enemy and add it to the game */
-	var enemyIndex = Math.floor(Math.random() * possibleEnemies.length);
-	game.dungeon[game.inRoom].content.push(new possibleEnemies[enemyIndex](this.x, this.y - new possibleEnemies[enemyIndex]().bottomY));
-};
+	var enemyIndex = possibleEnemies.randomIndex();
+	game.dungeon[game.inRoom].content.push(new possibleEnemies[enemyIndex](this.x, this.y - new possibleEnemies[enemyIndex]().hitbox.bottom));
+});
 function Enemy(x, y) {
 	this.x = x;
 	this.y = y;
@@ -7050,40 +7040,38 @@ function Enemy(x, y) {
 	this.timePurified = 0;
 	this.purity = 0;
 };
-Enemy.prototype.hurt = function(amount, ignoreDef) {
-	var def = Math.round(Math.random() * (this.defHigh - this.defLow) + this.defLow);
+Enemy.method("hurt", function(amount, ignoreDef) {
+	var def = Math.round(Math.randomInRange(this.defLow, this.defHigh));
 	if(!ignoreDef) {
 		amount -= def;
 	}
 	amount = (amount < 0) ? 0 : amount;
 	this.health -= amount;
-};
-Enemy.prototype.displayStats = function() {
+});
+Enemy.method("displayStats", function() {
 	if(this instanceof Dragonling) {
-		var topY = this.topY;
-		this.topY = -20;
+		var topY = this.hitbox.top;
+		this.hitbox.top = -20;
 	}
 	/* healthbar */
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
 			c.globalAlpha = Math.max(0, self.opacity);
-			var middle = ((self.x + p.worldX + self.rightX) + (self.x + p.worldX + self.leftX)) / 2;
+			var middle = ((self.x + p.worldX + self.hitbox.right) + (self.x + p.worldX + self.hitbox.left)) / 2;
 			if(self instanceof Dragonling) {
 				middle = self.x + p.worldX;
 			}
 			c.fillStyle = "rgb(150, 150, 150)";
-			c.fillRect(middle - 30, self.y + p.worldY + self.topY - 15, 60, 10);
-			c.fillCircle(middle - 30, self.y + p.worldY + self.topY - 10, 5);
-			c.fillCircle(middle + 30, self.y + p.worldY + self.topY - 10, 5);
+			c.fillRect(middle - 30, self.y + p.worldY + self.hitbox.top - 15, 60, 10);
+			c.fillCircle(middle - 30, self.y + p.worldY + self.hitbox.top - 10, 5);
+			c.fillCircle(middle + 30, self.y + p.worldY + self.hitbox.top - 10, 5);
 			c.fillStyle = "rgb(255, 0, 0)";
 			var visualHealth = self.health / self.maxHealth * 60;
 			self.visualHealth += (visualHealth - self.visualHealth) / 10;
-			c.fillRect(middle - 30, self.y + p.worldY + self.topY - 15, self.visualHealth, 10);
-			c.beginPath();
-			c.arc(middle - 30, self.y + p.worldY + self.topY - 10, 5, 0, 2 * Math.PI);
-			c.arc(middle - 30 + self.visualHealth, self.y + p.worldY + self.topY - 10, 5, 0, 2 * Math.PI);
-			c.fill();
+			c.fillRect(middle - 30, self.y + p.worldY + self.hitbox.top - 15, self.visualHealth, 10);
+			c.fillCircle(middle - 30, self.y + p.worldY + self.hitbox.top - 10, 5);
+			c.fillCircle(middle - 30 + self.visualHealth, self.y + p.worldY + self.hitbox.top - 10, 5);
 		},
 		1
 	))
@@ -7112,10 +7100,10 @@ Enemy.prototype.displayStats = function() {
 	this.velX = Math.constrain(this.velX, -3, 3);
 	this.velY = Math.constrain(this.velY, -3, 3);
 	if(this instanceof Dragonling) {
-		this.topY = topY;
+		this.hitbox.top = topY;
 	}
-};
-Enemy.prototype.exist = function() {
+});
+Enemy.method("exist", function() {
 	this.display();
 	this.timeFrozen --;
 	this.timePurified --;
@@ -7151,7 +7139,7 @@ Enemy.prototype.exist = function() {
 											}
 											var movedEnemy = new (this.constructor)();
 											movedEnemy.x = exitDoor.x;
-											movedEnemy.y = exitDoor.y - movedEnemy.bottomY;
+											movedEnemy.y = exitDoor.y - movedEnemy.hitbox.bottom;
 											movedEnemy.opacity = 0;
 											movedEnemy.fadingIn = true;
 											movedEnemy.seesPlayer = false;
@@ -7174,13 +7162,13 @@ Enemy.prototype.exist = function() {
 		this.y += this.velY;
 	}
 	if(this.timeFrozen > 0 && !(this instanceof Wraith)) {
-		graphics3D.cube(this.x + p.worldX + this.leftX, this.y + p.worldY + this.topY, (this.rightX - this.leftX), (this.bottomY - this.topY), 0.95, 1.05, "rgba(0, 128, 200, 0.5)", "rgba(0, 128, 200, 0.5)");
+		graphics3D.cube(this.x + p.worldX + this.hitbox.left, this.y + p.worldY + this.hitbox.top, (this.hitbox.right - this.hitbox.left), (this.hitbox.bottom - this.hitbox.top), 0.95, 1.05, "rgba(0, 128, 200, 0.5)", "rgba(0, 128, 200, 0.5)");
 	}
 	if(typeof this.attack === "function" && this.timeFrozen < 0) {
 		this.attack();
 	}
 	if(this.timeBurning > 0 && !(this instanceof Wraith)) {
-		this.particles.push(new Particle("rgb(255, 128, 0)", Math.random() * (this.rightX - this.leftX), Math.random() * (this.bottomY - this.topY), Math.random() * 4 - 2, Math.random() * 4 - 3, Math.random() * 2 + 3));
+		this.particles.push(new Particle("rgb(255, 128, 0)", Math.randomInRange(this.hitbox.left, this.hitbox.right), Math.randomInRange(this.hitbox.top, this.hitbox.bottom), Math.randomInRange(-2, 2), Math.randomInRange(-3, 1), Math.randomInRange(3, 5)));
 		this.timeBurning -= this.burnDmg;
 		if(this.timeBurning % 60 === 0) {
 			this.health -= this.burnDmg;
@@ -7189,7 +7177,7 @@ Enemy.prototype.exist = function() {
 	if(!(this instanceof Wraith)) {
 		for(var i = 0; i < this.particles.length; i ++) {
 			c.save(); {
-				c.translate(this.x + this.leftX, this.y + this.topY);
+				c.translate(this.x + this.hitbox.left, this.y + this.hitbox.top);
 				this.particles[i].exist();
 			} c.restore();
 			if(this.particles[i].splicing) {
@@ -7210,21 +7198,21 @@ Enemy.prototype.exist = function() {
 			continue;
 		}
 		var enemy = game.dungeon[game.theRoom].content[i];
-		if(this.y + this.bottomY > enemy.y + enemy.topY && this.y + this.topY < enemy.y + enemy.bottomY && this.x + this.rightX >= enemy.x + enemy.leftX && this.x + this.rightX <= enemy.x + enemy.leftX + 3 && this.velX > 0 && !(enemy.x === this.x && enemy.y === this.y)) {
+		if(this.y + this.hitbox.bottom > enemy.y + enemy.hitbox.top && this.y + this.hitbox.top < enemy.y + enemy.hitbox.bottom && this.x + this.hitbox.right >= enemy.x + enemy.hitbox.left && this.x + this.hitbox.right <= enemy.x + enemy.hitbox.left + 3 && this.velX > 0 && !(enemy.x === this.x && enemy.y === this.y)) {
 			this.velX = -3;
 			enemy.velX = 3;
-			this.x = enemy.x + enemy.leftX - this.rightX;
+			this.x = enemy.x + enemy.hitbox.left - this.hitbox.right;
 		}
-		if(this.y + this.bottomY > enemy.y + enemy.topY && this.y + this.topY < enemy.y + enemy.bottomY && this.x + this.leftX <= enemy.x + enemy.rightX && this.x + this.leftX >= enemy.x + enemy.rightX - 3 && this.velX < 0 && !(enemy.x === this.x && enemy.y === this.y)) {
+		if(this.y + this.hitbox.bottom > enemy.y + enemy.hitbox.top && this.y + this.hitbox.top < enemy.y + enemy.hitbox.bottom && this.x + this.hitbox.left <= enemy.x + enemy.hitbox.right && this.x + this.hitbox.left >= enemy.x + enemy.hitbox.right - 3 && this.velX < 0 && !(enemy.x === this.x && enemy.y === this.y)) {
 			this.velX = 3;
 			enemy.velX = -3;
-			this.x = enemy.x + enemy.rightX - this.leftX;
+			this.x = enemy.x + enemy.hitbox.right - this.hitbox.left;
 		}
-		if(this.x + this.rightX > enemy.x + enemy.leftX && this.x + this.leftX < enemy.x + enemy.rightX && this.y + this.bottomY > enemy.y + enemy.topY && this.y + this.bottomY < enemy.y + enemy.topY + 10) {
+		if(this.x + this.hitbox.right > enemy.x + enemy.hitbox.left && this.x + this.hitbox.left < enemy.x + enemy.hitbox.right && this.y + this.hitbox.bottom > enemy.y + enemy.hitbox.top && this.y + this.hitbox.bottom < enemy.y + enemy.hitbox.top + 10) {
 			this.velY = -4;
 		}
 	}
-};
+});
 
 function Spider(x, y) {
 	Enemy.call(this, x, y);
@@ -7232,10 +7220,12 @@ function Spider(x, y) {
 	this.legDir = 2;
 
 	/* hitbox */
-	this.leftX = -45;
-	this.rightX = 45;
-	this.topY = -22;
-	this.bottomY = 22;
+	this.hitbox = {
+		left: -45,
+		right: 45,
+		top: -22,
+		bottom: 22
+	};
 
 	/* stats */
 	this.health = 50;
@@ -7248,7 +7238,7 @@ function Spider(x, y) {
 	this.nonMagical = true;
 };
 Spider.extends(Enemy);
-Spider.prototype.display = function() {
+Spider.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -7285,8 +7275,8 @@ Spider.prototype.display = function() {
 		},
 		1
 	));
-};
-Spider.prototype.update = function(dest) {
+});
+Spider.method("update", function(dest) {
 	if(dest === "player") {
 		if(this.timePurified < 0) {
 			if(this.x + p.worldX < p.x) {
@@ -7320,7 +7310,7 @@ Spider.prototype.update = function(dest) {
 				this.walking.time --;
 				if(this.walking.time < 0) {
 					this.walking.time = 100;
-					this.walking.dir = (Math.random() < 0.5) ? "left" : "right";
+					this.walking.dir = ["left", "right"].randomItem();
 				}
 			}
 		}
@@ -7334,7 +7324,7 @@ Spider.prototype.update = function(dest) {
 		}
 		else {
 			this.legDir = (this.legs < 8) ? 2 : -2;
-			if(Math.abs(this.legs - 8) <= 2) {
+			if(Math.dist(this.legs, 8) <= 2) {
 				this.legs = 8;
 			}
 		}
@@ -7342,7 +7332,7 @@ Spider.prototype.update = function(dest) {
 		this.x += this.velX;
 		this.y += this.velY;
 		this.velY += 0.1;
-		if(this.canJump && Math.abs(this.x + p.worldX - p.x) <= 130 && Math.abs(this.x + p.worldX - p.x) >= 120 && dest === "player") {
+		if(this.canJump && Math.dist(this.x + p.worldX, p.x) <= 130 && Math.dist(this.x + p.worldX, p.x) >= 120 && dest === "player") {
 			this.velY = -4;
 		}
 		this.canJump = false;
@@ -7358,7 +7348,7 @@ Spider.prototype.update = function(dest) {
 		this.velY += 0.1;
 		this.canJump = false;
 	}
-};
+});
 
 function Bat(x, y) {
 	Enemy.call(this, x, y);
@@ -7366,10 +7356,12 @@ function Bat(x, y) {
 	this.wingDir = 4;
 
 	/* hitbox */
-	this.leftX = -53;
-	this.rightX = 53;
-	this.topY = -12;
-	this.bottomY = 12;
+	this.hitbox = {
+		left: -53,
+		right: 53,
+		top: -12,
+		bottom: 12
+	};
 
 	/* stats */
 	this.health = 50;
@@ -7382,7 +7374,7 @@ function Bat(x, y) {
 	this.nonMagical = true;
 };
 Bat.extends(Enemy);
-Bat.prototype.display = function() {
+Bat.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -7410,8 +7402,8 @@ Bat.prototype.display = function() {
 		},
 		1
 	));
-};
-Bat.prototype.update = function(dest) {
+});
+Bat.method("update", function(dest) {
 	if(dest === "player") {
 		this.wings += this.wingDir;
 		if(this.wings > 5) {
@@ -7437,12 +7429,12 @@ Bat.prototype.update = function(dest) {
 		}
 		else {
 			if(this.timePurified === 599) {
-				this.dest = {x: this.x + (Math.random() * 200 - 100), y: this.y + (Math.random() * 200 - 100)};
+				this.dest = {x: this.x + (Math.randomInRange(-100, 100)), y: this.y + (Math.randomInRange(-100, 100))};
 			}
 			this.velX += (this.x < this.dest.x) ? 0.1 : -0.1;
 			this.velY += (this.y < this.dest.y) ? 0.1 : -0.1;
 			if(Math.distSq(this.x, this.y, this.dest.x, this.dest.y) <= 10000) {
-				this.dest = {x: this.x + (Math.random() * 200 - 100), y: this.y + (Math.random() * 200 - 100)};
+				this.dest = {x: this.x + (Math.randomInRange(-100, 100)), y: this.y + (Math.randomInRange(-100, 100))};
 			}
 		}
 		this.x += this.velX;
@@ -7473,7 +7465,7 @@ Bat.prototype.update = function(dest) {
 		this.y += this.velY;
 
 	}
-};
+});
 
 function Skeleton(x, y) {
 	Enemy.call(this, x, y);
@@ -7489,14 +7481,16 @@ function Skeleton(x, y) {
 	this.defHigh = 40;
 
 	/* hitbox */
-	this.leftX = -13;
-	this.rightX = 13;
-	this.topY = -8;
-	this.bottomY = 43;
+	this.hitbox = {
+		left: -13,
+		right: 13,
+		top: -8,
+		bottom: 43
+	};
 	this.name = "a skeleton";
 };
 Skeleton.extends(Enemy);
-Skeleton.prototype.display = function() {
+Skeleton.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -7544,8 +7538,8 @@ Skeleton.prototype.display = function() {
 		},
 		1
 	));
-};
-Skeleton.prototype.update = function(dest) {
+});
+Skeleton.method("update", function(dest) {
 	if(dest === "player") {
 		/* movement */
 		this.x += this.velX;
@@ -7555,7 +7549,7 @@ Skeleton.prototype.update = function(dest) {
 		this.velX -= (this.x + p.worldX > p.x) ? 0.1 : 0;
 		this.velX *= 0.96;
 		if(Math.random() <= 0.02 && this.canJump) {
-			this.velY = -(Math.random() * 3 + 2);
+			this.velY = Math.randomInRange(-2, -5);
 		}
 		this.canJump = false;
 	}
@@ -7569,7 +7563,7 @@ Skeleton.prototype.update = function(dest) {
 		this.velX *= 0.96;
 		this.canJump = false;
 	}
-};
+});
 
 function SkeletonWarrior(x, y) {
 	Enemy.call(this, x, y);
@@ -7581,10 +7575,12 @@ function SkeletonWarrior(x, y) {
 	this.timeSinceAttack = 0;
 
 	/* hitbox */
-	this.leftX = -13;
-	this.rightX = 13;
-	this.topY = -8;
-	this.bottomY = 43;
+	this.hitbox = {
+		left: -13,
+		right: 13,
+		top: -8,
+		bottom: 43
+	};
 
 	/* stats */
 	this.health = 100;
@@ -7597,7 +7593,7 @@ function SkeletonWarrior(x, y) {
 	this.name = "a skeletal warrior";
 };
 SkeletonWarrior.extends(Enemy);
-SkeletonWarrior.prototype.display = function() {
+SkeletonWarrior.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -7685,8 +7681,8 @@ SkeletonWarrior.prototype.display = function() {
 		},
 		1
 	));
-};
-SkeletonWarrior.prototype.update = function(dest) {
+});
+SkeletonWarrior.method("update", function(dest) {
 	if(dest === "player") {
 		/* movement */
 		this.x += this.velX;
@@ -7716,8 +7712,8 @@ SkeletonWarrior.prototype.update = function(dest) {
 		this.velY += 0.1;
 		this.canJump = false;
 	}
-};
-SkeletonWarrior.prototype.attack = function() {
+});
+SkeletonWarrior.method("attack", function() {
 	/* attack */
 	this.attackArm += this.attackArmDir;
 	this.canHit = ((this.attackArm > 360 || this.attackArm < 270) && this.timeSinceAttack > 15) ? true : this.canHit;
@@ -7729,7 +7725,7 @@ SkeletonWarrior.prototype.attack = function() {
 		swordEnd.x += this.x + p.worldX + 8;
 		swordEnd.y += this.y + p.worldY + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
-			var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
+			var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 			p.hurt(damage, this.name);
 			this.canHit = false;
 			this.timeSinceAttack = 0;
@@ -7741,14 +7737,14 @@ SkeletonWarrior.prototype.attack = function() {
 		swordEnd.x += this.x + p.worldX - 8;
 		swordEnd.y += this.y + p.worldY + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
-			var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
+			var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 			p.hurt(damage, this.name);
 			this.canHit = false;
 			this.timeSinceAttack = 0;
 			this.attackArmDir = -this.attackArmDir;
 		}
 	}
-};
+});
 
 function SkeletonArcher(x, y) {
 	Enemy.call(this, x, y);
@@ -7761,10 +7757,12 @@ function SkeletonArcher(x, y) {
 	this.velX = null;
 
 	/* hitbox */
-	this.leftX = -13;
-	this.rightX = 13;
-	this.topY = -8;
-	this.bottomY = 43;
+	this.hitbox = {
+		left: -13,
+		right: 13,
+		top: -8,
+		bottom: 43
+	};
 
 	/* stats */
 	this.health = 100;
@@ -7777,7 +7775,7 @@ function SkeletonArcher(x, y) {
 	this.name = "a skeletal archer";
 };
 SkeletonArcher.extends(Enemy);
-SkeletonArcher.prototype.display = function() {
+SkeletonArcher.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -7852,8 +7850,8 @@ SkeletonArcher.prototype.display = function() {
 		},
 		1
 	));
-};
-SkeletonArcher.prototype.update = function(dest) {
+});
+SkeletonArcher.method("update", function(dest) {
 	if(dest === "player") {
 		this.legs += this.legDir;
 		if(this.x + p.worldX < p.x) {
@@ -7898,8 +7896,8 @@ SkeletonArcher.prototype.update = function(dest) {
 		this.velY += 0.1;
 		this.canJump = false;
 	}
-};
-SkeletonArcher.prototype.attack = function() {
+});
+SkeletonArcher.method("attack", function() {
 	/* attack */
 	this.timeSinceAttack ++;
 	if(this.timeSinceAttack > 60) {
@@ -7922,7 +7920,7 @@ SkeletonArcher.prototype.attack = function() {
 			if(y >= p.y - 7 && y <= p.y + 46 && this.timeAiming > 60) {
 				this.timeSinceAttack = 0;
 				this.timeAiming = 0;
-				var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
+				var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 			}
 			else if(y <= p.y - 7) {
@@ -7932,7 +7930,7 @@ SkeletonArcher.prototype.attack = function() {
 					if(this.timeAiming > 60) {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
-						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
+						var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
@@ -7944,7 +7942,7 @@ SkeletonArcher.prototype.attack = function() {
 					if(this.timeAiming > 60) {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
-						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
+						var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
@@ -7969,7 +7967,7 @@ SkeletonArcher.prototype.attack = function() {
 			if(y >= p.y - 7 && y <= p.y + 46 && this.timeAiming > 60) {
 				this.timeSinceAttack = 0;
 				this.timeAiming = 0;
-				var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
+				var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 			}
 			else if(y <= p.y - 7) {
@@ -7979,7 +7977,7 @@ SkeletonArcher.prototype.attack = function() {
 					if(this.timeAiming > 60) {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
-						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
+						var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
@@ -7991,7 +7989,7 @@ SkeletonArcher.prototype.attack = function() {
 					if(this.timeAiming > 60) {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
-						var damage = Math.floor(Math.random() * (this.damHigh - this.damLow) + this.damLow);
+						var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
@@ -7999,7 +7997,7 @@ SkeletonArcher.prototype.attack = function() {
 
 		}
 	}
-};
+});
 
 function Particle(color, x, y, velX, velY, size) {
 	this.color = color;
@@ -8011,11 +8009,11 @@ function Particle(color, x, y, velX, velY, size) {
 	this.size = size;
 	this.opacity = 1;
 };
-Particle.prototype.exist = function() {
+Particle.method("exist", function() {
 	this.update();
 	this.display();
-};
-Particle.prototype.display = function(noRequest) {
+});
+Particle.method("display", function(noRequest) {
 	noRequest = noRequest || false;
 
 	var self = this;
@@ -8043,20 +8041,22 @@ Particle.prototype.display = function(noRequest) {
 	this.y += this.velY;
 	this.opacity -= 0.05;
 	this.splicing = (this.opacity <= 0);
-};
-Particle.prototype.update = function() {
+});
+Particle.method("update", function() {
 
-};
+});
 function Wraith(x, y) {
 	Enemy.call(this, x, y);
 	this.particles = [];
 	this.timeSinceAttack = 0;
 
 	/* hitbox */
-	this.leftX = -50;
-	this.rightX = 50;
-	this.topY = -50;
-	this.bottomY = 50;
+	this.hitbox = {
+		left: -50,
+		right: 50,
+		top: -50,
+		bottom: 50
+	};
 
 	/* stats */
 	this.health = 150;
@@ -8069,7 +8069,7 @@ function Wraith(x, y) {
 	this.name = "a wraith of shadow";
 };
 Wraith.extends(Enemy);
-Wraith.prototype.display = function() {
+Wraith.method("display", function() {
 	/* particle graphics */
 	for(var i = 0; i < this.particles.length; i ++) {
 		this.particles[i].exist();
@@ -8078,18 +8078,13 @@ Wraith.prototype.display = function() {
 		}
 	}
 	for(var i = 0; i < 10; i ++) {
-		var pos = Math.random() * 50;
-		if(Math.random() < 0.5) {
-			this.particles.push(new Particle("rgb(0, 0, 0)", this.x + Math.random() * pos, this.y + 50 - 2 * pos, Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 4 + 6));
-		}
-		else {
-			this.particles.push(new Particle("rgb(0, 0, 0)", this.x - Math.random() * pos, this.y + 50 - 2 * pos, Math.random() * 2 - 1, Math.random() * 2 - 1, Math.random() * 4 + 6));
-		}
-		this.particles.push(new Particle("rgb(255, 0, 0)", this.x - 10, this.y - 25, Math.random() * 0.5, Math.random() * 0.5, Math.random() * 2 + 2));
-		this.particles.push(new Particle("rgb(255, 0, 0)", this.x + 10, this.y - 25, Math.random() * 0.5, Math.random() * 0.5, Math.random() * 2 + 2));
+		var pos = Math.randomInRange(0, 50);
+		this.particles.push(new Particle("rgb(0, 0, 0)", this.x + Math.randomInRange(-pos, pos), this.y + 50 - pos * 2, Math.randomInRange(-1, 1), Math.randomInRange(-1, 1), Math.randomInRange(6, 10)));
+		this.particles.push(new Particle("rgb(255, 0, 0)", this.x - 10, this.y - 25, Math.randomInRange(0, 0.5), Math.randomInRange(0, 0.5), Math.randomInRange(2, 4)));
+		this.particles.push(new Particle("rgb(255, 0, 0)", this.x + 10, this.y - 25, Math.randomInRange(0, 0.5), Math.randomInRange(0, 0.5), Math.randomInRange(2, 4)));
 	}
-};
-Wraith.prototype.update = function(dest) {
+});
+Wraith.method("update", function(dest) {
 	if(dest === "player") {
 		/* movement */
 		if(Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) <= 100) {
@@ -8102,40 +8097,17 @@ Wraith.prototype.update = function(dest) {
 		this.x = (this.x < dest.x) ? this.x + 2 : this.x - 2;
 		this.y = (this.y < dest.y) ? this.y + 2 : this.y - 2;
 	}
-};
-Wraith.prototype.attack = function() {
+});
+Wraith.method("attack", function() {
 	/* attacking */
 	if(this.timeSinceAttack > 60) {
-		if(p.x > this.x + p.worldX) {
-			var dist = Math.atan2(this.x + p.worldX - p.x, this.y + p.worldY - p.y) / Math.PI * -180;
-			var aimCircle = Math.findPointsCircular(0, 0, 100);
-			dist = dist / 360 * aimCircle.length;
-			dist = Math.floor(dist);
-			while(dist < 0) {
-				dist += 360;
-			}
-			while(dist > 360) {
-				dist -= 360;
-			}
-			game.dungeon[game.inRoom].content.push(new MagicCharge(this.x, this.y, aimCircle[dist].x / 10, aimCircle[dist].y / 10, "shadow"));
-			this.timeSinceAttack = 0;
-		}
-		else {
-			var dist = Math.atan2(p.x - (this.x + p.worldX), this.y + p.worldY - p.y) / Math.PI * -180;
-			var aimCircle = Math.findPointsCircular(0, 0, 100);
-			dist = dist / 360 * aimCircle.length;
-			dist = Math.floor(dist);
-			while(dist < 0) {
-				dist += 360;
-			}
-			while(dist > 360) {
-				dist -= 360;
-			}
-			game.dungeon[game.inRoom].content.push(new MagicCharge(this.x, this.y, aimCircle[dist].x / -10, aimCircle[dist].y / 10, "shadow"));
-			this.timeSinceAttack = 0;
-		}
+		var velocity = Math.normalize(p.x - (this.x + p.worldX), p.y - (this.y + p.worldY));
+		velocity.x *= 10;
+		velocity.y *= 10;
+		game.dungeon[game.theRoom].content.push(new MagicCharge(this.x, this.y, velocity.x, velocity.y, "shadow", Math.randomInRange(this.damLow, this.damHigh)));
+		this.timeSinceAttack = 0;
 	}
-};
+});
 
 function MagicCharge(x, y, velX, velY, type, damage) {
 	this.x = x;
@@ -8147,7 +8119,7 @@ function MagicCharge(x, y, velX, velY, type, damage) {
 	this.particles = [];
 	this.beingAimed = false;
 };
-MagicCharge.prototype.exist = function() {
+MagicCharge.method("exist", function() {
 	/* graphics */
 	for(var i = 0; i < this.particles.length; i ++) {
 		this.particles[i].exist();
@@ -8155,30 +8127,17 @@ MagicCharge.prototype.exist = function() {
 			this.particles.splice(i, 1);
 		}
 	}
-	if(this.type === "shadow") {
-		this.particles.push(new Particle("rgb(0, 0, 0)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
-	else if(this.type === "purity") {
-		this.particles.push(new Particle("rgb(255, 255, 255)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
-	else if(this.type === "energy") {
-		this.particles.push(new Particle("hsl(" + (utilities.frameCount % 360) + ", 100%, 50%)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
-	else if(this.type === "chaos") {
-		this.particles.push(new Particle("rgb(" + (Math.random() * 255) + ", " + (Math.random() * 0) + ", " + (Math.random() * 0) + ")", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
-	else if(this.type === "fire") {
-		this.particles.push(new Particle("rgb(255, 128, 0)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
-	else if(this.type === "water") {
-		this.particles.push(new Particle("rgb(0, 128, 255)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
-	else if(this.type === "earth") {
-		this.particles.push(new Particle("rgb(0, 160, 0)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
-	else if(this.type === "air") {
-		this.particles.push(new Particle("rgb(170, 170, 170)", this.x, this.y, Math.random() * 2 - 1, Math.random() * 2 - 1, 10));
-	}
+	const COLORS = {
+		"shadow": "rgb(0, 0, 0)",
+		"purity": "rgb(255, 255, 255)",
+		"energy": "hsl(" + (utilities.frameCount % 360) + ", 100%, 50%)",
+		"chaos": "rgb(" + (Math.randomInRange(0, 255)) + ", 0, 0)",
+		"fire": "rgb(255, 128, 0)",
+		"water": "rgb(0, 128, 255)",
+		"earth": "rgb(0, 160, 0)",
+		"air": "rgb(170, 170, 170)"
+	};
+	this.particles.push(new Particle(COLORS[this.type], this.x, this.y, Math.randomInRange(-1, 1), Math.randomInRange(-1, 1), 10));
 	/* movement */
 	this.x += this.velX;
 	this.y += this.velY;
@@ -8186,7 +8145,7 @@ MagicCharge.prototype.exist = function() {
 	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 		if(game.dungeon[game.inRoom].content[i] instanceof Enemy && this.type !== "shadow" && this.shotBy !== "enemy") {
 			var enemy = game.dungeon[game.theRoom].content[i];
-			if(this.x + 10 > enemy.x + enemy.leftX && this.x - 10 < enemy.x + enemy.rightX && this.y + 10 > enemy.y + enemy.topY && this.y - 10 < enemy.y + enemy.bottomY) {
+			if(this.x + 10 > enemy.x + enemy.hitbox.left && this.x - 10 < enemy.x + enemy.hitbox.right && this.y + 10 > enemy.y + enemy.hitbox.top && this.y - 10 < enemy.y + enemy.hitbox.bottom) {
 				this.splicing = true;
 				enemy.hurt(this.damage);
 				if(this.type === "fire") {
@@ -8204,7 +8163,7 @@ MagicCharge.prototype.exist = function() {
 						if(lowestIndex !== null) {
 							if(block instanceof Block) {
 								if(enemy.x > block.x && enemy.x < block.x + block.w && block.y + block.h > game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h) {
-									if(block.y + game.dungeon[game.inRoom].content[j].h <= enemy.y - p.worldY + enemy.topY) {
+									if(block.y + game.dungeon[game.inRoom].content[j].h <= enemy.y - p.worldY + enemy.hitbox.top) {
 										lowestIndex = j;
 									}
 								}
@@ -8221,7 +8180,7 @@ MagicCharge.prototype.exist = function() {
 						}
 					}
 					game.dungeon[game.inRoom].content.push(new BoulderVoid(enemy.x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h));
-					game.dungeon[game.inRoom].content.push(new Boulder(enemy.x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.random() * 2 + 2));
+					game.dungeon[game.inRoom].content.push(new Boulder(enemy.x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.randomInRange(2, 4)));
 				}
 				else if(this.type === "air") {
 					game.dungeon[game.inRoom].content.push(new WindBurst(this.x, this.y, this.velX < 0 ? "left" : "right", true));
@@ -8231,7 +8190,7 @@ MagicCharge.prototype.exist = function() {
 				}
 				else if(this.type === "chaos") {
 					var hp = enemy.health;
-					game.dungeon[game.theRoom].content[i] = new RandomEnemy(enemy.x, enemy.y + enemy.bottomY, enemy.constructor);
+					game.dungeon[game.theRoom].content[i] = new RandomEnemy(enemy.x, enemy.y + enemy.hitbox.bottom, enemy.constructor);
 					game.dungeon[game.theRoom].content[i].generate();
 					game.dungeon[game.theRoom].content[i].health = hp;
 					if(game.dungeon[game.theRoom].content[i].health > game.dungeon[game.theRoom].content[i].maxHealth) {
@@ -8255,16 +8214,16 @@ MagicCharge.prototype.exist = function() {
 	}
 	/* collision with player */
 	if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && (this.type === "shadow" || (this.type === "fire" && this.shotBy === "enemy"))) {
-		var damage = Math.round(Math.random() * 10) + 40;
+		var damage = Math.round(Math.randomInRange(40, 50));
 		p.hurt(damage, (this.type === "shadow") ? "a wraith" : "a dragonling");
 		this.splicing = true;
 	}
-};
-MagicCharge.prototype.remove = function() {
+});
+MagicCharge.method("remove", function() {
 	for(var i = 0; i < this.particles.length; i ++) {
 		game.dungeon[game.theRoom].content.push(this.particles[i]);
 	}
-};
+});
 
 function Troll(x, y) {
 	Enemy.call(this, x, y);
@@ -8279,10 +8238,12 @@ function Troll(x, y) {
 	this.timeDoingAction = 0;
 
 	/* hitbox */
-	this.leftX = -60;
-	this.rightX = 60;
-	this.topY = -50;
-	this.bottomY = 60;
+	this.hitbox = {
+		left: -60,
+		right: 60,
+		top: -50,
+		bottom: 60
+	};
 
 	/* stats */
 	this.health = 150;
@@ -8296,7 +8257,7 @@ function Troll(x, y) {
 	this.nonMagical = true;
 };
 Troll.extends(Enemy);
-Troll.prototype.display = function() {
+Troll.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -8409,8 +8370,8 @@ Troll.prototype.display = function() {
 		},
 		1
 	));
-};
-Troll.prototype.update = function() {
+});
+Troll.method("update", function() {
 	/* animations */
 	this.leg1 += this.leg1Dir;
 	this.leg2 += this.leg2Dir;
@@ -8443,7 +8404,7 @@ Troll.prototype.update = function() {
 		}
 		this.timeDoingAction ++;
 		if(this.timeDoingAction > 90) {
-			if(Math.abs(this.x + p.worldX - p.x) > 150) {
+			if(Math.dist(this.x + p.worldX, p.x) > 150) {
 				this.currentAction = "ranged-attack";
 			}
 			else {
@@ -8506,13 +8467,13 @@ Troll.prototype.update = function() {
 			weaponPos.x += this.x + p.worldX + (this.armAttacking === "right" ? 40 : -40);
 			weaponPos.y += this.y + p.worldY - 10;
 			if(weaponPos.x > p.x - 5 && weaponPos.x < p.x + 5 && weaponPos.y > p.y - 7 && weaponPos.y < p.y + 46 && this.attackRecharge < 0) {
-				p.hurt(Math.floor(Math.random() * 10 + 40), "a troll");
+				p.hurt(Math.floor(Math.randomInRange(40, 50)), "a troll");
 				this.attackRecharge = 45;
 			}
 		}
 	}
 	collisions.rect(this.x + p.worldX - 40, this.y + p.worldY - 20, 80, 60);
-};
+});
 
 function Rock(x, y, velX, velY) {
 	this.x = x;
@@ -8524,7 +8485,7 @@ function Rock(x, y, velX, velY) {
 	this.opacity = 1;
 	this.fragments = [];
 };
-Rock.prototype.exist = function() {
+Rock.method("exist", function() {
 	if(!this.hitSomething) {
 		this.x += this.velX;
 		this.y += this.velY;
@@ -8536,7 +8497,7 @@ Rock.prototype.exist = function() {
 		} c.restore();
 	}
 	if(!this.hitPlayer && this.x + p.worldX + 20 > p.x - 5 && this.x + p.worldX - 20 < p.x + 5 && this.y + p.worldY + 20 > p.y - 7 && this.y + p.worldY - 20 < p.y + 46) {
-		p.hurt(Math.random() * 10 + 40, "a troll");
+		p.hurt(Math.randomInRange(40, 50), "a troll");
 		this.hitPlayer = true;
 	}
 	if(!this.hitSomething) {
@@ -8547,8 +8508,8 @@ Rock.prototype.exist = function() {
 					this.hitSomething = true;
 					for(var j = 0; j < 10; j ++) {
 						this.fragments.push({
-							x: this.x + (Math.random() * 10 - 5), y: this.y + (Math.random() * 10 - 5),
-							velX: Math.random() * 2 - 1, velY: Math.random() * 2 - 1,
+							x: this.x + (Math.randomInRange(-5, 5)), y: this.y + (Math.randomInRange(-5, 5)),
+							velX: Math.randomInRange(-1, 1), velY: Math.randomInRange(-1, 1),
 							opacity: 2
 						});
 					}
@@ -8561,9 +8522,7 @@ Rock.prototype.exist = function() {
 			c.fillStyle = "rgb(140, 140, 140)";
 			for(var i = 0; i < this.fragments.length; i ++) {
 				c.globalAlpha = this.fragments[i].opacity;
-				c.beginPath();
-				c.arc(this.fragments[i].x + p.worldX, this.fragments[i].y + p.worldY, 5, 0, 2 * Math.PI);
-				c.fill();
+				c.fillCircle(this.fragments[i].x + p.worldX, this.fragments[i].y + p.worldY, 5);
 				this.fragments[i].x += this.fragments[i].velX;
 				this.fragments[i].y += this.fragments[i].velY;
 				this.fragments[i].velY += 0.1;
@@ -8580,7 +8539,7 @@ Rock.prototype.exist = function() {
 			}
 		} c.restore();
 	}
-};
+});
 
 function Dragonling(x, y) {
 	Enemy.call(this, x, y);
@@ -8606,13 +8565,15 @@ function Dragonling(x, y) {
 	this.maxHealth = 150;
 	this.name = "a dragonling";
 	/* hitbox */
-	this.leftX = -5;
-	this.rightX = 5;
-	this.topY = -5;
-	this.bottomY = 20;
+	this.hitbox = {
+		left: -5,
+		right: 5,
+		top: -5,
+		bottom: 20
+	};
 };
 Dragonling.extends(Enemy);
-Dragonling.prototype.display = function() {
+Dragonling.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -8660,8 +8621,8 @@ Dragonling.prototype.display = function() {
 		},
 		1
 	));
-};
-Dragonling.prototype.update = function() {
+});
+Dragonling.method("update", function() {
 	/* move according to rotation */
 	var theVel = Math.rotate(0, -10, this.rot);
 	this.velX += theVel.x / 100;
@@ -8672,9 +8633,9 @@ Dragonling.prototype.update = function() {
 	}
 	/* accelerate towards destination */
 	var idealAngle = Math.calculateDegrees(this.x - this.destX, this.y - this.destY) - 90;
-	var cw = Math.abs(this.rot - (idealAngle + 360));
-	var ccw = Math.abs(this.rot - (idealAngle - 360));
-	var normal = Math.abs(this.rot - idealAngle);
+	var cw = Math.dist(this.rot, idealAngle + 360);
+	var ccw = Math.dist(this.rot, idealAngle - 360);
+	var normal = Math.dist(this.rot, idealAngle);
 	var theClosest = Math.min(cw, ccw, normal);
 	if(theClosest === cw) {
 		this.rot -= 360;
@@ -8712,8 +8673,8 @@ Dragonling.prototype.update = function() {
 	this.mouth += this.mouthDir;
 	/* shoot fireballs */
 	var idealAngle = Math.calculateDegrees(this.x - (p.x - p.worldX), this.y - (p.y - p.worldY)) - 90;
-	if(this.reload > 120 && Math.abs(this.rot - idealAngle) <= 2 && Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x, p.y) >= 10000) {
-		game.dungeon[game.theRoom].content.push(new MagicCharge(this.x, this.y, theVel.x, theVel.y, "fire", Math.random() * 10 + 40));
+	if(this.reload > 120 && Math.dist(this.rot, idealAngle) <= 2 && Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x, p.y) >= 10000) {
+		game.dungeon[game.theRoom].content.push(new MagicCharge(this.x, this.y, theVel.x, theVel.y, "fire", Math.randomInRange(40, 50)));
 		game.dungeon[game.theRoom].content[game.dungeon[game.theRoom].content.length - 1].shotBy = "enemy";
 		this.currentAction = "bite";
 		this.reload = 0;
@@ -8728,30 +8689,30 @@ Dragonling.prototype.update = function() {
 	}
 	/* this.rot = 90; */
 	if(this.rot >= 315 || this.rot < 45) {
-		this.leftX = -20;
-		this.rightX = 20;
-		this.topY = -40;
-		this.bottomY = 0;
+		this.hitbox.left = -20;
+		this.hitbox.right = 20;
+		this.hitbox.top = -40;
+		this.hitbox.bottom = 0;
 	}
 	else if(this.rot >= 45 && this.rot < 135) {
-		this.leftX = 0;
-		this.rightX = 40;
-		this.topY = -20;
-		this.bottomY = 20;
+		this.hitbox.left = 0;
+		this.hitbox.right = 40;
+		this.hitbox.top = -20;
+		this.hitbox.bottom = 20;
 	}
 	else if(this.rot >= 135 && this.rot < 225) {
-		this.leftX = -20;
-		this.rightX = 20;
-		this.topY = 0;
-		this.bottomY = 40;
+		this.hitbox.left = -20;
+		this.hitbox.right = 20;
+		this.hitbox.top = 0;
+		this.hitbox.bottom = 40;
 	}
 	else if(this.rot >= 225 && this.rot < 315) {
-		this.leftX = -40;
-		this.rightX = 0;
-		this.topY = -20;
-		this.bottomY = 20;
+		this.hitbox.left = -40;
+		this.hitbox.right = 0;
+		this.hitbox.top = -20;
+		this.hitbox.bottom = 20;
 	}
-};
+});
 
 
 
@@ -8813,9 +8774,7 @@ var utilities = {
 		mouse: { x: 0, y: 0, pressed: false },
 		update: function() {
 			this.keys = io.keys.clone();
-			this.mouse.x = io.mouse.x;
-			this.mouse.y = io.mouse.y;
-			this.mouse.pressed = io.mouse.pressed;
+			this.mouse = io.mouse.clone();
 		}
 	},
 	frameCount: 0,
@@ -8834,30 +8793,28 @@ var graphics3D = {
 		*/
 		return Math.scaleAboutPoint(x, y, canvas.width / 2, canvas.height / 2, z);
 	},
-	cube: function(x, y, w, h, startDepth, endDepth, frontCol, sideCol, settings) {
+	cube: function(x, y, w, h, backDepth, frontDepth, frontCol, sideCol, settings) {
 		/*
-		Draws a rect. prism from ('x', 'y', 'startDepth') to ('x' + 'w', 'y' + 'h', 'endDepth').
+		Draws a rect. prism from ('x', 'y', 'frontDepth') to ('x' + 'w', 'y' + 'h', 'backDepth').
 		*/
 		frontCol = frontCol || "rgb(110, 110, 110)";
 		sideCol = sideCol || "rgb(150, 150, 150)";
 		settings = settings || {};
 		settings.noFrontExtended = settings.noFrontExtended || false;
 		settings.sideColors = settings.sideColors || {left: sideCol, right: sideCol, top: sideCol, bottom: sideCol};
-		if(endDepth < startDepth) {
-			var oldEnd = endDepth;
-			endDepth = startDepth;
-			startDepth = oldEnd;
+		if(frontDepth < backDepth) {
+			throw new Error("frontDepth (" + frontDepth + ") must be greater than backDepth (" + backDepth + ")");
 		}
 		/* Calculate back face coordinates */
-		var topLeftB = graphics3D.point3D(x, y, startDepth);
-		var topRightB = graphics3D.point3D(x + w, y, startDepth);
-		var bottomLeftB = graphics3D.point3D(x, y + h, startDepth);
-		var bottomRightB = graphics3D.point3D(x + w, y + h, startDepth);
+		var topLeftB = graphics3D.point3D(x, y, backDepth);
+		var topRightB = graphics3D.point3D(x + w, y, backDepth);
+		var bottomLeftB = graphics3D.point3D(x, y + h, backDepth);
+		var bottomRightB = graphics3D.point3D(x + w, y + h, backDepth);
 		/* Calculate front face coordinates */
-		var topLeftF = graphics3D.point3D(x, y, endDepth);
-		var topRightF = graphics3D.point3D(x + w, y, endDepth);
-		var bottomLeftF = graphics3D.point3D(x, y + h, endDepth);
-		var bottomRightF = graphics3D.point3D(x + w, y + h, endDepth);
+		var topLeftF = graphics3D.point3D(x, y, frontDepth);
+		var topRightF = graphics3D.point3D(x + w, y, frontDepth);
+		var bottomLeftF = graphics3D.point3D(x, y + h, frontDepth);
+		var bottomRightF = graphics3D.point3D(x + w, y + h, frontDepth);
 		/* Top face */
 		game.dungeon[game.theRoom].beginRenderingGroup(); {
 			game.dungeon[game.theRoom].render(
@@ -8865,7 +8822,7 @@ var graphics3D = {
 					"polygon",
 					[ topLeftF, topRightF, topRightB, topLeftB ],
 					settings.sideColors.top,
-					startDepth
+					backDepth
 				)
 			);
 			/* Bottom face */
@@ -8874,7 +8831,7 @@ var graphics3D = {
 					"polygon",
 					[ bottomLeftF, bottomRightF, bottomRightB, bottomLeftB ],
 					settings.sideColors.bottom,
-					startDepth
+					backDepth
 				)
 			);
 			/* Left face */
@@ -8883,7 +8840,7 @@ var graphics3D = {
 					"polygon",
 					[ topLeftF, bottomLeftF, bottomLeftB, topLeftB ],
 					settings.sideColors.left,
-					startDepth
+					backDepth
 				)
 			);
 			/* Right face */
@@ -8892,7 +8849,7 @@ var graphics3D = {
 					"polygon",
 					[ topRightF, bottomRightF, bottomRightB, topRightB ],
 					settings.sideColors.right,
-					startDepth
+					backDepth
 				)
 			);
 		} game.dungeon[game.theRoom].endRenderingGroup();
@@ -8908,7 +8865,7 @@ var graphics3D = {
 						h: bottomRightF.y - topLeftF.y
 					},
 					frontCol,
-					endDepth
+					frontDepth
 				)
 			);
 		}
@@ -8917,14 +8874,14 @@ var graphics3D = {
 			c.fillRect(topLeftF.x, topLeftF.y, bottomRightF.x - topLeftF.x, bottomRightF.y - topLeftF.y);
 		}
 	},
-	plane3D: function(x1, y1, x2, y2, startDepth, endDepth, col) {
+	plane3D: function(x1, y1, x2, y2, backDepth, frontDepth, col) {
 		/*
-		Draws a plane extending the line between ('x1', 'y1') and ('x2', 'y2') from 'startDepth' to 'endDepth' with a color of 'col'.
+		Draws a plane extending the line between ('x1', 'y1') and ('x2', 'y2') from 'frontDepth' to 'backDepth' with a color of 'col'.
 		*/
-		var p1 = graphics3D.point3D(x1, y1, startDepth);
-		var p2 = graphics3D.point3D(x1, y1, endDepth);
-		var p3 = graphics3D.point3D(x2, y2, endDepth);
-		var p4 = graphics3D.point3D(x2, y2, startDepth);
+		var p1 = graphics3D.point3D(x1, y1, frontDepth);
+		var p2 = graphics3D.point3D(x1, y1, backDepth);
+		var p3 = graphics3D.point3D(x2, y2, backDepth);
+		var p4 = graphics3D.point3D(x2, y2, frontDepth);
 		c.fillStyle = col;
 		c.fillPoly(p1, p2, p3, p4);
 	},
@@ -8944,22 +8901,22 @@ var graphics3D = {
 			)
 		);
 	},
-	polygon3D: function(frontCol, sideCol, startDepth, endDepth, points, settings) {
+	polygon3D: function(frontCol, sideCol, backDepth, frontDepth, points, settings) {
 		/*
-		Draws a sideways polygonal prism w/ base defined by 'points' array, w/ front color 'frontCol' and side color 'sideCol' going from 'startDepth' to 'endDepth'.
+		Draws a sideways polygonal prism w/ base defined by 'points' array, w/ front color 'frontCol' and side color 'sideCol' going from 'frontDepth' to 'backDepth'.
 		*/
-		if(startDepth > endDepth) {
-			var start = startDepth;
-			startDepth = endDepth;
-			endDepth = start;
+		if(frontDepth > backDepth) {
+			var start = frontDepth;
+			frontDepth = backDepth;
+			backDepth = start;
 		}
 		/* Generate a list of points in 3d */
 		var frontVertices = [];
 		var backVertices = [];
 		for(var i = 0; i < points.length; i ++) {
-			var front = graphics3D.point3D(points[i].x, points[i].y, endDepth)
+			var front = graphics3D.point3D(points[i].x, points[i].y, backDepth)
 			frontVertices.push(front);
-			backVertices.push(graphics3D.point3D(points[i].x, points[i].y, startDepth));
+			backVertices.push(graphics3D.point3D(points[i].x, points[i].y, frontDepth));
 		}
 		/* side faces */
 		c.fillStyle = sideCol;
@@ -8971,7 +8928,7 @@ var graphics3D = {
 						"polygon",
 						[frontVertices[i], frontVertices[next], backVertices[next], backVertices[i]],
 						sideCol,
-						startDepth
+						frontDepth
 					)
 				);
 			}
@@ -8982,7 +8939,7 @@ var graphics3D = {
 				"polygon",
 				frontVertices,
 				frontCol,
-				endDepth,
+				backDepth,
 			)
 		);
 	},
@@ -8999,37 +8956,30 @@ var graphics3D = {
 		game.dungeon[game.theRoom].render(
 			new RenderingOrderObject(
 				function() {
-					c.fillStyle = color;
-					c.beginPath();
+					var points3D = [];
 					for(var i = 0; i < points.length; i ++) {
 						var location = graphics3D.point3D(points[i].x, points[i].y, points[i].z);
-						if(i === 0) {
-							c.moveTo(location.x, location.y);
-						}
-						else {
-							c.lineTo(location.x, location.y);
-						}
+						points3D.push(location);
 					}
-					c.fill();
+					c.fillStyle = color;
+					c.fillPoly(location);
 				},
 				farthestBackPoint
 			)
 		);
 	},
 
-	cutoutPolygon: function(frontCol, sideCol, startDepth, endDepth, points) {
-		if(startDepth < endDepth) {
-			var previousStartDepth = startDepth;
-			startDepth = endDepth;
-			endDepth = previousStartDepth;
+	cutoutPolygon: function(frontCol, sideCol, backDepth, frontDepth, points) {
+		if(frontDepth < backDepth) {
+			throw new Error("frontDepth (" + frontDepth + ") must be greater than backDepth (" + backDepth + ")");
 		}
 		var front = [];
 		for(var i = 0; i < points.length; i ++) {
-			front.push(graphics3D.point3D(points[i].x, points[i].y, startDepth));
+			front.push(graphics3D.point3D(points[i].x, points[i].y, frontDepth));
 		}
 		var back = [];
 		for(var i = 0; i < points.length; i ++) {
-			back.push(graphics3D.point3D(points[i].x, points[i].y, endDepth));
+			back.push(graphics3D.point3D(points[i].x, points[i].y, backDepth));
 		}
 		c.save(); {
 			game.dungeon[game.theRoom].setRenderingStyle(function() {
@@ -9044,7 +8994,7 @@ var graphics3D = {
 						"polygon",
 						[ front[i], front[next], back[next], back[i] ],
 						sideCol,
-						endDepth
+						backDepth
 					))
 					// c.fillPoly(front[i], front[next], back[next], back[i]);
 				}
@@ -9052,9 +9002,9 @@ var graphics3D = {
 			game.dungeon[game.theRoom].clearRenderingStyle();
 		} c.restore();
 	},
-	cutoutRect: function(x, y, w, h, frontCol, sideCol, startDepth, endDepth) {
+	cutoutRect: function(x, y, w, h, frontCol, sideCol, backDepth, frontDepth) {
 		this.cutoutPolygon(
-			frontCol, sideCol, startDepth, endDepth,
+			frontCol, sideCol, backDepth, frontDepth,
 			[
 				{ x: x, y: y },
 				{ x: x + w, y: y },
@@ -9088,7 +9038,7 @@ var graphics3D = {
 			else if(graphics3D.boxFronts[i].type === "arc") {
 				c.fillStyle = boxFront.col;
 				c.strokeStyle = boxFront.col;
-				c.fillArc(boxFront.loc[0], boxFront.loc[1], boxFront.loc[2], boxFront.loc[3], boxFront.loc[4]);
+				c.fillArc(boxFront.loc[0], boxFront.loc[1], boxFront.loc[2], boxFront.loc[3], boxFront.loc[4], true);
 				c.strokeArc(boxFront.loc[0], boxFront.loc[1], boxFront.loc[2], boxFront.loc[3], boxFront.loc[4]);
 			}
 		}
@@ -9120,7 +9070,7 @@ var collisions = {
 		*/
 		settings = settings || {};
 		if(settings.illegalHandling === undefined) {
-			if(Math.abs(x1 - x2) < Math.abs(y1 - y2) || (p.y + 10 > y1 && p.y + 10 > y2)) {
+			if(Math.dist(x1, x2) < Math.dist(y1, y2) || (p.y + 10 > y1 && p.y + 10 > y2)) {
 				settings.illegalHandling = "collide";
 				if(settings.walls === undefined) {
 					settings.walls = [false, true, true, true];
@@ -9161,16 +9111,16 @@ var debugging = {
 	activateDebuggingSettings: function() {
 		p.onScreen = "play";
 		/* override randomizer for room generation */
-		var includedRooms = ["combat1", "reward4"];
+		var includedRooms = ["combat1", "reward2"];
 		// debugger;
 		for(var i = 0; i < game.rooms.length; i ++) {
 			if(!includedRooms.includes(game.rooms[i].name)) {
-				game.rooms.splice(i, 1);
-				i --;
+				// game.rooms.splice(i, 1);
+				// i --;
 				continue;
 			}
 		}
-		game.items = [Sword];
+		// game.items = [Sword];
 		game.enemies = [Dragonling];
 		/* load different rooms to override the first room */
 		function loadRoom(id) {
@@ -9187,15 +9137,16 @@ var debugging = {
 						}
 					}
 					room.colorScheme = ["red", "green", "blue"].randomItem();
-					break;
+					return;
 				}
 			}
+			throw new Error("Could not find room ID of '" + id + "'");
 		};
 		loadRoom("combat1");
 		/* change doors in first room */
 		for(var i = 0; i < game.dungeon[0].content.length; i ++) {
 			if(game.dungeon[0].content[i] instanceof Door) {
-				game.dungeon[0].content[i].dest = ["reward"];
+				// game.dungeon[0].content[i].dest = ["reward"];
 			}
 		}
 		/* give player items */
@@ -9203,7 +9154,7 @@ var debugging = {
 		for(var i = 0; i < game.items.length; i ++) {
 			// p.addItem(new game.items[i]());
 		}
-		p.addItem(new WoodBow());
+		p.addItem(new Barricade());
 		p.addItem(new EnergyStaff());
 		p.addItem(new Arrow(Infinity));
 	},
@@ -9437,7 +9388,7 @@ var game = {
 			difficulty: 0,
 			extraDoors: 1,
 			add: function() {
-				var possibleItems = Object.create(game.items);
+				var possibleItems = game.items.clone();
 				for(var i = 0; i < possibleItems.length; i ++) {
 					if(!(new possibleItems[i]() instanceof Weapon) || new possibleItems[i]() instanceof Arrow || new possibleItems[i]() instanceof Dagger) {
 						possibleItems.splice(i, 1);
@@ -9450,7 +9401,7 @@ var game = {
 							hasIt = true;
 						}
 					}
-					if(hasIt) {
+					if(p.hasInInventory(possibleItems[i])) {
 						possibleItems.splice(i, 1);
 						i --;
 						continue;
@@ -10098,6 +10049,39 @@ var game = {
 		},
 		onScreenChange: function() {
 
+		},
+
+		display: function() {
+			c.save(); {
+				c.globalAlpha = Math.constrain(this.opacity, 0, 1);
+				c.fillCanvas(this.color);
+			} c.restore();
+		},
+		update: function() {
+			if(this.dir === "fade-out") {
+				this.opacity += 0.05;
+				if(this.opacity >= 1) {
+					this.dir = "fade-in";
+					if(this.nextScreen !== null) {
+						p.onScreen = this.nextScreen;
+					}
+					if(typeof this.onScreenChange === "function") {
+						this.onScreenChange();
+					}
+					this.onScreenChange = null;
+				}
+			}
+			else if(this.dir === "fade-in") {
+				this.opacity -= 0.05;
+				if(this.opacity <= 0) {
+					this.dir = null;
+					if(p.enteringDoor) {
+						p.enteringDoor = false;
+						p.exitingDoor = true;
+					}
+				}
+			}
+			this.opacity = Math.constrain(this.opacity, 0, 1);
 		}
 	}
 };
@@ -10201,11 +10185,11 @@ var ui = {
 		display: function() {
 			io.keys = [];
 			graphics3D.boxFronts = [];
-			/* buttons */
 			game.inRoom = 0;
 			game.dungeon = [new Room(null, [])];
 			game.dungeon[game.inRoom].renderingObjects = [];
 			new Block(-100, 600, 1000, 200).display();
+			/* buttons */
 			this.warriorButton.displayPlatform();
 			this.archerButton.displayPlatform();
 			this.mageButton.displayPlatform();
@@ -10213,8 +10197,8 @@ var ui = {
 			this.archerButton.displayStickFigure();
 			this.mageButton.displayStickFigure();
 			game.dungeon[game.inRoom].display();
-			/* archer */
-			/* mage */
+
+
 			c.fillStyle = "rgb(150, 150, 150)";
 			c.font = "bolder 40px Arial black";
 			c.textAlign = "center";
@@ -10503,7 +10487,7 @@ var ui = {
 						c.strokeCircle(0, 0, 5);
 
 						c.fillStyle = "rgb(59, 67, 70)";
-						c.fillArc(0, 0, 5, Math.rad(180), Math.rad(270));
+						c.fillArc(0, 0, 5, Math.rad(180), Math.rad(270), true);
 
 						c.strokeLine(-5, 0, 5, 0);
 					} c.restore();
@@ -10695,7 +10679,7 @@ function ArchedDoorButton(x, y, w, h, text, onclick, settings) {
 	this.textY = settings.textY || this.y;
 	this.maxUnderlineWidth = settings.maxUnderlineWidth || 50;
 };
-ArchedDoorButton.prototype.display = function() {
+ArchedDoorButton.method("display", function() {
 	c.fillStyle = "rgb(20, 20, 20)";
 	c.fillCircle(this.x, this.y, this.w / 2);
 	c.fillRect(this.x - (this.w / 2), this.y, this.w, this.h);
@@ -10716,8 +10700,8 @@ ArchedDoorButton.prototype.display = function() {
 			this.x + this.underlineWidth, this.textY + 20
 		);
 	}
-};
-ArchedDoorButton.prototype.update = function() {
+});
+ArchedDoorButton.method("update", function() {
 	if(
 		utilities.mouseInCircle(this.x, this.y, this.w / 2) ||
 		utilities.mouseInRect(this.x - (this.w / 2), this.y, this.w, this.h)
@@ -10733,7 +10717,7 @@ ArchedDoorButton.prototype.update = function() {
 	else if(this.underlineWidth > 0) {
 		this.underlineWidth -= 5;
 	}
-};
+});
 
 function RisingPlatformButton(x, y, w, h, player, settings) {
 	/*
@@ -10749,14 +10733,14 @@ function RisingPlatformButton(x, y, w, h, player, settings) {
 	this.maxHoverY = settings.maxHoverY || -50;
 	this.offsetY = 0;
 };
-RisingPlatformButton.prototype.display = function() {
+RisingPlatformButton.method("display", function() {
 	this.displayPlatform();
 	this.displayStickFigure();
-};
-RisingPlatformButton.prototype.displayPlatform = function() {
+});
+RisingPlatformButton.method("displayPlatform", function() {
 	new Block(this.x - (this.w / 2), this.y + this.offsetY, this.w, this.h).display();
-};
-RisingPlatformButton.prototype.displayStickFigure = function() {
+});
+RisingPlatformButton.method("displayStickFigure", function() {
 	var stickFigure = new Player();
 	stickFigure.x = this.x;
 	stickFigure.y = this.y + this.offsetY - 46;
@@ -10794,8 +10778,8 @@ RisingPlatformButton.prototype.displayStickFigure = function() {
 			1
 		));
 	}
-};
-RisingPlatformButton.prototype.update = function() {
+});
+RisingPlatformButton.method("update", function() {
 	if(this.mouseOverFunction()) {
 		if(this.offsetY > this.maxHoverY) {
 			this.offsetY -= 5;
@@ -10814,7 +10798,7 @@ RisingPlatformButton.prototype.update = function() {
 	else if(this.offsetY < 0) {
 		this.offsetY += 5;
 	}
-};
+});
 
 function TextButton(x, y, w, h, text, onclick, settings) {
 	this.x = x;
@@ -10828,7 +10812,7 @@ function TextButton(x, y, w, h, text, onclick, settings) {
 	this.maxUnderlineWidth = settings.maxUnderlineWidth || 50;
 	this.underlineWidth = 0;
 };
-TextButton.prototype.display = function() {
+TextButton.method("display", function() {
 	c.fillStyle = "rgb(255, 255, 255)";
 	c.textAlign = "center";
 	c.font = "100 20px Germania One";
@@ -10845,8 +10829,8 @@ TextButton.prototype.display = function() {
 			this.x + this.underlineWidth, this.textY + 20
 		);
 	}
-};
-TextButton.prototype.update = function() {
+});
+TextButton.method("update", function() {
 	if(utilities.mouseInRect(this.x - (this.w / 2), this.y - (this.h / 2), this.w, this.h)) {
 		io.cursor = "pointer";
 		if(this.underlineWidth < this.maxUnderlineWidth) {
@@ -10859,12 +10843,13 @@ TextButton.prototype.update = function() {
 	else if(this.underlineWidth > 0) {
 		this.underlineWidth -= 5;
 	}
-};
+});
 
 /** FRAMES **/
 function timer() {
 	if(TESTING_MODE) {
-		// p.health = p.maxHealth;
+		p.health = p.maxHealth;
+		p.mana = p.maxMana;
 	}
 	c.globalAlpha = 1;
 	io.cursor = "auto";
@@ -10911,15 +10896,15 @@ function timer() {
 				p.x = 500;
 				p.y = -100;
 				p.velY = 2;
-				p.fallDmg = Math.round(Math.random() * 10 + 40);
+				p.fallDmg = Math.round(Math.randomInRange(40, 50));
 				game.dungeon.push(
 					new Room(
 						"ambient1",
 						[
-							new Pillar(200, 500, Math.random() * 100 + 200),
-							new Pillar(400, 500, Math.random() * 100 + 200),
-							new Pillar(600, 500, Math.random() * 100 + 200),
-							new Pillar(800, 500, Math.random() * 100 + 200),
+							new Pillar(200, 500, Math.randomInRange(200, 300)),
+							new Pillar(400, 500, Math.randomInRange(200, 300)),
+							new Pillar(600, 500, Math.randomInRange(200, 300)),
+							new Pillar(800, 500, Math.randomInRange(200, 300)),
 							new Block(-200, 500, 2000, 600),//floor
 							new Block(-600, -1200, 700, 3000), //left wall
 							new Block(900, -1200, 500, 3000), //right wall
@@ -10961,36 +10946,9 @@ function timer() {
 		ui.highscoresScreen.update();
 		ui.highscoresScreen.display();
 	}
-	if(game.transitions.dir === "fade-out") {
-		game.transitions.opacity += 0.05;
-		if(game.transitions.opacity >= 1) {
-			game.transitions.dir = "fade-in";
-			if(game.transitions.nextScreen !== null) {
-				p.onScreen = game.transitions.nextScreen;
-			}
-			console.log("changing screen");
-			if(typeof game.transitions.onScreenChange === "function") {
-				game.transitions.onScreenChange();
-			}
-			game.transitions.onScreenChange = null;
-		}
-	}
-	else if(game.transitions.dir === "fade-in") {
-		game.transitions.opacity -= 0.05;
-		if(game.transitions.opacity <= 0) {
-			game.transitions.dir = null;
-			if(p.enteringDoor) {
-				p.enteringDoor = false;
-				p.exitingDoor = true;
-			}
-		}
-	}
-	game.transitions.opacity = Math.constrain(game.transitions.opacity, 0, 1);
-	c.save(); {
-		c.globalAlpha = game.transitions.opacity;
-		c.fillStyle = game.transitions.color;
-		c.fillRect(0, 0, canvas.width, canvas.height);
-	} c.restore();
+
+	game.transitions.update();
+	game.transitions.display();
 
 	if(p.onScreen !== "play" && p.onScreen !== "how") {
 		(new Room()).displayShadowEffect();
