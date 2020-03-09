@@ -571,6 +571,10 @@ Object.method("clone", function() {
 	}
 	return clone;
 });
+Object.method("beginDebugging", function() {
+	this.isBeingDebugged = true;
+	return this;
+});
 Object.typeof = function(value) {
 	/*
 	This function serves to determine the type of a variable better than the default "typeof" operator, which returns strange values for some inputs (see special cases below).
@@ -600,6 +604,12 @@ function Player() {
 	this.worldX = 0;
 	this.worldY = 0;
 	this.onScreen = "home";
+	this.hitbox = {
+		left: -5,
+		right: 5,
+		top: -7,
+		bottom: 46
+	};
 	/* Animation */
 	this.legs = 5;
 	this.legDir = 1;
@@ -1440,6 +1450,26 @@ Player.method("useItem", function() {
 	this.aimingBefore = this.aiming;
 	this.facingBefore = this.facing;
 	this.shootReload --;
+});
+Player.method("handleCollision", function(direction, collision) {
+	if(direction === "floor") {
+		this.velY = Math.min(0, this.velY);
+		this.canJump = true;
+		/* Hurt the player if they've fallen from a height */
+		if(this.fallDmg !== 0) {
+			this.hurt(this.fallDmg, "falling", true);
+			this.fallDmg = 0;
+		}
+	}
+	else if(direction === "ceiling") {
+		this.velY = Math.max(2, this.velY);
+	}
+	else if(direction === "wall-to-left") {
+		this.velX = Math.max(this.velX, 0);
+	}
+	else if(direction === "wall-to-right") {
+		this.velX = Math.min(this.velX, 0);
+	}
 });
 Player.method("gui", function() {
 	/* Delete Consumed Items */
@@ -2320,186 +2350,72 @@ function CollisionRect(x, y, w, h, settings) {
 	this.y = y;
 	this.w = w;
 	this.h = h;
-	this.settings = settings || {};
-	this.settings.walls = this.settings.walls || [true, true, true, true];
-	this.settings.illegalHandling = this.settings.illegalHandling || "collide";
-	this.settings.moving = this.settings.moving || false;
-	this.settings.player = p;
+	settings = settings || {};
+	this.settings = settings;
+	this.settings.velocity = settings.velocity || { x: 0, y: 0 }; // used to increase collision buffer to prevent clipping through the surface at high speeds
+	this.settings.walls = this.settings.walls || [true, true, true, true]; // used to only collide on certain surfaces of the rectangle
+	this.settings.illegalHandling = this.settings.illegalHandling || "collide"; // values: "collide" or "teleport". allows you to have the player teleport to the top of the block when hitting the side (for things like stairs).
+	this.settings.player = p; // used to differentiate colliding with the regular player or with the tutorial player.
 };
-CollisionRect.method("collide", function() {
-	/* Add a hitbox if 'SHOW_HITBOXES' is true (for debugging) */
-	if(SHOW_HITBOXES) {
-		debugging.hitboxes.push({x: this.x, y: this.y, w: this.w, h: this.h, color: this.settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
-	}
-	/* Collide with player if in the same room */
-	if(game.inRoom === game.theRoom) {
-		if(!this.settings.moving) {
-			/* Top */
-			if(this.settings.player.x + 5 > this.x && this.settings.player.x - 5 < this.x + this.w && this.settings.player.y + 46 >= this.y && this.settings.player.y + 46 <= this.y + this.settings.player.velY + 1 && this.settings.walls[0]) {
-				this.settings.player.velY = 0;
-				this.settings.player.y = this.y - 46;
-				this.settings.player.canJump = true;
-				/* Hurt the player if they've fallen from a height */
-				if(this.settings.player.fallDmg !== 0) {
-					this.settings.player.hurt(this.settings.player.fallDmg, "falling", true);
-					this.settings.player.fallDmg = 0;
-				}
+CollisionRect.method("collide", function(obj) {
+	if(Object.typeof(obj) === "object" || Object.typeof(obj) === "instance") {
+		const MINIMUM_COLLISION_BUFFER = 5;
+		var collisionBuffer = {
+			left: Math.max(MINIMUM_COLLISION_BUFFER, obj.velX - this.settings.velocity.x),
+			right: Math.max(MINIMUM_COLLISION_BUFFER, this.settings.velocity.x - obj.velX),
+			top: Math.max(MINIMUM_COLLISION_BUFFER, obj.velY - this.settings.velocity.y),
+			bottom: Math.max(MINIMUM_COLLISION_BUFFER, this.settings.velocity.y - obj.velY)
+		};
+		/* check if obj is directly above / below this (floor + ceiling collisions) */
+		if(obj.x + obj.hitbox.right > this.x && obj.x + obj.hitbox.left < this.x + this.w) {
+			if(this.settings.walls[0] && obj.y + obj.hitbox.bottom >= this.y && obj.y + obj.hitbox.bottom < this.y + collisionBuffer.top) {
+				obj.handleCollision("floor", this);
+				obj.y = Math.min(obj.y, this.y - obj.hitbox.bottom);
 			}
-			/* Bottom */
-			if(this.settings.player.x + 5 > this.x && this.settings.player.x - 5 < this.x + this.w && this.settings.player.y <= this.y + this.h && this.settings.player.y >= this.y + this.h + this.settings.player.velY - 1 && this.settings.walls[1]) {
-				this.settings.player.velY = 2;
-			}
-			/* Left */
-			if(this.settings.player.y + 46 > this.y && this.settings.player.y < this.y + this.h && this.settings.player.x + 5 >= this.x && this.settings.player.x + 5 <= this.x + this.settings.player.velX + 1 && this.settings.walls[2]) {
-				if(this.settings.illegalHandling === "collide") {
-					this.settings.player.velX = (this.settings.extraBouncy) ? -3 : -1;
-				}
-				else {
-					this.settings.player.y = this.y - 46;
-				}
-			}
-			/* Right */
-			if(this.settings.player.y + 46 > this.y && this.settings.player.y < this.y + this.h && this.settings.player.x - 5 <= this.x + this.w && this.settings.player.x - 5 >= this.x + this.w + this.settings.player.velX - 1 && this.settings.walls[3]) {
-				if(this.settings.illegalHandling === "collide") {
-					this.settings.player.velX = (this.settings.extraBouncy) ? 3 : 1;
-				}
-				else {
-					this.settings.player.y = this.y - 46;
-				}
+			if(this.settings.walls[1] && obj.y + obj.hitbox.top < this.y + this.h && obj.y + obj.hitbox.top > this.y + this.h - collisionBuffer.bottom) {
+				obj.handleCollision("ceiling", this);
+				obj.y = Math.max(obj.y, this.y + this.h + Math.abs(obj.hitbox.top));
 			}
 		}
-		else {
-			/* Top */
-			if(this.settings.player.x + 5 > this.x && this.settings.player.x - 5 < this.x + this.w && this.settings.player.y + 46 >= this.y && this.settings.player.y + 46 <= this.y + 6 && this.settings.walls[0]) {
-				this.settings.player.velY = 0;
-				this.settings.player.y = this.y - 46;
-				this.settings.player.canJump = true;
-				if(this.settings.player.fallDmg !== 0) {
-					this.settings.player.hurt(this.settings.player.fallDmg, "falling");
-					this.settings.player.fallDmg = 0;
+		/* check if obj is directly to left / to right of this (wall collisions) */
+		if(obj.y + obj.hitbox.bottom > this.y && obj.y + obj.hitbox.top < this.y + this.h) {
+			if(this.settings.walls[2] && obj.x + obj.hitbox.right > this.x && obj.x + obj.hitbox.right < this.x + collisionBuffer.left) {
+				if(this.settings.illegalHandling === "collide" || obj.noTeleportCollisions) {
+					obj.handleCollision("wall-to-right", this);
+					obj.x = Math.min(obj.x, this.x - obj.hitbox.right);
+				}
+				else if(this.settings.illegalHandling === "teleport") {
+					obj.y = Math.min(obj.y, this.y - obj.hitbox.bottom);
 				}
 			}
-			/* Bottom */
-			if(this.settings.player.x + 5 > this.x && this.settings.player.x - 5 < this.x + this.w && this.settings.player.y <= this.y + this.h && this.settings.player.y >= this.y + this.h - 6 && this.settings.walls[1]) {
-				this.settings.player.velY = 2;
-			}
-			/* Left */
-			if(this.settings.player.y + 46 > this.y && this.settings.player.y < this.y + this.h && this.settings.player.x + 5 >= this.x && this.settings.player.x + 5 <= this.x + 6 && this.settings.walls[2]) {
-				if(this.settings.illegalHandling === "collide") {
-					this.settings.player.velX = (this.settings.extraBouncy) ? -3 : -1;
+			if(this.settings.walls[3] && obj.x + obj.hitbox.left < this.x + this.w && obj.x + obj.hitbox.left > this.x + this.w - collisionBuffer.right) {
+				if(this.settings.illegalHandling === "collide" || obj.noTeleportCollisions) {
+					obj.handleCollision("wall-to-left", this);
+					obj.x = Math.max(obj.x, this.x + this.w + Math.abs(obj.hitbox.left));
 				}
-				else {
-					this.settings.player.y = this.y - 46;
-				}
-			}
-			/* Right */
-			if(this.settings.player.y + 46 > this.y && this.settings.player.y < this.y + this.h && this.settings.player.x - 5 <= this.x + this.w && this.settings.player.x - 5 >= this.x + this.w - 6 && this.settings.walls[3]) {
-				if(this.settings.illegalHandling === "collide") {
-					this.settings.player.velX = (this.settings.extraBouncy) ? 3 : 1;
-				}
-				else {
-					this.settings.player.y = this.y - 46;
+				else if(this.settings.illegalHandling === "teleport") {
+					obj.y = Math.min(obj.y, this.y - obj.hitbox.bottom);
 				}
 			}
 		}
 	}
-	/* Collide with other objects */
-	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-		var thing = game.dungeon[game.theRoom].content[i];
-		if(thing instanceof Enemy) {
-			var enemy = thing;
-			if(enemy.x + p.worldX + enemy.hitbox.right > this.x && enemy.x + p.worldX + enemy.hitbox.left < this.x + this.w) {
-				if(enemy.y + p.worldY + enemy.hitbox.bottom >= this.y && enemy.y + p.worldY + enemy.hitbox.bottom <= this.y + enemy.velY + 1) {
-					enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
-					enemy.y = this.y - p.worldY - Math.abs(enemy.hitbox.bottom);
-					enemy.canJump = true;
-					if(enemy instanceof Bat && enemy.timePurified > 0) {
-						enemy.dest = {
-							x: enemy.x + Math.randomInRange(-100, 100),
-							y: enemy.y + Math.randomInRange(-100, 100)
-						};
-					}
-				}
-				if(enemy.y + p.worldY + enemy.hitbox.top <= this.y + this.h && enemy.y + p.worldY + enemy.hitbox.top >= this.y + this.h + enemy.velY - 1) {
-					enemy.velY = 3;
-					enemy.y = this.y + this.h - p.worldY + Math.abs(enemy.hitbox.top);
-					if(enemy instanceof Bat && enemy.timePurified > 0) {
-						enemy.dest = {
-							x: enemy.x + Math.randomInRange(-100, 100),
-							y: enemy.y + Math.randomInRange(-100, 100)
-						};
-					}
-				}
-			}
-			if(enemy.y + enemy.hitbox.bottom + p.worldY > this.y && enemy.y + enemy.hitbox.top + p.worldY < this.y + this.h) {
-				if(enemy.x + p.worldX + enemy.hitbox.right >= this.x && enemy.x + p.worldX + enemy.hitbox.right <= this.x + enemy.velX + 1) {
-					if(this.settings.illegalHandling === "teleport") {
-						enemy.y = this.y - p.worldY - Math.abs(enemy.hitbox.bottom);
-						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
-						enemy.canJump = true;
-					}
-					else {
-						enemy.velX = (enemy.velX > 0) ? -3 : enemy.velX;
-						enemy.x = this.x - p.worldX - Math.abs(enemy.hitbox.right);
-						if(enemy instanceof Bat && enemy.timePurified > 0) {
-							enemy.dest = {
-								x: enemy.x + Math.randomInRange(-100, 100),
-								y: enemy.y + Math.randomInRange(-100, 100)
-							};
-						}
-					}
-				}
-				if(enemy.x + p.worldX + enemy.hitbox.left <= this.x + this.w && enemy.x + p.worldX + enemy.hitbox.left >= this.x + this.w + enemy.velX - 1) {
-					if(this.settings.illegalHandling === "teleport") {
-						enemy.y = this.y - p.worldY - Math.abs(enemy.hitbox.bottom);
-						enemy.velY = (enemy.velY > 0) ? 0 : enemy.velY;
-						enemy.canJump = true;
-					}
-					else {
-						enemy.velX = (enemy.velX < 0) ? 3 : enemy.velX;
-						enemy.x = this.x + this.w - p.worldX + Math.abs(enemy.hitbox.left);
-						if(enemy instanceof Bat && enemy.timePurified > 0) {
-							enemy.dest = {
-								x: enemy.x + Math.randomInRange(-100, 100),
-								y: enemy.y + Math.randomInRange(-100, 100)
-							};
-						}
-					}
-				}
-				if(!(typeof enemy.velX === "number") && enemy.x + enemy.hitbox.right + p.worldX > this.x && enemy.x + enemy.hitbox.right + p.worldX < this.x + 5) {
-					enemy.x = this.x - p.worldX - Math.abs(enemy.hitbox.right) - 1;
-				}
-				if(!(typeof enemy.velX === "number") && enemy.x + enemy.hitbox.left + p.worldX < this.x + this.w && enemy.x + enemy.hitbox.left + p.worldX > this.x + this.w - 5) {
-					enemy.x = this.x + this.w - p.worldX + Math.abs(enemy.hitbox.left) + 1;
-				}
+	else {
+		/* Add a hitbox if 'SHOW_HITBOXES' is true (for debugging) */
+		if(SHOW_HITBOXES) {
+			debugging.hitboxes.push({x: this.x, y: this.y, w: this.w, h: this.h, color: this.settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
+		}
+		/* collide with objects */
+		this.x -= p.worldX;
+		this.y -= p.worldY;
+		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
+			var obj = game.dungeon[game.theRoom].content[i];
+			if(Object.typeof(obj.hitbox) === "object" && Object.typeof(obj.handleCollision) === "function") {
+				this.collide(obj);
 			}
 		}
-		else if(thing instanceof MagicCharge && thing.x + p.worldX + 20 > this.x && thing.x + p.worldX - 20 < this.x + this.w && thing.y + p.worldY + 20 > this.y && thing.y + p.worldY - 20 < this.y + this.h && !thing.splicing) {
-			thing.splicing = true;
-			if(thing.type === "chaos" && !p.aiming) {
-				var charge = thing;
-				p.x = charge.x + p.worldX;
-				p.y = charge.y + p.worldY;
-				for(var j = 0; j < collisions.length; j ++) {
-					while(p.x + 5 > collisions.collisions[i].x && p.x - 5 < collisions.collisions[i].x + 10 && p.y + 46 > collisions.collisions[i].y && p.y - 7 < collisions.collisions[i].y + collisions.collisions[i].h) {
-						p.x --;
-					}
-					while(p.x - 5 < collisions.collisions[i].x + collisions.collisions[i].w && p.x + 5 > collisions.collisions[i].x + collisions.collisions[i].w - 10 && p.y + 46 > collisions.collisions[i].y && p.y - 7 < collisions.collisions[i].y + collisions.collisions[i].h) {
-						p.x ++;
-					}
-					while(p.x + 5 > collisions.collisions[i].x && p.x - 5 < collisions.collisions[i].x + collisions.collisions[i].w && p.y - 7 < collisions.collisions[i].y + collisions.collisions[i].h && p.y + 46 > collisions.collisions[i].y + collisions.collisions[i].h - 10) {
-						p.y ++;
-					}
-					while(p.x + 5 > collisions.collisions[i].x && p.x - 5 < collisions.collisions[i].x + collisions.collisions[i].w && p.y + 46 > collisions.collisions[i].y && p.y - 7 < collisions.collisions[i].y + 10) {
-					p.y --;
-				}
-				}
-			}
-			continue;
-		}
-		else if(thing instanceof ShotArrow && this.isPointInside(thing.x + p.worldX, thing.y + p.worldY, thing.w, thing.h)) {
-			thing.hitSomething = true;
-		}
+		this.x += p.worldX;
+		this.y += p.worldY;
+		this.collide(this.settings.player);
 	}
 });
 CollisionRect.method("isPointInside", function(x, y) {
@@ -2508,7 +2424,7 @@ CollisionRect.method("isPointInside", function(x, y) {
 CollisionRect.method("isRectInside", function(x, y, w, h) {
 	return (x + w > this.x && x < this.x + this.w && y + h > this.y && y < this.y + this.h);
 });
-function CollisionCircle(x, y, r) {
+function CollisionCircle(x, y, r, settings) {
 	/*
 	('x', 'y') is center, not top-left corner. Radius is 'r'
 	*/
@@ -2516,29 +2432,48 @@ function CollisionCircle(x, y, r) {
 	this.y = y;
 	this.r = r;
 };
-CollisionCircle.method("collide", function() {
-	var rSquared = this.r * this.r;
-	/* Collide with player if in the same room */
-	while(Math.distSq(p.x + 5, p.y + 46, this.x + p.worldX, this.y + p.worldY) <  rSquared || Math.distSq(p.x - 5, p.y + 46, this.x + p.worldX, this.y + p.worldY) < rSquared) {
-		p.y --;
-		p.canJump = true;
-		p.velY = (p.velY > 3) ? 3 : p.velY;
+CollisionCircle.method("collide", function(obj) {
+	if(Object.typeof(obj) === "object" || Object.typeof(obj) === "instance") {
+		var intersection = this.getIntersectionPoint(obj);
+		var collided = false;
+		while(intersection !== null) {
+			obj.y --;
+			intersection = this.getIntersectionPoint(obj);
+			collided = true;
+		}
+		if(collided) {
+			obj.handleCollision("floor", this);
+		}
 	}
-	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-		var thing = game.dungeon[game.theRoom].content[i];
-		if(thing instanceof Enemy) {
-			while(Math.distSq(this.x, this.y, thing.x + thing.hitbox.left, thing.y + thing.hitbox.bottom) < rSquared || Math.distSq(this.x, this.y, thing.x + thing.hitbox.right, thing.y + thing.hitbox.bottom) < rSquared) {
-				thing.y --;
-				thing.velY = (thing.velY > 3) ? 3 : thing.velY;
-				if(thing instanceof Bat && thing.timePurified > 0) {
-					thing.dest = {
-						x: thing.x + Math.randomInRange(-100, 100),
-						y: thing.y + Math.randomInRange(-100, 100)
-					};
-					thing.velY = 0;
-				}
+	else {
+		/* Add a hitbox if 'SHOW_HITBOXES' is true (for debugging) */
+		if(SHOW_HITBOXES) {
+			debugging.hitboxes.push({x: this.x + p.worldX, y: this.y + p.worldY, r: this.r, color: "dark blue"});
+		}
+		/* collide with objects */
+		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
+			var obj = game.dungeon[game.theRoom].content[i];
+			if(Object.typeof(obj.hitbox) === "object" && Object.typeof(obj.handleCollision) === "function") {
+				this.collide(obj);
 			}
 		}
+		this.x += p.worldX;
+		this.y += p.worldY;
+		this.collide(p);
+		this.x -= p.worldX;
+		this.y -= p.worldY;
+	}
+});
+CollisionCircle.method("getIntersectionPoint", function(obj) {
+	var point = {
+		x: Math.constrain(this.x, obj.x + obj.hitbox.left, obj.x + obj.hitbox.right),
+		y: Math.constrain(this.y, obj.y + obj.hitbox.top, obj.y + obj.hitbox.bottom)
+	};
+	if(Math.distSq(this.x, this.y, point.x, point.y) < this.r * this.r) {
+		return point;
+	}
+	else {
+		return null;
 	}
 });
 
@@ -5047,19 +4982,6 @@ Room.method("exist", function(index) {
 			collisions.collisions[i].collide();
 		}
 	}
-	/* show hitboxes */
-	for(var i = 0; i < debugging.hitboxes.length; i ++) {
-		if(debugging.hitboxes[i].color === "light blue") {
-			c.strokeStyle = "rgb(0, " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ", " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ")";
-		}
-		else if(debugging.hitboxes[i].color === "dark blue") {
-			c.strokeStyle = "rgb(0, 0, " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ")";
-		}
-		else if(debugging.hitboxes[i].color === "green") {
-			c.strokeStyle = "rgb(0, " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ", 0)";
-		}
-		c.strokeRect(debugging.hitboxes[i].x, debugging.hitboxes[i].y, debugging.hitboxes[i].w, debugging.hitboxes[i].h);
-	}
 });
 Room.method("display", function() {
 	/* Displays the objects in the room in order. */
@@ -5083,6 +5005,24 @@ Room.method("display", function() {
 			}
 			this.renderingObjects[i].display();
 		} c.restore();
+	}
+	/* show hitboxes */
+	for(var i = 0; i < debugging.hitboxes.length; i ++) {
+		if(debugging.hitboxes[i].color === "light blue") {
+			c.strokeStyle = "rgb(0, " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ", " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ")";
+		}
+		else if(debugging.hitboxes[i].color === "dark blue") {
+			c.strokeStyle = "rgb(0, 0, " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ")";
+		}
+		else if(debugging.hitboxes[i].color === "green") {
+			c.strokeStyle = "rgb(0, " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ", 0)";
+		}
+		if(debugging.hitboxes[i].r !== undefined) {
+			c.strokeCircle(debugging.hitboxes[i].x, debugging.hitboxes[i].y, debugging.hitboxes[i].r);
+		}
+		else {
+			c.strokeRect(debugging.hitboxes[i].x, debugging.hitboxes[i].y, debugging.hitboxes[i].w, debugging.hitboxes[i].h);
+		}
 	}
 });
 Room.method("displayBackground", function() {
@@ -6875,6 +6815,7 @@ function ShotArrow(x, y, velX, velY, damage, shotBy, element, name) {
 	this.element = element;
 	this.name = name;
 	this.hitSomething = false;
+	this.hitbox = { left: -1, right: 1, top: -1, bottom: 1 };
 };
 ShotArrow.method("exist", function() {
 	this.update();
@@ -6923,7 +6864,7 @@ ShotArrow.method("update", function() {
 		for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 			if(game.dungeon[game.inRoom].content[i] instanceof Enemy && this.shotBy === "player") {
 				var enemy = game.dungeon[game.inRoom].content[i];
-				if(this.x > enemy.x + enemy.hitbox.left && this.x < enemy.x + enemy.hitbox.right && this.y > enemy.y + enemy.hitbox.top && this.y < enemy.y + enemy.hitbox.bottom) {
+				if(utilities.collidesWith(this, enemy)) {
 					if(this.ORIGINAL_X === undefined) {
 						enemy.hurt(this.damage);
 					}
@@ -6960,7 +6901,7 @@ ShotArrow.method("update", function() {
 				}
 			}
 		}
-		if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && this.shotBy === "enemy") {
+		if(utilities.collidesWith(this, p) && this.shotBy === "enemy") {
 			p.hurt(this.damage, this.name);
 			this.hitSomething = true;
 		}
@@ -6971,6 +6912,9 @@ ShotArrow.method("update", function() {
 			this.splicing = true;
 		}
 	}
+});
+ShotArrow.method("handleCollision", function(direction, collision) {
+	this.hitSomething = true;
 });
 
 /** ENEMIES **/
@@ -6986,6 +6930,10 @@ RandomEnemy.method("exist", function() {
 	}
 });
 RandomEnemy.method("generate", function() {
+	if(game.enemies.length === 0 && TESTING_MODE) {
+		this.splicing = true;
+		return;
+	}
 	/* Wait until the decorations are resolved before generating enemy */
 	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
 		if(game.dungeon[game.theRoom].content[i] instanceof Decoration) {
@@ -7349,6 +7297,11 @@ Spider.method("update", function(dest) {
 		this.canJump = false;
 	}
 });
+Spider.method("handleCollision", function(direction, collision) {
+	if(direction === "floor") {
+		this.canJump = true;
+	}
+});
 
 function Bat(x, y) {
 	Enemy.call(this, x, y);
@@ -7466,6 +7419,26 @@ Bat.method("update", function(dest) {
 
 	}
 });
+Bat.method("handleCollision", function(direction, platform) {
+	if(direction === "floor") {
+		this.velY = -Math.abs(this.velY);
+	}
+	else if(direction === "ceiling") {
+		this.velY = Math.abs(this.velY);
+	}
+	else if(direction === "wall-to-left") {
+		this.velX = Math.abs(this.velX);
+	}
+	else if(direction === "wall-to-right") {
+		this.velX = -Math.abs(this.velX);
+	}
+	if(this.timePurified > 0) {
+		this.dest = {
+			x: this.x + Math.randomInRange(-100, 100),
+			y: this.y + Math.randomInRange(-100, 100)
+		};
+	}
+});
 
 function Skeleton(x, y) {
 	Enemy.call(this, x, y);
@@ -7562,6 +7535,20 @@ Skeleton.method("update", function(dest) {
 		this.velX = (this.x > dest.x) ? this.velX - 0.1 : this.velX;
 		this.velX *= 0.96;
 		this.canJump = false;
+	}
+});
+Skeleton.method("handleCollision", function(direction, platform) {
+	if(direction === "floor") {
+		this.canJump = true;
+	}
+	else if(direction === "ceiling") {
+		this.velY = Math.abs(this.velY);
+	}
+	else if(direction === "wall-to-left") {
+		this.velX = Math.abs(this.velX);
+	}
+	else if(direction === "wall-to-right") {
+		this.velX = -Math.abs(this.velX);
 	}
 });
 
@@ -7743,6 +7730,14 @@ SkeletonWarrior.method("attack", function() {
 			this.timeSinceAttack = 0;
 			this.attackArmDir = -this.attackArmDir;
 		}
+	}
+});
+SkeletonWarrior.method("handleCollision", function(direction, collision) {
+	if(direction === "floor") {
+		this.canJump = true;
+	}
+	else if(direction === "ceiling") {
+		this.velY = Math.abs(this.velY);
 	}
 });
 
@@ -7998,6 +7993,7 @@ SkeletonArcher.method("attack", function() {
 		}
 	}
 });
+SkeletonArcher.method("handleCollision", function(direction, collision) { });
 
 function Particle(color, x, y, velX, velY, size) {
 	this.color = color;
@@ -8108,6 +8104,9 @@ Wraith.method("attack", function() {
 		this.timeSinceAttack = 0;
 	}
 });
+Wraith.method("handleCollision", function(direction, collision) {
+
+});
 
 function MagicCharge(x, y, velX, velY, type, damage) {
 	this.x = x;
@@ -8118,6 +8117,13 @@ function MagicCharge(x, y, velX, velY, type, damage) {
 	this.damage = damage;
 	this.particles = [];
 	this.beingAimed = false;
+	this.hitbox = {
+		left: -20,
+		right: 20,
+		top: -20,
+		bottom: 20
+	};
+	this.noTeleportCollisions = true;
 };
 MagicCharge.method("exist", function() {
 	/* graphics */
@@ -8222,6 +8228,28 @@ MagicCharge.method("exist", function() {
 MagicCharge.method("remove", function() {
 	for(var i = 0; i < this.particles.length; i ++) {
 		game.dungeon[game.theRoom].content.push(this.particles[i]);
+	}
+});
+MagicCharge.method("handleCollision", function(direction, collision) {
+	this.splicing = true;
+	/* teleport player to position for chaos charges */
+	if(this.type === "chaos" && !p.aiming) {
+		p.x = this.x + p.worldX;
+		p.y = this.y + p.worldY;
+		for(var j = 0; j < collisions.length; j ++) {
+			while(p.x + 5 > collisions.collisions[i].x && p.x - 5 < collisions.collisions[i].x + 10 && p.y + 46 > collisions.collisions[i].y && p.y - 7 < collisions.collisions[i].y + collisions.collisions[i].h) {
+				p.x --;
+			}
+			while(p.x - 5 < collisions.collisions[i].x + collisions.collisions[i].w && p.x + 5 > collisions.collisions[i].x + collisions.collisions[i].w - 10 && p.y + 46 > collisions.collisions[i].y && p.y - 7 < collisions.collisions[i].y + collisions.collisions[i].h) {
+				p.x ++;
+			}
+			while(p.x + 5 > collisions.collisions[i].x && p.x - 5 < collisions.collisions[i].x + collisions.collisions[i].w && p.y - 7 < collisions.collisions[i].y + collisions.collisions[i].h && p.y + 46 > collisions.collisions[i].y + collisions.collisions[i].h - 10) {
+				p.y ++;
+			}
+			while(p.x + 5 > collisions.collisions[i].x && p.x - 5 < collisions.collisions[i].x + collisions.collisions[i].w && p.y + 46 > collisions.collisions[i].y && p.y - 7 < collisions.collisions[i].y + 10) {
+				p.y --;
+			}
+		}
 	}
 });
 
@@ -8474,6 +8502,9 @@ Troll.method("update", function() {
 	}
 	collisions.rect(this.x + p.worldX - 40, this.y + p.worldY - 20, 80, 60);
 });
+Troll.method("handleCollision", function(direction, collision) {
+
+});
 
 function Rock(x, y, velX, velY) {
 	this.x = x;
@@ -8484,6 +8515,7 @@ function Rock(x, y, velX, velY) {
 	this.hitPlayer = false;
 	this.opacity = 1;
 	this.fragments = [];
+	this.hitbox = { left: -20, right: 20, top: -20, bottom: 20 };
 };
 Rock.method("exist", function() {
 	if(!this.hitSomething) {
@@ -8500,24 +8532,7 @@ Rock.method("exist", function() {
 		p.hurt(Math.randomInRange(40, 50), "a troll");
 		this.hitPlayer = true;
 	}
-	if(!this.hitSomething) {
-		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			if(game.dungeon[game.theRoom].content[i] instanceof Block) {
-				var block = game.dungeon[game.theRoom].content[i];
-				if(this.x + 20 > block.x && this.x - 20 < block.x + block.w && this.y + 20 > block.y && this.y - 20 < block.y + block.h) {
-					this.hitSomething = true;
-					for(var j = 0; j < 10; j ++) {
-						this.fragments.push({
-							x: this.x + (Math.randomInRange(-5, 5)), y: this.y + (Math.randomInRange(-5, 5)),
-							velX: Math.randomInRange(-1, 1), velY: Math.randomInRange(-1, 1),
-							opacity: 2
-						});
-					}
-				}
-			}
-		}
-	}
-	else {
+	if(this.hitSomething) {
 		c.save(); {
 			c.fillStyle = "rgb(140, 140, 140)";
 			for(var i = 0; i < this.fragments.length; i ++) {
@@ -8530,14 +8545,20 @@ Rock.method("exist", function() {
 				if(this.fragments[i].opacity <= 0) {
 					this.splicing = true;
 				}
-				continue;
-				for(var j = 0; j < game.dungeon[game.theRoom].content.length; j ++) {
-					if(game.dungeon[game.theRoom].content[i] instanceof Block) {
-
-					}
-				}
 			}
 		} c.restore();
+	}
+});
+Rock.method("handleCollision", function(direction, collision) {
+	if(!this.hitSomething) {
+		this.hitSomething = true;
+		for(var j = 0; j < 10; j ++) {
+			this.fragments.push({
+				x: this.x + (Math.randomInRange(-5, 5)), y: this.y + (Math.randomInRange(-5, 5)),
+				velX: Math.randomInRange(-1, 1), velY: Math.randomInRange(-1, 1),
+				opacity: 2
+			});
+		}
 	}
 });
 
@@ -8687,31 +8708,10 @@ Dragonling.method("update", function() {
 	while(this.rot < 0) {
 		this.rot += 360;
 	}
-	/* this.rot = 90; */
-	if(this.rot >= 315 || this.rot < 45) {
-		this.hitbox.left = -20;
-		this.hitbox.right = 20;
-		this.hitbox.top = -40;
-		this.hitbox.bottom = 0;
-	}
-	else if(this.rot >= 45 && this.rot < 135) {
-		this.hitbox.left = 0;
-		this.hitbox.right = 40;
-		this.hitbox.top = -20;
-		this.hitbox.bottom = 20;
-	}
-	else if(this.rot >= 135 && this.rot < 225) {
-		this.hitbox.left = -20;
-		this.hitbox.right = 20;
-		this.hitbox.top = 0;
-		this.hitbox.bottom = 40;
-	}
-	else if(this.rot >= 225 && this.rot < 315) {
-		this.hitbox.left = -40;
-		this.hitbox.right = 0;
-		this.hitbox.top = -20;
-		this.hitbox.bottom = 20;
-	}
+	this.hitbox = { left: -20, right: 20, top: -20, bottom: 20 };
+});
+Dragonling.method("handleCollision", function() {
+
 });
 
 
@@ -8745,6 +8745,29 @@ var utilities = {
 	mouseInCircle: function(x, y, r) {
 		return Math.distSq(io.mouse.x, io.mouse.y, x, y) <= (r * r);
 	},
+	collidesWith: function(obj1, obj2) {
+		if(Object.typeof(obj1.hitbox) !== "object" || Object.typeof(obj2.hitbox) !== "object") {
+			throw new Error("Objects of type " + obj1.constructor.name + " and " + obj2.constructor.name + " have invalid hitbox properties for collision checking.");
+		}
+		if(obj1 instanceof Player) {
+			return this.collidesWith(obj2, obj1);
+		}
+		if(obj2 instanceof Player) {
+			return (
+				obj1.x + p.worldX + obj1.hitbox.right > obj2.x + obj2.hitbox.left &&
+				obj1.x + p.worldX + obj1.hitbox.left < obj2.x + obj2.hitbox.right &&
+				obj1.y + p.worldY + obj1.hitbox.bottom > obj2.y + obj2.hitbox.top &&
+				obj1.y + p.worldY + obj1.hitbox.top < obj2.y + obj2.hitbox.bottom
+			);
+		}
+		return (
+			obj1.x + obj1.hitbox.right > obj2.x + obj2.hitbox.left &&
+			obj1.x + obj1.hitbox.left < obj2.x + obj2.hitbox.right &&
+			obj1.y + obj1.hitbox.bottom > obj2.y + obj2.hitbox.top &&
+			obj1.y + obj1.hitbox.top < obj2.y + obj2.hitbox.bottom
+		);
+	},
+
 	resizeCanvas: function() {
 		if(window.innerWidth < window.innerHeight) {
 			canvas.style.width = "100%";
