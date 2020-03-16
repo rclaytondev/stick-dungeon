@@ -601,8 +601,6 @@ function Player() {
 	/* Location */
 	this.x = 500;
 	this.y = 300;
-	this.worldX = 0;
-	this.worldY = 0;
 	this.onScreen = "home";
 	this.hitbox = {
 		left: -5,
@@ -695,30 +693,13 @@ Player.method("init", function() {
 });
 Player.method("sideScroll", function() {
 	/* Updates the world's position, keeping the player at the screen center. */
-	if(this.y > 400 && (this.worldY > game.dungeon[game.inRoom].minWorldY || game.dungeon[game.inRoom].minWorldY === undefined)) {
-		this.worldY -= Math.dist(0, this.y, 0, 400);
-		this.y = 400;
-	}
-	else if(this.y < 400) {
-		this.worldY += Math.dist(0, this.y, 0, 400);
-		this.y = 400;
-	}
-	if(this.x > 400) {
-		this.worldX -= Math.dist(this.x, 0, 400, 0);
-		this.x = 400;
-	}
-	else if(this.x < 400) {
-		this.worldX += Math.dist(this.x, 0, 400, 0);
-		this.x = 400;
-	}
+	game.camera.x = this.x;
+	game.camera.y = this.y;
 });
 Player.method("display", function(noSideScroll, straightArm) {
 	/*
 	Draws the player. (Parameters are only for custom stick figures on class selection screen.)
 	*/
-	if(!noSideScroll) {
-		this.sideScroll();
-	}
 	this.op = (this.op < 0) ? 0 : this.op;
 	this.op = (this.op > 1) ? 1 : this.op;
 	c.lineWidth = 5;
@@ -893,10 +874,19 @@ Player.method("display", function(noSideScroll, straightArm) {
 			} c.restore();
 		} c.restore();
 	}
-	/* Arm Movement */
-	this.attackArm += this.attackArmDir;
-	if(!this.attacking) {
-		this.attackArm = null;
+	/* Status Bars */
+	if(this.onScreen === "play") {
+		c.textAlign = "center";
+		c.globalAlpha = 1;
+		/* Health */
+		this.displayHealthBar(550, 12.5, "Health", this.health, this.maxHealth, "rgb(255, 0, 0)", this.visualHealth);
+		this.visualHealth += ((this.health / this.maxHealth) - this.visualHealth) / 10;
+		/* Mana */
+		this.displayHealthBar(550, 50, "Mana", this.mana, this.maxMana, "rgb(20, 20, 255)", this.visualMana);
+		this.visualMana += ((this.mana / this.maxMana) - this.visualMana) / 10;
+		/* gold bar */
+		this.displayHealthBar(550, 87.5, "Gold", this.gold, Infinity, "rgb(255, 255, 0)", this.visualGold);
+		this.visualGold += ((this.gold / this.maxGold) - this.visualGold) / 10;
 	}
 	/* Arms when aiming a Ranged Weapon */
 	if(this.aiming && this.facing === "right") {
@@ -915,13 +905,6 @@ Player.method("display", function(noSideScroll, straightArm) {
 				c.translate(this.x + 14, this.y + 16);
 				this.attackingWith.display("attacking");
 			} c.restore();
-			for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-				if(game.dungeon[game.inRoom].content[i] instanceof MagicCharge && game.dungeon[game.inRoom].content[i].beingAimed) {
-					game.dungeon[game.inRoom].content[i].x = this.x + this.chargeLoc.x - this.worldX;
-					game.dungeon[game.inRoom].content[i].y = this.y + this.chargeLoc.y - this.worldY;
-					break;
-				}
-			}
 		}
 	}
 	if(this.aiming && this.facing === "left") {
@@ -943,30 +926,10 @@ Player.method("display", function(noSideScroll, straightArm) {
 				c.translate(14, 0);
 				this.attackingWith.display("attacking");
 			} c.restore();
-			for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-				if(game.dungeon[game.inRoom].content[i] instanceof MagicCharge && game.dungeon[game.inRoom].content[i].beingAimed) {
-					game.dungeon[game.inRoom].content[i].x = this.x + this.chargeLoc.x - this.worldX;
-					game.dungeon[game.inRoom].content[i].y = this.y + this.chargeLoc.y - this.worldY;
-					break;
-				}
-			}
 		}
 	}
 	c.lineCap = "butt";
 	c.globalAlpha = 1;
-	/* Status Bars */
-	if(this.onScreen === "play") {
-		c.textAlign = "center";
-		/* Health */
-		this.displayHealthBar(550, 12.5, "Health", this.health, this.maxHealth, "rgb(255, 0, 0)", this.visualHealth);
-		this.visualHealth += ((this.health / this.maxHealth) - this.visualHealth) / 10;
-		/* Mana */
-		this.displayHealthBar(550, 50, "Mana", this.mana, this.maxMana, "rgb(20, 20, 255)", this.visualMana);
-		this.visualMana += ((this.mana / this.maxMana) - this.visualMana) / 10;
-		/* gold bar */
-		this.displayHealthBar(550, 87.5, "Gold", this.gold, Infinity, "rgb(255, 255, 0)", this.visualGold);
-		this.visualGold += ((this.gold / this.maxGold) - this.visualGold) / 10;
-	}
 });
 Player.method("displayHealthBar", function(x, y, txt, num, max, col, percentFull) {
 	/*
@@ -1107,6 +1070,23 @@ Player.method("update", function() {
 		this.health = 0;
 	}
 	this.damOp -= 0.05;
+
+	this.sideScroll();
+	/* Arm Movement */
+	this.attackArm += this.attackArmDir;
+	if(!this.attacking) {
+		this.attackArm = null;
+	}
+	/* Arms when aiming a Ranged Weapon */
+	if(this.aiming && this.attackingWith instanceof MagicWeapon) {
+		for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
+			var obj = game.dungeon[game.inRoom].content[i];
+			if(obj instanceof MagicCharge && obj.beingAimed) {
+				obj.x = this.x + this.chargeLoc.x;
+				obj.y = this.y + this.chargeLoc.y;
+			}
+		}
+	}
 });
 Player.method("useItem", function() {
 	/* Update facing direction */
@@ -1114,7 +1094,7 @@ Player.method("useItem", function() {
 	this.facing = io.keys[37] ? "left" : this.facing;
 	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 		if(game.dungeon[game.inRoom].content[i] instanceof SpikeBall) {
-			if(game.dungeon[game.inRoom].content[i].x + this.worldX > this.x) {
+			if(game.dungeon[game.inRoom].content[i].x > this.x) {
 				this.facing = "right";
 			}
 			else {
@@ -1161,11 +1141,11 @@ Player.method("useItem", function() {
 				if(this.attackingWith instanceof MagicWeapon && (this.mana >= this.attackingWith.manaCost || this.attackingWith instanceof ChaosStaff) && !(this.attackingWith instanceof ElementalStaff && this.attackingWith.element === "none")) {
 					var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 					if(this.facing === "right") {
-						game.dungeon[game.inRoom].content.push(new MagicCharge(450 - this.worldX, 400 - this.worldY, 0, 0, this.attackingWith.chargeType, damage));
+						game.dungeon[game.inRoom].content.push(new MagicCharge(this.x + 50, this.y, 0, 0, this.attackingWith.chargeType, damage));
 						game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].beingAimed = true;
 					}
 					else {
-						game.dungeon[game.inRoom].content.push(new MagicCharge(350 - this.worldX, 400 - this.worldY, 0, 0, this.attackingWith.chargeType, damage));
+						game.dungeon[game.inRoom].content.push(new MagicCharge(this.x - 50, this.y, 0, 0, this.attackingWith.chargeType, damage));
 						game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].beingAimed = true;
 					}
 					if(this.attackingWith instanceof ChaosStaff) {
@@ -1192,7 +1172,7 @@ Player.method("useItem", function() {
 			}
 			if(!alreadyExists) {
 				if(this.facing === "right") {
-					game.dungeon[game.inRoom].content.push(new SpikeBall(this.x - this.worldX + 50, this.y - this.worldY, "right"));
+					game.dungeon[game.inRoom].content.push(new SpikeBall(this.x + 50, this.y, "right"));
 				}
 				else {
 
@@ -1239,7 +1219,7 @@ Player.method("useItem", function() {
 			for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
 				if(game.dungeon[game.inRoom].content[i] instanceof Enemy) {
 					var enemy = game.dungeon[game.inRoom].content[i];
-					if(weaponPos.x > enemy.x + p.worldX + enemy.hitbox.left && weaponPos.x < enemy.x + p.worldX + enemy.hitbox.right && weaponPos.y > enemy.y + p.worldY + enemy.hitbox.top && weaponPos.y < enemy.y + p.worldY + enemy.hitbox.bottom && this.canHit) {
+					if(weaponPos.x > enemy.x + enemy.hitbox.left && weaponPos.x < enemy.x + enemy.hitbox.right && weaponPos.y > enemy.y + enemy.hitbox.top && weaponPos.y < enemy.y + enemy.hitbox.bottom && this.canHit) {
 						/* hurt enemy that was hit by the weapon */
 						var damage = Math.randomInRange(this.attackingWith.damLow, this.attackingWith.damHigh);
 						enemy.hurt(damage);
@@ -1251,23 +1231,23 @@ Player.method("useItem", function() {
 							enemy.timeFrozen = (enemy.timeFrozen < 0) ? 120 : enemy.timeFrozen;
 						}
 						else if(this.attackingWith.element === "air") {
-							game.dungeon[game.inRoom].content.push(new WindBurst(weaponPos.x - this.worldX, weaponPos.y - this.worldY, this.facing));
+							game.dungeon[game.inRoom].content.push(new WindBurst(weaponPos.x, weaponPos.y, this.facing));
 						}
 						else if(this.attackingWith.element === "earth" && this.canUseEarth) {
 							/* find lowest roof directly above weapon */
 							var lowestIndex = null;
 							for(var j = 0; j < game.dungeon[game.inRoom].content.length; j ++) {
 								if(lowestIndex !== null) {
-									if(game.dungeon[game.inRoom].content[j] instanceof Block && weaponPos.x - this.worldX > game.dungeon[game.inRoom].content[j].x && weaponPos.x - this.worldX < game.dungeon[game.inRoom].content[j].x + game.dungeon[game.inRoom].content[j].w &&game.dungeon[game.inRoom].content[j].y + game.dungeon[game.inRoom].content[j].h > game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h && game.dungeon[game.inRoom].content[j].y + game.dungeon[game.inRoom].content[j].h <= weaponPos.y - this.worldY) {
+									if(game.dungeon[game.inRoom].content[j] instanceof Block && weaponPos.x > game.dungeon[game.inRoom].content[j].x && weaponPos.x < game.dungeon[game.inRoom].content[j].x + game.dungeon[game.inRoom].content[j].w &&game.dungeon[game.inRoom].content[j].y + game.dungeon[game.inRoom].content[j].h > game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h && game.dungeon[game.inRoom].content[j].y + game.dungeon[game.inRoom].content[j].h <= weaponPos.y) {
 										lowestIndex = j;
 									}
 								}
-								else if(lowestIndex === null && weaponPos.x - this.worldX > game.dungeon[game.inRoom].content[j].x && weaponPos.x - this.worldX < game.dungeon[game.inRoom].content[j].x + game.dungeon[game.inRoom].content[j].w && game.dungeon[game.inRoom].content[j].y <= weaponPos.y - this.worldY && game.dungeon[game.inRoom].content[j] instanceof Block) {
+								else if(lowestIndex === null && weaponPos.x > game.dungeon[game.inRoom].content[j].x && weaponPos.x < game.dungeon[game.inRoom].content[j].x + game.dungeon[game.inRoom].content[j].w && game.dungeon[game.inRoom].content[j].y <= weaponPos.y && game.dungeon[game.inRoom].content[j] instanceof Block) {
 									lowestIndex = j;
 								}
 							}
-							game.dungeon[game.inRoom].content.push(new BoulderVoid(weaponPos.x - this.worldX, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h));
-							game.dungeon[game.inRoom].content.push(new Boulder(weaponPos.x - this.worldX, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.randomInRange(2, 4)));
+							game.dungeon[game.inRoom].content.push(new BoulderVoid(weaponPos.x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h));
+							game.dungeon[game.inRoom].content.push(new Boulder(weaponPos.x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.randomInRange(2, 4)));
 						}
 						/* reset variables for weapon swinging */
 						this.canHit = false;
@@ -1279,7 +1259,7 @@ Player.method("useItem", function() {
 		}
 		else if(this.attackingWith instanceof Mace) {
 			for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-				if(game.dungeon[game.inRoom].content[i] instanceof SpikeBall && Math.abs(game.dungeon[game.inRoom].content[i].velX) <= 1 && Math.dist(game.dungeon[game.inRoom].content[i].x + this.worldX, this.x) < 5) {
+				if(game.dungeon[game.inRoom].content[i] instanceof SpikeBall && Math.abs(game.dungeon[game.inRoom].content[i].velX) <= 1 && Math.dist(game.dungeon[game.inRoom].content[i].x, this.x) < 5) {
 					if(this.facing === "right") {
 						this.attackArmDir = -1;
 					}
@@ -1338,8 +1318,8 @@ Player.method("useItem", function() {
 				var velocity = Math.rotate(10, 0, this.aimRot);
 				var velX = velocity.x;
 				var velY = velocity.y;
-				velocity.x += (this.x - this.worldX + 10);
-				velocity.y += (this.y - this.worldY + 26);
+				velocity.x += (this.x + 10);
+				velocity.y += (this.y + 26);
 				var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
@@ -1351,8 +1331,8 @@ Player.method("useItem", function() {
 				var velocity = Math.rotate(-10, 0, -this.aimRot);
 				var velX = velocity.x;
 				var velY = velocity.y;
-				velocity.x += (this.x - this.worldX + 10);
-				velocity.y += (this.y - this.worldY + 26);
+				velocity.x += (this.x + 10);
+				velocity.y += (this.y + 26);
 				var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 				var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
@@ -1412,8 +1392,8 @@ Player.method("useItem", function() {
 			var velocity = Math.rotate(10, 0, this.aimRot);
 			var velX = velocity.x;
 			var velY = velocity.y;
-			velocity.x += (this.x - this.worldX + 10);
-			velocity.y += (this.y - this.worldY + 26);
+			velocity.x += (this.x + 10);
+			velocity.y += (this.y + 26);
 			var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 			var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 			game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
@@ -1422,8 +1402,8 @@ Player.method("useItem", function() {
 			var velocity = Math.rotate(-10, 0, -this.aimRot);
 			var velX = velocity.x;
 			var velY = velocity.y;
-			velocity.x += (this.x - this.worldX + 10);
-			velocity.y += (this.y - this.worldY + 26);
+			velocity.x += (this.x + 10);
+			velocity.y += (this.y + 26);
 			var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 			var speed = (this.invSlots[this.activeSlot].content.range === "medium" || this.invSlots[this.activeSlot].content.range === "long") ? (this.invSlots[this.activeSlot].content.range === "medium" ? 2 : 1.75) : (this.invSlots[this.activeSlot].content.range === "very long" ? 1.25 : 1);
 			game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX / speed, velY / speed, damage, "player", this.invSlots[this.activeSlot].content.element));
@@ -1530,7 +1510,7 @@ Player.method("gui", function() {
 		/* Weapon Particles */
 		if(invSlot.content instanceof Weapon) {
 			c.save(); {
-				c.translate(invSlot.x - p.worldX, invSlot.y - p.worldY);
+				c.translate(invSlot.x, invSlot.y);
 				invSlot.content.displayParticles();
 			} c.restore();
 		}
@@ -2405,16 +2385,12 @@ CollisionRect.method("collide", function(obj) {
 			debugging.hitboxes.push({x: this.x, y: this.y, w: this.w, h: this.h, color: this.settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
 		}
 		/* collide with objects */
-		this.x -= p.worldX;
-		this.y -= p.worldY;
 		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
 			var obj = game.dungeon[game.theRoom].content[i];
 			if(Object.typeof(obj.hitbox) === "object" && Object.typeof(obj.handleCollision) === "function") {
 				this.collide(obj);
 			}
 		}
-		this.x += p.worldX;
-		this.y += p.worldY;
 		this.collide(this.settings.player);
 	}
 });
@@ -2448,7 +2424,7 @@ CollisionCircle.method("collide", function(obj) {
 	else {
 		/* Add a hitbox if 'SHOW_HITBOXES' is true (for debugging) */
 		if(SHOW_HITBOXES) {
-			debugging.hitboxes.push({x: this.x + p.worldX, y: this.y + p.worldY, r: this.r, color: "dark blue"});
+			debugging.hitboxes.push({x: this.x, y: this.y, r: this.r, color: "dark blue"});
 		}
 		/* collide with objects */
 		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
@@ -2457,11 +2433,7 @@ CollisionCircle.method("collide", function(obj) {
 				this.collide(obj);
 			}
 		}
-		this.x += p.worldX;
-		this.y += p.worldY;
 		this.collide(p);
-		this.x -= p.worldX;
-		this.y -= p.worldY;
 	}
 });
 CollisionCircle.method("getIntersectionPoint", function(obj) {
@@ -2540,14 +2512,10 @@ function Block(x, y, w, h) {
 	this.h = h;
 };
 Block.method("update", function() {
-	collisions.rect(this.x + p.worldX, this.y + p.worldY, this.w, this.h, {walls: [true, true, true, true], illegalHandling: utilities.tempVars.partOfAStair ? "teleport" : "collide"} );
-});
-Block.method("exist", function() {
-	this.display();
-	this.update();
+	collisions.rect(this.x, this.y, this.w, this.h, {walls: [true, true, true, true], illegalHandling: utilities.tempVars.partOfAStair ? "teleport" : "collide"} );
 });
 Block.method("display", function() {
-	graphics3D.cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, 1.1);
+	graphics3D.cube(this.x, this.y, this.w, this.h, 0.9, 1.1);
 });
 function Platform(x, y, w) {
 	this.x = x;
@@ -2555,14 +2523,10 @@ function Platform(x, y, w) {
 	this.w = w;
 };
 Platform.method("update", function() {
-	collisions.rect(this.x + p.worldX, this.y + p.worldY, this.w, 3, {walls: [true, false, false, false]});
-});
-Platform.method("exist", function() {
-	this.update();
-	this.display();
+	collisions.rect(this.x, this.y, this.w, 3, {walls: [true, false, false, false]});
 });
 Platform.method("display", function() {
-	graphics3D.cube(this.x + p.worldX, this.y + p.worldY, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
+	graphics3D.cube(this.x, this.y, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
 });
 function Door(x, y, dest, noEntry, invertEntries, type) {
 	this.x = x;
@@ -2625,16 +2589,12 @@ Door.method("getInfo", function() {
 	}
 	return "x";
 });
-Door.method("exist", function() {
-	this.display();
-	this.update();
-});
 Door.method("display", function() {
 	/* Graphics */
 	var self = this;
-	var topLeft = graphics3D.point3D(this.x + p.worldX - 30, this.y + p.worldY - 60, 0.9);
-	var bottomRight = graphics3D.point3D(this.x + p.worldX + 30, this.y + p.worldY, 0.9);
-	var middle = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.9);
+	var topLeft = graphics3D.point3D(this.x - 30, this.y - 60, 0.9);
+	var bottomRight = graphics3D.point3D(this.x + 30, this.y, 0.9);
+	var middle = graphics3D.point3D(this.x, this.y, 0.9);
 	game.dungeon[game.theRoom].render(
 		new RenderingOrderObject(
 			function() {
@@ -2679,11 +2639,11 @@ Door.method("display", function() {
 		)
 	);
 	if(this.type === "lintel") {
-		graphics3D.cube(this.x + p.worldX - 45, this.y + p.worldY - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
+		graphics3D.cube(this.x - 45, this.y - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
 	}
 	/* Symbols for maps */
 	var symbol = this.getInfo();
-	var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY - 40, 0.9);
+	var center = graphics3D.point3D(this.x, this.y - 40, 0.9);
 	c.font = "15pt monospace";
 	c.fillStyle = "rgb(255, 255, 255)";
 	c.textAlign = "center";
@@ -2691,7 +2651,7 @@ Door.method("display", function() {
 		c.fillText(symbol, center.x, center.y);
 	}
 	else {
-		if(p.x > this.x + p.worldX) {
+		if(p.x > this.x) {
 			c.fillText("<", center.x, center.y);
 		}
 		else {
@@ -2710,9 +2670,9 @@ Door.method("update", function() {
 		}
 	}
 	/* Room Transition */
-	var topLeft = graphics3D.point3D(this.x + p.worldX - 30, this.y + p.worldY - 60, 0.9);
-	var bottomRight = graphics3D.point3D(this.x + p.worldX + 30, this.y + p.worldY, 0.9);
-	if(p.x - 5 > topLeft.x && p.x + 5 < bottomRight.x && p.y + 46 > topLeft.y && p.y + 46 < bottomRight.y + 10 && p.canJump && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
+	var topLeft = graphics3D.point3D(this.x - 30, this.y - 60, 0.9);
+	var bottomRight = graphics3D.point3D(this.x + 30, this.y, 0.9);
+	if(collisions.isPlayerInRect(this.x - 30, this.y - 60, 60, 60) && p.canJump && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
 		if(io.keys[83]) {
 			p.enteringDoor = true;
 			this.entering = true;
@@ -2812,10 +2772,6 @@ Door.method("update", function() {
 					}
 					var theIndex = doorIndexes.randomItem();
 					/* Move player to door */
-					p.worldX = 0;
-					p.worldY = 0;
-					p.x = game.dungeon[i].content[theIndex].x;
-					p.y = game.dungeon[i].content[theIndex].y - 47;
 					if(game.dungeon[i].content[theIndex].type === "toggle") {
 						for(var j = 0; j < game.dungeon[i].content.length; j ++) {
 							if(game.dungeon[i].content[j] instanceof Door && j !== theIndex) {
@@ -2824,22 +2780,11 @@ Door.method("update", function() {
 						}
 					}
 					game.dungeon[i].content[theIndex].type = p.doorType;
-					if(p.y > 400) {
-						p.worldY -= Math.dist(0, p.y, 0, 400);
-						p.y = 400;
-					}
-					else if(p.y < 400) {
-						p.worldY += Math.dist(0, p.y, 0, 400);
-						p.y = 400;
-					}
-					if(p.x > 400) {
-						p.worldX -= Math.dist(p.x, 0, 400, 0);
-						p.x = 400;
-					}
-					else if(p.x < 400) {
-						p.worldX += Math.dist(p.x, 0, 400, 0);
-						p.x = 400;
-					}
+					p.x = game.dungeon[i].content[theIndex].x;
+					p.y = game.dungeon[i].content[theIndex].y - p.hitbox.bottom;
+					p.velY = 0;
+					game.camera.x = p.x;
+					game.camera.y = p.y;
 					/* Assign new door to lead to this room */
 					game.dungeon[i].content[theIndex].dest = previousRoom;
 					/* Assign this door to lead to new door */
@@ -2875,10 +2820,10 @@ Door.method("update", function() {
 				if(game.dungeon[i].id === this.dest) {
 					for(var j = 0; j < game.dungeon[i].content.length; j ++) {
 						if(game.dungeon[i].content[j] instanceof Door && game.dungeon[i].content[j].dest === previousRoom) {
-							p.x = 400;
-							p.y = 400;
-							p.worldX = 400 - game.dungeon[i].content[j].x;
-							p.worldY = 446 - game.dungeon[i].content[j].y;
+							p.x = game.dungeon[i].content[j].x;
+							p.y = game.dungeon[i].content[j].y - p.hitbox.bottom;
+							game.camera.x = p.x;
+							game.camera.y = p.y;
 						}
 					}
 				}
@@ -2931,13 +2876,9 @@ function Torch(x, y) {
 	this.lit = false;
 	this.fireParticles = [];
 };
-Torch.method("exist", function() {
-	this.update();
-	this.display();
-});
 Torch.method("display", function() {
-	graphics3D.cube(this.x + p.worldX - 5, this.y + p.worldY - 20, 10, 20, 0.9, 0.95);
-	graphics3D.cube(this.x + p.worldX - 10, this.y + p.worldY - 25, 20, 6, 0.9, 0.97);
+	graphics3D.cube(this.x - 5, this.y - 20, 10, 20, 0.9, 0.95);
+	graphics3D.cube(this.x - 10, this.y - 25, 20, 6, 0.9, 0.97);
 	var self = this;
 	game.dungeon[game.theRoom].render(
 		new RenderingOrderObject(
@@ -2964,7 +2905,7 @@ Torch.method("update", function() {
 		}
 	}
 
-	if(p.x + 5 > this.x + p.worldX - 5 && p.x - 5 < this.x + p.worldX + 5) {
+	if(p.x + 5 > this.x - 5 && p.x - 5 < this.x + 5) {
 		this.lit = true;
 	}
 	if(this.lit) {
@@ -2980,19 +2921,28 @@ Torch.method("update", function() {
 		}
 	}
 });
+Torch.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	for(var i = 0; i < this.fireParticles.length; i ++) {
+		var particle = this.fireParticles[i];
+		particle.x += x;
+		particle.y += y;
+	}
+});
 function LightRay(x, w, floorY) {
 	this.x = x;
 	this.w = w;
 	this.floorY = floorY; // y-level of floor that light ray hits
 };
-LightRay.method("exist", function() {
+LightRay.method("display", function() {
 	var self = this;
-	var leftBack = graphics3D.point3D(this.x + p.worldX, 0, 0.9).x;
-	var rightBack = graphics3D.point3D(this.x + p.worldX + this.w, 0, 0.9).x;
-	var leftFront = graphics3D.point3D(this.x + p.worldX, 0, 1.1).x;
-	var rightFront = graphics3D.point3D(this.x + p.worldX + this.w, 0, 1.1).x;
-	var floorBack = graphics3D.point3D(0, this.floorY + p.worldY, 0.9).y;
-	var floorFront = graphics3D.point3D(0, this.floorY + p.worldY, 1.1).y;
+	var leftBack = graphics3D.point3D(this.x, 0, 0.9).x;
+	var rightBack = graphics3D.point3D(this.x + this.w, 0, 0.9).x;
+	var leftFront = graphics3D.point3D(this.x, 0, 1.1).x;
+	var rightFront = graphics3D.point3D(this.x + this.w, 0, 1.1).x;
+	var floorBack = graphics3D.point3D(0, this.floorY, 0.9).y;
+	var floorFront = graphics3D.point3D(0, this.floorY, 1.1).y;
 	game.dungeon[game.theRoom].render(
 		new RenderingOrderShape(
 			"rect",
@@ -3032,8 +2982,8 @@ LightRay.method("exist", function() {
 					leftBack, 0
 				],
 				"rgba(255, 255, 255, 0.4)",
-				1.1,
-				-1
+				0.9,
+				1
 			)
 		);
 	}
@@ -3048,11 +2998,16 @@ LightRay.method("exist", function() {
 					rightBack, 0
 				],
 				"rgba(255, 255, 255, 0.4)",
-				1.1,
-				-1
+				0.9,
+				1
 			)
 		);
 	}
+});
+LightRay.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	this.floorY += y;
 });
 function Tree(x, y) {
 	/*
@@ -3061,12 +3016,8 @@ function Tree(x, y) {
 	this.x = x;
 	this.y = y;
 };
-Tree.method("exist", function() {
-	this.update();
-	this.display();
-});
 Tree.method("update", function() {
-	var loc = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
+	var loc = graphics3D.point3D(this.x, this.y, 0.95);
 	collisions.line(loc.x - 6, loc.y - 100, loc.x - 150, loc.y - 100, {walls: [true, false, false, false]});
 	collisions.line(loc.x + 6, loc.y - 120, loc.x + 150, loc.y - 120, {walls: [true, false, false, false]});
 	collisions.line(loc.x - 5, loc.y - 170, loc.x - 100, loc.y - 180, {walls: [true, false, false, false]});
@@ -3074,7 +3025,7 @@ Tree.method("update", function() {
 	collisions.line(loc.x, loc.y - 220, loc.x - 60, loc.y - 230, {walls: [true, false, false, false]});
 });
 Tree.method("display", function() {
-	var loc = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
+	var loc = graphics3D.point3D(this.x, this.y, 0.95);
 		game.dungeon[game.theRoom].render(
 			new RenderingOrderObject(
 				function() {
@@ -3098,7 +3049,7 @@ Tree.method("display", function() {
 				0.95
 			)
 		);
-	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 40, 200, 40, 0.9, 1);
+	graphics3D.cube(this.x - 100, this.y - 40, 200, 40, 0.9, 1);
 });
 function Chest(x, y) {
 	this.x = x;
@@ -3110,26 +3061,6 @@ function Chest(x, y) {
 	this.initialized = false;
 	this.spawnedItem = false;
 };
-Chest.method("exist", function() {
-	this.update();
-	this.display();
-	return;
-	/* Square part of chest */
-	c.fillStyle = "rgb(139, 69, 19)";
-	graphics3D.cube(this.x + p.worldX - 20, this.y + p.worldY - 30, 40, 30, 0.95, 1.05, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	/* Chest lid */
-	var rotatedArray = [];
-	for(var i = 0; i < this.lidArray.length; i += this.lidArray.length / 18) {
-		/* Rotate each point to the lid's opening rotation, then add to rotatedArray */
-		var index = Math.floor(i);
-		var pos = this.lidArray[index];
-		var newPos = Math.rotate(pos.x - (this.openDir === "left" ? 0 : 40), pos.y, (this.openDir === "left" ? this.r : -this.r));
-		newPos.x += this.x + p.worldX + ((this.openDir === "left") ? -20 : 20);
-		newPos.y += this.y + p.worldY - 30;
-		rotatedArray.push(newPos);
-	}
-	graphics3D.polygon3D("rgb(139, 69, 19)", "rgb(159, 89, 39)", 0.95, 1.05, rotatedArray);
-});
 Chest.method("update", function() {
 	/* Initialize */
 	if(!this.initialized) {
@@ -3146,18 +3077,18 @@ Chest.method("update", function() {
 	}
 	/* Decide which direction to open from */
 	if(!this.opening) {
-		if(p.x < this.x + p.worldX) {
+		if(p.x < this.x) {
 			this.openDir = "right";
 		}
 		else {
 			this.openDir = "left";
 		}
 	}
-	if(p.x + 5 > this.x + p.worldX - 61 && p.x - 5 < this.x + p.worldX + 61 && p.y + 46 >= this.y + p.worldY - 10 && p.y + 46 <= this.y + p.worldY + 10 && p.canJump && !this.opening) {
+	if(p.x + 5 > this.x - 61 && p.x - 5 < this.x + 61 && p.y + 46 >= this.y - 10 && p.y + 46 <= this.y + 10 && p.canJump && !this.opening) {
 		ui.infoBar.actions.s = "open chest";
 		if(io.keys[83]) {
 			this.opening = true;
-			if(p.x < this.x + p.worldX) {
+			if(p.x < this.x) {
 				this.openDir = "right";
 			}
 			else {
@@ -3269,12 +3200,12 @@ Chest.method("display", function() {
 	var scaleFactor = (this.openDir === "left" ? -1 : 1);
 	var rotationDegrees = this.r;
 
-	var centerMiddle = { x: this.x + p.worldX, y: this.y + p.worldY };
-	var centerBack = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
-	var centerFront = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 1.05);
-	var cornerMiddle = { x: this.x + p.worldX + 20, y: this.y + p.worldY - 30 };
-	var cornerBack = graphics3D.point3D(this.x + p.worldX + 20, this.y + p.worldY - 30, 0.95);
-	var cornerFront = graphics3D.point3D(this.x + p.worldX + 20, this.y + p.worldY - 30, 0.95);
+	var centerMiddle = { x: this.x, y: this.y };
+	var centerBack = graphics3D.point3D(this.x, this.y, 0.95);
+	var centerFront = graphics3D.point3D(this.x, this.y, 1.05);
+	var cornerMiddle = { x: this.x + 20, y: this.y - 30 };
+	var cornerBack = graphics3D.point3D(this.x + 20, this.y - 30, 0.95);
+	var cornerFront = graphics3D.point3D(this.x + 20, this.y - 30, 0.95);
 
 	function displayChestLid(color) {
 		/* clip out rest of circle for chest lid */
@@ -3335,16 +3266,16 @@ Chest.method("display", function() {
 		new RenderingOrderObject(
 			function() {
 				var p1 = graphics3D.point3D(
-					self.x + p.worldX + (self.openDir === "left" ? -20 : 20),
-					self.y + p.worldY - 30,
+					self.x + (self.openDir === "left" ? -20 : 20),
+					self.y - 30,
 					0.95
 				);
 				var p2 = graphics3D.point3D(
-					self.x + p.worldX + (self.openDir === "left" ? -20 : 20),
-					self.y + p.worldY - 30,
+					self.x + (self.openDir === "left" ? -20 : 20),
+					self.y - 30,
 					1.05
 				);
-				var chestSide = { x: self.x + p.worldX - 20, y: self.y + p.worldY - 30 };
+				var chestSide = { x: self.x - 20, y: self.y - 30 };
 				chestSide = Math.rotate(
 					chestSide.x, chestSide.y,
 					-rotationDegrees,
@@ -3364,7 +3295,7 @@ Chest.method("display", function() {
 		)
 	);
 	/* draw box for chest */
-	graphics3D.cube(this.x + p.worldX - 20, this.y + p.worldY - 30, 40, 30, 0.95, 1.05, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x - 20, this.y - 30, 40, 30, 0.95, 1.05, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 });
 function FallBlock(x, y) {
 	this.x = x;
@@ -3376,19 +3307,15 @@ function FallBlock(x, y) {
 	this.steppedOn = false;
 	this.allDone = false;
 };
-FallBlock.method("exist", function() {
-	this.update();
-	this.display();
-});
 FallBlock.method("update", function() {
 	/* Top face */
-	collisions.line(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX + 20, this.y + p.worldY, {walls: [true, false, false, false], illegalHandling: "collide"});
+	collisions.line(this.x - 20, this.y, this.x + 20, this.y, {walls: [true, false, false, false], illegalHandling: "collide"});
 	/* left face */
-	collisions.line(this.x + p.worldX - 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
+	collisions.line(this.x - 20, this.y, this.x, this.y + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
 	/* right face */
-	collisions.line(this.x + p.worldX + 20, this.y + p.worldY, this.x + p.worldX, this.y + p.worldY + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
+	collisions.line(this.x + 20, this.y, this.x, this.y + 60, {walls: [true, true, true, true], illegalHandling: "collide"});
 
-	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 100 >= this.y + p.worldY && p.canJump && !this.allDone) {
+	if(p.x + 5 > this.x - 20 && p.x - 5 < this.x + 20 && p.y + 100 >= this.y && p.canJump && !this.allDone) {
 		this.steppedOn = true;
 	}
 	if(this.steppedOn) {
@@ -3419,16 +3346,16 @@ FallBlock.method("display", function() {
 		0.9, 1.1,
 		[
 			{
-				x: this.x + p.worldX + shakeX - 20,
-				y: this.y + p.worldY + shakeY
+				x: this.x + shakeX - 20,
+				y: this.y + shakeY
 			},
 			{
-				x: this.x + p.worldX + shakeX + 20,
-				y: this.y + p.worldY + shakeY,
+				x: this.x + shakeX + 20,
+				y: this.y + shakeY,
 			},
 			{
-				x: this.x + p.worldX + shakeX,
-				y: this.y + p.worldY + shakeY + 60
+				x: this.x + shakeX,
+				y: this.y + shakeY + 60
 			}
 		]
 	);
@@ -3451,10 +3378,6 @@ function Stairs(x, y, numSteps, dir) {
 		}
 	}
 };
-Stairs.method("exist", function() {
-	this.update();
-	this.display();
-});
 Stairs.method("display", function() {
 	utilities.tempVars.partOfAStair = true;
 	for(var i = 0; i < this.steps.length; i ++) {
@@ -3469,6 +3392,13 @@ Stairs.method("update", function() {
 	}
 	utilities.tempVars.partOfAStair = false;
 });
+Stairs.method("translate", function(x, y) {
+	for(var i = 0; i < this.steps.length; i ++) {
+		var step = this.steps[i];
+		step.x += x;
+		step.y += y;
+	}
+});
 function Altar(x, y, type) {
 	/* Only represents the particles of the altar. The actual stairs + platform are created using Blocks and Stairs. */
 	this.x = x;
@@ -3476,12 +3406,8 @@ function Altar(x, y, type) {
 	this.type = type;
 	this.particles = [];
 };
-Altar.method("exist", function() {
-	this.update();
-	this.display();
-});
 Altar.method("update", function() {
-	if(p.x + 5 > this.x + p.worldX - 20 && p.x - 5 < this.x + p.worldX + 20 && p.y + 46 > this.y + p.worldY - 20 && p.y - 5 < this.y + p.worldY + 20) {
+	if(p.x + 5 > this.x - 20 && p.x - 5 < this.x + 20 && p.y + 46 > this.y - 20 && p.y - 5 < this.y + 20) {
 		if(this.type === "health") {
 			p.health += 10;
 			p.maxHealth += 10;
@@ -3513,6 +3439,15 @@ Altar.method("remove", function() {
 		game.dungeon[game.theRoom].content.push(this.particles[i]);
 	}
 });
+Altar.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	for(var i = 0; i < this.particles.length; i ++) {
+		var particle = this.particles[i];
+		particle.x += x;
+		particle.y += y;
+	}
+});
 function Forge(x, y) {
 	this.x = x;
 	this.y = y;
@@ -3522,10 +3457,6 @@ function Forge(x, y) {
 
 	this.DEPTH = 0.99;
 };
-Forge.method("exist", function() {
-	this.display();
-	this.update();
-});
 Forge.method("display", function() {
 	/* fire */
 	for(var i = 0; i < this.particles.length; i ++) {
@@ -3554,7 +3485,7 @@ Forge.method("display", function() {
 			function() {
 				// return;
 				c.save(); {
-					var location = graphics3D.point3D(self.x + p.worldX, self.y + p.worldY, 0.9);
+					var location = graphics3D.point3D(self.x, self.y, 0.9);
 					c.translate(location.x, location.y);
 					c.scale(0.9, 0.9);
 					c.fillStyle = "rgb(150, 150, 150)";
@@ -3564,10 +3495,10 @@ Forge.method("display", function() {
 			0.9
 		)
 	);
-	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 60, 100, 20, 0.9, this.DEPTH);
+	graphics3D.cube(this.x - 50, this.y - 60, 100, 20, 0.9, this.DEPTH);
 	for(var x = -30; x <= 30; x += 30) {
 		// c.fillRect(x - 10, -40 - 1, 20, 40 + 1);
-		graphics3D.cube(this.x + p.worldX + x - 10, this.y + p.worldY - 40 - 1, 20, 40 + 1, 0.9, this.DEPTH);
+		graphics3D.cube(this.x + x - 10, this.y - 40 - 1, 20, 40 + 1, 0.9, this.DEPTH);
 	}
 	/* front of forge */
 	game.dungeon[game.theRoom].render(
@@ -3575,7 +3506,7 @@ Forge.method("display", function() {
 			function() {
 				// return;
 				c.save(); {
-					var location = graphics3D.point3D(self.x + p.worldX, self.y + p.worldY, self.DEPTH);
+					var location = graphics3D.point3D(self.x, self.y, self.DEPTH);
 					c.translate(location.x, location.y);
 					c.scale(self.DEPTH, self.DEPTH);
 					c.fillStyle = "rgb(110, 110, 110)";
@@ -3586,11 +3517,11 @@ Forge.method("display", function() {
 		)
 	);
 	/* crop out dark gray parts on side of forge */
-	graphics3D.plane3D(this.x + p.worldX + 50, this.y + p.worldY - 75, this.x + p.worldX + 50, this.y + p.worldY - 125, 0.9, this.DEPTH, "rgb(150, 150, 150)");
-	graphics3D.plane3D(this.x + p.worldX - 50, this.y + p.worldY - 75, this.x + p.worldX - 50, this.y + p.worldY - 125, 0.9, this.DEPTH, "rgb(150, 150, 150)");
+	graphics3D.plane3D(this.x + 50, this.y - 75, this.x + 50, this.y - 125, 0.9, this.DEPTH, "rgb(150, 150, 150)");
+	graphics3D.plane3D(this.x - 50, this.y - 75, this.x - 50, this.y - 125, 0.9, this.DEPTH, "rgb(150, 150, 150)");
 });
 Forge.method("update", function() {
-	if(p.x + 5 > this.x + p.worldX - 100 && p.x - 5 < this.x + p.worldX + 100 && !this.used && p.guiOpen === "none") {
+	if(p.x + 5 > this.x - 100 && p.x - 5 < this.x + 100 && !this.used && p.guiOpen === "none") {
 		ui.infoBar.actions.s = "use forge";
 		if(io.keys[83]) {
 			p.guiOpen = "reforge-item";
@@ -3614,6 +3545,15 @@ Forge.method("update", function() {
 		}
 	}
 });
+Forge.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	for(var i = 0; i < this.particles.length; i ++) {
+		var particle = this.particles[i];
+		particle.x += x;
+		particle.y += y;
+	}
+});
 function Pulley(x1, w1, x2, w2, y, maxHeight) {
 	this.x1 = x1;
 	this.y1 = y;
@@ -3625,15 +3565,9 @@ function Pulley(x1, w1, x2, w2, y, maxHeight) {
 	this.ORIGINAL_Y = y;
 	this.maxHeight = maxHeight;
 };
-Pulley.method("exist", function() {
-	this.update();
-	this.display();
-});
 Pulley.method("display", function() {
 	function platform(x, y, w) {
 		new Platform(x, y, w).display();
-		x += p.worldX;
-		y += p.worldY;
 		c.lineWidth = 3;
 		c.strokeStyle = "rgb(150, 150, 150)";
 		graphics3D.line3D(x, y, 0.8999999, x, -100, 0.8999999, 3);
@@ -3650,11 +3584,11 @@ Pulley.method("update", function() {
 	/* Moving */
 	this.steppedOn1 = false;
 	this.steppedOn2 = false;
-	if(p.x + 5 > this.x1 + p.worldX && p.x - 5 < this.x1 + this.w1 + p.worldX && p.canJump && this.y1 < this.ORIGINAL_Y + this.maxHeight) {
+	if(p.x + 5 > this.x1 && p.x - 5 < this.x1 + this.w1 && p.canJump && this.y1 < this.ORIGINAL_Y + this.maxHeight) {
 		this.velY += (this.velY < 3) ? 0.1 : 0;
 		this.steppedOn1 = true;
 	}
-	if(p.x + 5 > this.x2 + p.worldX && p.x - 5 < this.x2 + this.w2 + p.worldX && p.canJump && this.y2 < this.ORIGINAL_Y + this.maxHeight) {
+	if(p.x + 5 > this.x2 && p.x - 5 < this.x2 + this.w2 && p.canJump && this.y2 < this.ORIGINAL_Y + this.maxHeight) {
 		this.velY += (this.velY > -3) ? -0.1 : 0;
 		this.steppedOn2 = true;
 	}
@@ -3676,35 +3610,37 @@ Pulley.method("update", function() {
 		this.steppedOn2 = false;
 	}
 });
+Pulley.method("translate", function(x, y) {
+	this.x1 += x;
+	this.y1 += y;
+	this.x2 += x;
+	this.y2 += y;
+});
 function Pillar(x, y, h) {
 	this.x = x;
 	this.y = y;
 	this.h = h;
 };
-Pillar.method("exist", function() {
-	this.update();
-	this.display();
-});
 Pillar.method("display", function() {
 	/* Base */
-	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, 0.9, 1.1);
-	graphics3D.cube(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, 0.9, 1.1);
+	graphics3D.cube(this.x - 30, this.y - 20, 60, 21, 0.9, 1.1);
+	graphics3D.cube(this.x - 40, this.y - 10, 80, 10, 0.9, 1.1);
 	/* Top */
-	graphics3D.cube(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12, 0.9, 1.1);
-	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10, 0.9, 1.1);
+	graphics3D.cube(this.x - 41, this.y - this.h, 80, 12, 0.9, 1.1);
+	graphics3D.cube(this.x - 30, this.y - this.h + 10, 60, 10, 0.9, 1.1);
 	/* Pillar */
-	graphics3D.cube(this.x + p.worldX - 20, this.y + p.worldY - this.h + 20, 40, this.h - 40, 0.95, 1.05);
+	graphics3D.cube(this.x - 20, this.y - this.h + 20, 40, this.h - 40, 0.95, 1.05);
 	/* manual override to make sure enemies and stuff get displayed in front of the pillar (even though the pillar is technically in front) */
 	game.dungeon[game.theRoom].renderingObjects.lastItem().depth = 1;
 	game.dungeon[game.theRoom].renderingObjects.lastItem().zOrder = -1;
 });
 Pillar.method("update", function() {
 	/* Base collisions */
-	collisions.rect(this.x + p.worldX - 30, this.y + p.worldY - 20, 60, 21, {walls: [true, true, true, true], illegalHandling: "teleport"});
-	collisions.rect(this.x + p.worldX - 40, this.y + p.worldY - 10, 80, 10, {walls: [true, true, true, true], illegalHandling: "teleport"});
+	collisions.rect(this.x - 30, this.y - 20, 60, 21, {walls: [true, true, true, true], illegalHandling: "teleport"});
+	collisions.rect(this.x - 40, this.y - 10, 80, 10, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	/* Top collisions */
-	collisions.rect(this.x + p.worldX - 41, this.y + p.worldY - this.h, 80, 12);
-	collisions.rect(this.x + p.worldX - 30, this.y + p.worldY - this.h + 10, 60, 10);
+	collisions.rect(this.x - 41, this.y - this.h, 80, 12);
+	collisions.rect(this.x - 30, this.y - this.h + 10, 60, 10);
 });
 function Statue(x, y) {
 	this.x = x;
@@ -3728,10 +3664,6 @@ function Statue(x, y) {
 	this.facing = ["left", "right"].randomItem();
 	this.pose = ["kneeling", "standing"].randomItem();
 };
-Statue.method("exist", function() {
-	this.update();
-	this.display();
-});
 Statue.method("display", function() {
 	/* item in hands */
 	var self = this;
@@ -3741,21 +3673,21 @@ Statue.method("display", function() {
 				function() {
 					if(self.itemHolding instanceof MeleeWeapon) {
 						if(self.pose === "standing") {
-							c.translate(self.x + p.worldX, self.y + p.worldY + 72);
+							c.translate(self.x, self.y + 72);
 							c.scale((self.facing === "left" ? -1 : 1), 1);
 							c.translate(20, 0);
 							c.rotate(Math.rad(45));
 							self.itemHolding.display("attacking");
 						}
 						else {
-							c.translate(self.x + p.worldX, self.y + p.worldY + 52);
+							c.translate(self.x, self.y + 52);
 							c.scale((self.facing === "left" ? -1 : 1), 1);
 							c.translate(24, 0);
 							self.itemHolding.display("attacking");
 						}
 					}
 					else {
-						c.translate(self.x + p.worldX, self.y + p.worldY + (self.itemHolding instanceof MagicWeapon ? 32 : 52));
+						c.translate(self.x, self.y + (self.itemHolding instanceof MagicWeapon ? 32 : 52));
 						c.scale((self.facing === "left" ? -1 : 1), 1);
 						c.translate((self.itemHolding instanceof MagicWeapon ? 28 : 20), 0);
 						c.scale(2, 2);
@@ -3774,7 +3706,6 @@ Statue.method("display", function() {
 				c.fillStyle = "rgb(125, 125, 125)";
 				c.lineCap = "round";
 				c.lineWidth = 10;
-				c.translate(p.worldX, p.worldY);
 				c.save(); {
 					c.translate(self.x, self.y);
 					c.scale(1, 1.2);
@@ -3822,11 +3753,11 @@ Statue.method("display", function() {
 		)
 	);
 	/* pedestal */
-	graphics3D.cube(this.x + p.worldX - 60, this.y + p.worldY + 96, 120, 34, 0.95, 1.05, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
+	graphics3D.cube(this.x - 60, this.y + 96, 120, 34, 0.95, 1.05, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
 });
 Statue.method("update", function() {
 	/* stealing Weapons */
-	if(io.keys[83] && Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) <= 100 && !this.itemStolen) {
+	if(io.keys[83] && Math.dist(this.x, this.y, p.x, p.y) <= 100 && !this.itemStolen) {
 		this.itemStolen = true;
 		p.addItem(this.itemHolding);
 	}
@@ -3836,37 +3767,33 @@ function TiltPlatform(x, y) {
 	this.y = y;
 	this.ORIGINAL_X = x;
 	this.ORIGINAL_Y = y;
+	this.platformX = x;
+	this.platformY = y;
 	this.tilt = 0;
 	this.tiltDir = 0;
-	this.platX = 0;
-	this.platY = 0;
 	this.interact = true;
 	this.dir = null;
 	this.velX = 0;
 	this.velY = 0;
 };
-TiltPlatform.method("exist", function() {
-	this.update();
-	this.display();
-});
 TiltPlatform.method("display", function() {
-	graphics3D.cube(this.ORIGINAL_X + p.worldX - 5, this.ORIGINAL_Y + p.worldY + 10, 10, 8000, 0.99, 1.01);
+	graphics3D.cube(this.x - 5, this.y + 10, 10, 8000, 0.99, 1.01);
 	graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
 		{
-			x: this.p1.x + this.x + p.worldX,
-			y: this.p1.y + this.y + p.worldY
+			x: this.p1.x + this.platformX,
+			y: this.p1.y + this.platformY
 		},
 		{
-			x: this.p2.x + this.x + p.worldX,
-			y: this.p2.y + this.y + p.worldY
+			x: this.p2.x + this.platformX,
+			y: this.p2.y + this.platformY
 		},
 		{
-			x: -(this.p1.x) + this.x + p.worldX,
-			y: -(this.p1.y) + this.y + p.worldY
+			x: -(this.p1.x) + this.platformX,
+			y: -(this.p1.y) + this.platformY
 		},
 		{
-			x: -(this.p2.x) + this.x + p.worldX,
-			y: -(this.p2.y) + this.y + p.worldY
+			x: -(this.p2.x) + this.platformX,
+			y: -(this.p2.y) + this.platformY
 		}
 	]);
 });
@@ -3874,10 +3801,10 @@ TiltPlatform.method("update", function() {
 	this.p1 = Math.rotate(-75, -10, Math.floor(this.tilt));
 	this.p2 = Math.rotate(75, -10, Math.floor(this.tilt));
 	/* hitbox */
-	collisions.line(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, this.p2.x + this.x + p.worldX, this.p2.y + this.y + p.worldY, {walls: [true, true, true, true], illegalHandling: "teleport"});
+	collisions.line(this.p1.x + this.platformX, this.p1.y + this.platformY, this.p2.x + this.platformX, this.p2.y + this.platformY, {walls: [true, true, true, true], illegalHandling: "teleport"});
 	/* tilting */
-	if(p.x + 5 > this.x + p.worldX - 75 && p.x - 5 < this.x + p.worldX + 75 && p.canJump && this.interact) {
-		if(p.x > this.x + p.worldX) {
+	if(p.x + 5 > this.x - 75 && p.x - 5 < this.x + 75 && p.canJump && this.interact) {
+		if(p.x > this.x) {
 			this.tiltDir += 0.2;
 		}
 		else {
@@ -3890,13 +3817,12 @@ TiltPlatform.method("update", function() {
 	this.tilt += this.tiltDir;
 	this.tilt = Math.modulateIntoRange(this.tilt, 0, 360);
 	/* falling */
-	this.y += 5;
 	this.collides = function() {
 		c.beginPath();
-		c.moveTo(this.p1.x + this.x, this.p1.y + this.y);
-		c.lineTo(this.p2.x + this.x, this.p2.y + this.y);
-		c.lineTo(-this.p1.x + this.x, -this.p1.y + this.y);
-		c.lineTo(-this.p2.x + this.x, -this.p2.y + this.y);
+		c.moveTo(this.p1.x + this.platformX, this.p1.y + this.platformY);
+		c.lineTo(this.p2.x + this.platformX, this.p2.y + this.platformY);
+		c.lineTo(-this.p1.x + this.platformX, -this.p1.y + this.platformY);
+		c.lineTo(-this.p2.x + this.platformX, -this.p2.y + this.platformY);
 		for(var x = -5; x <= 5; x += 10) {
 			if(c.isPointInPath(this.ORIGINAL_X + x, this.ORIGINAL_Y + 10)) {
 				return true;
@@ -3904,8 +3830,9 @@ TiltPlatform.method("update", function() {
 		}
 		return false;
 	};
+	this.platformY += 5;
 	while(this.collides()) {
-		this.y --;
+		this.platformY --;
 	};
 	if(this.tilt > 45 && this.tilt < 90 && this.x < this.ORIGINAL_X + 10) {
 		this.velX += 0.1;
@@ -3914,16 +3841,17 @@ TiltPlatform.method("update", function() {
 		this.velX -= 0.1;
 	}
 	if(this.y - this.ORIGINAL_Y > 800) {
-		this.x = -8000; // move offscreen
+		this.platformX = -8000; // move offscreen
 	}
-	this.x += this.velX;
+	this.platformX += this.velX;
+	this.platformY += this.velY;
 	p.onGroundBefore = p.canJump;
 });
 TiltPlatform.method("collides", function(x, y) {
-	var p1 = graphics3D.point3D(this.p1.x + this.x + p.worldX, this.p1.y + this.y + p.worldY, 1.1);
-	var p2 = graphics3D.point3D(this.p2.x + this.x + p.worldX, this.p2.y + this.y + p.worldY, 1.1);
-	var p3 = graphics3D.point3D(-this.p1.x + this.x + p.worldX, -this.p1.y + this.y + p.worldY, 1.1);
-	var p4 = graphics3D.point3D(-this.p2.x + this.x + p.worldX, -this.p2.y + this.y + p.worldY, 1.1);
+	var p1 = graphics3D.point3D(this.p1.x + this.platformX, this.p1.y + this.platformY, 1.1);
+	var p2 = graphics3D.point3D(this.p2.x + this.platformX, this.p2.y + this.platformY, 1.1);
+	var p3 = graphics3D.point3D(-this.p1.x + this.platformX, -this.p1.y + this.platformY, 1.1);
+	var p4 = graphics3D.point3D(-this.p2.x + this.platformX, -this.p2.y + this.platformY, 1.1);
 	c.beginPath();
 	c.polygon(
 		{ x: p1.x, y: -800 },
@@ -3933,59 +3861,16 @@ TiltPlatform.method("collides", function(x, y) {
 	);
 	return c.isPointInPath(x, y);
 });
+TiltPlatform.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	this.platformX += x;
+	this.platformY += y;
+});
 function Bridge(x, y) {
 	this.x = x;
 	this.y = y;
 };
-Bridge.method("exist", function() {
-	this.update();
-	this.display();
-	return;
-	/* graphics - top bridge surface */
-	var topB = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY + 500, 0.9);
-	var topF = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY + 500, 1.1);
-	c.fillStyle = "rgb(150, 150, 150)";
-	c.save(); {
-		c.beginPath();
-		c.circle(topF.x, topF.y, 500 * 1.1);
-		c.invertPath();
-		c.clip("evenodd");
-		c.fillCircle(topB.x, topB.y, 500 * 0.9);
-	} c.restore();
-	c.fillStyle = "rgb(110, 110, 110)";
-	c.fillCircle(topF.x, topF.y, 500 * 1.1);
-	c.fillStyle = "rgb(150, 150, 150)";
-	c.strokeStyle = "rgb(150, 150, 150)";
-	c.lineWidth = 4;
-	/* graphics - arches */
-	for(var x = this.x + p.worldX - 200; x <= this.x + p.worldX + 200; x += 200) {
-		var archWidth = (x === this.x + p.worldX) ? 150 : 100;
-		var y = (x === this.x + p.worldX) ? this.y + p.worldY + 200 : this.y + p.worldY + 250;
-		var centerBack = graphics3D.point3D(x, y, 0.9);
-		var leftBack = graphics3D.point3D(x - (archWidth / 2), y, 0.9);
-		var rightBack = graphics3D.point3D(x + (archWidth / 2), y, 0.9);
-		var centerFront = graphics3D.point3D(x, y, 1.1);
-		var leftFront = graphics3D.point3D(x - (archWidth / 2), y, 1.1);
-		var rightFront = graphics3D.point3D(x + (archWidth / 2), y, 1.1);
-		c.save(); {
-			/* clip so it draws only inside the front arch */
-			c.beginPath();
-			c.line(leftFront.x, centerBack.y + 10000, leftFront.x, centerFront.y);
-			c.arc(centerFront.x, centerFront.y, (archWidth / 2 * 1.1), Math.rad(180), Math.rad(360));
-			c.line(rightFront.x, centerFront.y, rightFront.x, centerBack.y + 10000);
-			c.stroke();
-			c.clip();
-
-			/* draw the back of the arch inverted */
-			c.beginPath();
-			c.line(leftBack.x, centerBack.y + 10000, leftBack.x, centerBack.y);
-			c.arc(centerBack.x, centerBack.y, (archWidth / 2 * 0.9), Math.rad(180), Math.rad(360));
-			c.line(rightBack.x, centerBack.y, rightBack.x, centerBack.y + 10000);
-			c.invertPath();
-			c.fill("evenodd");
-		} c.restore();
-	}
-});
 Bridge.method("display", function() {
 	function displayBridge() {
 		/* clip out arches */
@@ -4010,7 +3895,7 @@ Bridge.method("display", function() {
 	game.dungeon[game.theRoom].render(
 		new RenderingOrderObject(
 			function() {
-				var backOfBridge = graphics3D.point3D(self.x + p.worldX, self.y + p.worldY, 0.9);
+				var backOfBridge = graphics3D.point3D(self.x, self.y, 0.9);
 				c.fillStyle = "rgb(150, 150, 150)";
 				c.strokeStyle = "rgba(150, 150, 150, 0)";
 				c.translate(backOfBridge.x, backOfBridge.y);
@@ -4023,7 +3908,7 @@ Bridge.method("display", function() {
 	game.dungeon[game.theRoom].render(
 		new RenderingOrderObject(
 			function() {
-				var frontOfBridge = graphics3D.point3D(self.x + p.worldX, self.y + p.worldY, 1.1);
+				var frontOfBridge = graphics3D.point3D(self.x, self.y, 1.1);
 				c.fillStyle = "rgb(110, 110, 110)";
 				c.strokeStyle = "rgb(150, 150, 150)";
 				c.translate(frontOfBridge.x, frontOfBridge.y);
@@ -4042,21 +3927,17 @@ function BookShelf(x, y) {
 	this.x = x;
 	this.y = y;
 };
-BookShelf.method("exist", function() {
-	this.update();
-	this.display();
-});
 BookShelf.method("display", function() {
 	/* graphics */
 	for(var y = this.y; y >= this.y - 200; y -= 50) {
-		graphics3D.cube(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+		graphics3D.cube(this.x - 100, y - 10, 200, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 	}
-	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX + 90, this.y + p.worldY - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x - 100, this.y - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x + 90, this.y - 210, 10, 210, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 });
 BookShelf.method("update", function() {
 	for(var y = this.y; y >= this.y - 200; y -= 50) {
-		collisions.rect(this.x + p.worldX - 100, y + p.worldY - 10, 200, 10, {walls: [true, false, false, false]});
+		collisions.rect(this.x - 100, y - 10, 200, 10, {walls: [true, false, false, false]});
 	}
 });
 function Chandelier(x, y) {
@@ -4074,10 +3955,6 @@ function Chandelier(x, y) {
 	}
 	this.particles = [];
 };
-Chandelier.method("exist", function() {
-	this.update();
-	this.display();
-});
 Chandelier.method("display", function() {
 	/*
 	this function breaks the graphics into multiple sub-functions so that they can be called in different orders depending on perspective.
@@ -4085,36 +3962,32 @@ Chandelier.method("display", function() {
 	var self = this;
 	function topDisc() {
 		var points = self.points.clone();
-		for(var i = 0; i < points.length; i ++) {
-			points[i].x += p.worldX;
-			points[i].y += p.worldY;
-		}
 		graphics3D.polyhedron("rgb(110, 110, 110)", points);
 	};
 	function middleDisc() {
 		for(var i = 0; i < self.points.length; i ++) {
 			var currentPoint = {
 				top: graphics3D.point3D(
-					self.points[i].x + p.worldX,
-					self.points[i].y + p.worldY,
+					self.points[i].x,
+					self.points[i].y,
 					self.points[i].z
 				),
 				bottom: graphics3D.point3D(
-					self.points[i].x + p.worldX,
-					self.points[i].y + p.worldY + 20,
+					self.points[i].x,
+					self.points[i].y + 20,
 					self.points[i].z
 				)
 			};
 			var nextIndex = (i === self.points.length - 1) ? 0 : i + 1;
 			var nextPoint = {
 				top: graphics3D.point3D(
-					self.points[nextIndex].x + p.worldX,
-					self.points[nextIndex].y + p.worldY,
+					self.points[nextIndex].x,
+					self.points[nextIndex].y,
 					self.points[nextIndex].z
 				),
 				bottom: graphics3D.point3D(
-					self.points[nextIndex].x + p.worldX,
-					self.points[nextIndex].y + p.worldY + 20,
+					self.points[nextIndex].x,
+					self.points[nextIndex].y + 20,
 					self.points[nextIndex].z
 				)
 			};
@@ -4169,15 +4042,15 @@ Chandelier.method("display", function() {
 		}
 		for(var i = 0; i < indexes.length; i ++) {
 			if(indexes[i].type === "cord") {
-				var edge = graphics3D.point3D(self.points[indexes[i].index].x + p.worldX, self.points[indexes[i].index].y + p.worldY, self.points[indexes[i].index].z);
+				var edge = graphics3D.point3D(self.points[indexes[i].index].x, self.points[indexes[i].index].y, self.points[indexes[i].index].z);
 				c.strokeStyle = "rgb(139, 69, 19)";
 				c.strokeLine(
-					self.x + p.worldX, self.y + p.worldY - 600,
+					self.x, self.y - 600,
 					edge.x, edge.y
 				);
 			}
 			else {
-				graphics3D.cube(p.worldX + self.points[indexes[i].index].x - 5, p.worldY + self.points[indexes[i].index].y - 10, 10, 10, self.points[indexes[i].index].z - 0.01, self.points[indexes[i].index].z + 0.01, null, null);
+				graphics3D.cube(self.points[indexes[i].index].x - 5, self.points[indexes[i].index].y - 10, 10, 10, self.points[indexes[i].index].z - 0.01, self.points[indexes[i].index].z + 0.01, null, null);
 				self.particles.push(new Particle("rgb(255, 128, 0)", self.points[indexes[i].index].x, self.points[indexes[i].index].y - 10, Math.randomInRange(-1, 1), Math.randomInRange(-2, 0)));
 				self.particles[self.particles.length - 1].z = self.points[indexes[i].index].z;
 			}
@@ -4190,19 +4063,19 @@ Chandelier.method("display", function() {
 			}
 		}
 		c.strokeLine(
-			self.x + p.worldX, self.y + p.worldY - 600,
-			self.x + p.worldX, 0
+			self.x, self.y - 600,
+			self.x, 0
 		);
 		c.strokeLine(
-			self.x + p.worldX - 72, self.y + p.worldY - 150,
-			self.x + p.worldX + 72, self.y + p.worldY - 150
+			self.x - 72, self.y - 150,
+			self.x + 72, self.y - 150
 		);
 		c.strokeLine(
-			self.x + p.worldX - 54, self.y + p.worldY - 300,
-			self.x + p.worldX + 54, self.y + p.worldY - 300
+			self.x - 54, self.y - 300,
+			self.x + 54, self.y - 300
 		);
 	};
-	if(this.y + p.worldY < 400) {
+	if(this.y < 400) {
 		cords();
 		topDisc();
 		middleDisc();
@@ -4216,24 +4089,20 @@ Chandelier.method("display", function() {
 	}
 });
 Chandelier.method("update", function() {
-	collisions.rect(this.x + p.worldX - 100, this.y + p.worldY, 200, 20);
-	collisions.rect(this.x + p.worldX - 72, this.y + p.worldY - 150, 144, 3, {walls: [true, false, false, false]});
-	collisions.rect(this.x + p.worldX - 54, this.y + p.worldY - 300, 108, 3, {walls: [true, false, false, false]});
+	collisions.rect(this.x - 100, this.y, 200, 20);
+	collisions.rect(this.x - 72, this.y - 150, 144, 3, {walls: [true, false, false, false]});
+	collisions.rect(this.x - 54, this.y - 300, 108, 3, {walls: [true, false, false, false]});
 });
 function Table(x, y) {
 	this.x = x;
 	this.y = y;
 };
-Table.method("exist", function() {
-	this.display();
-	this.update();
-});
 Table.method("display", function() {
-	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
-	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX + 40, this.y + p.worldY - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
-	graphics3D.cube(this.x + p.worldX + 40, this.y + p.worldY - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 40, 100, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x - 50, this.y - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
+	graphics3D.cube(this.x - 50, this.y - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x + 40, this.y - 40, 10, 40, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)", {noFrontExtended: true} );
+	graphics3D.cube(this.x + 40, this.y - 40, 10, 40, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x - 50, this.y - 40, 100, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 });
 Table.method("update", function() {
 	/* Nothing to update */
@@ -4243,13 +4112,13 @@ function Chair(x, y, dir) {
 	this.y = y;
 	this.dir = dir;
 };
-Chair.method("exist", function() {
-	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX + 15, this.y + p.worldY - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX - 25, this.y + p.worldY - 30, 50, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
-	graphics3D.cube(this.x + p.worldX + ((this.dir === "right") ? -25 : 15), this.y + p.worldY - 60, 10, 35, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+Chair.method("display", function() {
+	graphics3D.cube(this.x - 25, this.y - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x + 15, this.y - 30, 10, 30, 0.98, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x - 25, this.y - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x + 15, this.y - 30, 10, 30, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x - 25, this.y - 30, 50, 10, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x + ((this.dir === "right") ? -25 : 15), this.y - 60, 10, 35, 0.9, 1, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 });
 function SpikeBall(x, y, dir) {
 	/*
@@ -4261,12 +4130,12 @@ function SpikeBall(x, y, dir) {
 	this.velX = 0;
 	this.velY = 0;
 };
-SpikeBall.method("exist", function() {
+SpikeBall.method("display", function() {
 	c.fillStyle = "rgb(60, 60, 60)";
 	c.strokeStyle = "rgb(60, 60, 60)";
 	/* graphics - chain */
-	if(Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 20, p.y + 26) > 400) {
-		var line = Math.findPointsLinear(this.x + p.worldX, this.y + p.worldY, p.x + 20, p.y + 26);
+	if(Math.distSq(this.x, this.y, p.x + 20, p.y + 26) > 400) {
+		var line = Math.findPointsLinear(this.x, this.y, p.x + 20, p.y + 26);
 		var interval = 0;
 		var lastAction;
 		while(Math.distSq(line[0].x, line[0].y, line[interval].x, line[interval].y) < 64 || Math.distSq(line[0].x, line[0].y, line[interval].x, line[interval].y) > 144) {
@@ -4297,7 +4166,7 @@ SpikeBall.method("exist", function() {
 	}
 	/* graphics - spikeball */
 	c.save(); {
-		c.translate(this.x + p.worldX, this.y + p.worldY);
+		c.translate(this.x, this.y);
 		c.fillCircle(0, 0, 10);
 		for(var r = 0; r < 360; r += (360 / 6)) {
 			c.save(); {
@@ -4310,13 +4179,14 @@ SpikeBall.method("exist", function() {
 			} c.restore();
 		}
 	} c.restore();
-	/* movement */
+});
+SpikeBall.method("update", function() {
 	this.x += this.velX;
 	this.y += this.velY;
 	this.velY += 0.01;
-	if(Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) > 100) {
-		if(Math.dist(this.x + p.worldX, p.x) < Math.dist(this.y + p.worldY, p.y)) {
-			if(this.y + p.worldY > p.y) {
+	if(Math.dist(this.x, this.y, p.x, p.y) > 100) {
+		if(Math.dist(this.x, p.x) < Math.dist(this.y, p.y)) {
+			if(this.y > p.y) {
 				this.velY = -1;
 			}
 			else {
@@ -4324,7 +4194,7 @@ SpikeBall.method("exist", function() {
 			}
 		}
 		else {
-			if(this.x + p.worldX > p.x) {
+			if(this.x > p.x) {
 				this.velX = -1;
 			}
 			else {
@@ -4341,7 +4211,7 @@ function Decoration(x, y) {
 	this.y = y;
 	this.type = null;
 };
-Decoration.method("exist", function() {
+Decoration.method("update", function() {
 	if(this.type === null) {
 		/* find self in the current room */
 		var selfIndex = null;
@@ -4397,37 +4267,12 @@ function Banner(x, y, color) {
 	this.color = color;
 	this.graphic = null;
 };
-Banner.method("exist", function() {
-	if(this.color === undefined || this.color === "?") {
-		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			if(game.dungeon[game.theRoom].content[i] instanceof Banner && game.dungeon[game.theRoom].content[i].color !== undefined && game.dungeon[game.theRoom].content[i].color !== "?") {
-				this.color = game.dungeon[game.theRoom].content[i].color;
-				break;
-			}
-		}
-		if(this.color === undefined || this.color === "?") {
-			this.color = game.dungeon[game.theRoom].colorScheme;
-		}
-	}
-	if(this.graphic === null) {
-		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			if(game.dungeon[game.theRoom].content[i] instanceof Banner && game.dungeon[game.theRoom].content[i].graphic !== null) {
-				this.graphic = game.dungeon[game.theRoom].content[i].graphic;
-				break;
-			}
-		}
-		if(this.graphic === null) {
-			this.graphic = ["gradient", "border"].randomItem();
-		}
-		if(TESTING_MODE) {
-			this.graphic = "border";
-		}
-	}
-	var p1 = graphics3D.point3D(this.x + p.worldX - 20, this.y + p.worldY - 40, 0.9);
-	var p2 = graphics3D.point3D(this.x + p.worldX - 20, this.y + p.worldY + 45, 0.9);
-	var p3 = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY + 35, 0.9);
-	var p4 = graphics3D.point3D(this.x + p.worldX + 20, this.y + p.worldY + 45, 0.9);
-	var p5 = graphics3D.point3D(this.x + p.worldX + 20, this.y + p.worldY - 40, 0.9);
+Banner.method("display", function() {
+	var p1 = graphics3D.point3D(this.x - 20, this.y - 40, 0.9);
+	var p2 = graphics3D.point3D(this.x - 20, this.y + 45, 0.9);
+	var p3 = graphics3D.point3D(this.x, this.y + 35, 0.9);
+	var p4 = graphics3D.point3D(this.x + 20, this.y + 45, 0.9);
+	var p5 = graphics3D.point3D(this.x + 20, this.y - 40, 0.9);
 	var color1, color2;
 	if(this.color === "green") {
 		color1 = "rgb(0, 150, 0)";
@@ -4455,7 +4300,7 @@ Banner.method("exist", function() {
 		));
 	}
 	else if(this.graphic === "border") {
-		var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.9);
+		var center = graphics3D.point3D(this.x, this.y, 0.9);
 		var p6 = Math.scaleAboutPoint(p1.x, p1.y, center.x, center.y, 0.7);
 		var p7 = Math.scaleAboutPoint(p2.x, p2.y, center.x, center.y, 0.7);
 		var p8 = Math.scaleAboutPoint(p3.x, p3.y, center.x, center.y, 0.7);
@@ -4473,17 +4318,46 @@ Banner.method("exist", function() {
 			0.9
 		));
 	}
-	graphics3D.cube(this.x + p.worldX - 30, this.y + p.worldY - 50, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+	graphics3D.cube(this.x - 30, this.y - 50, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
+});
+Banner.method("update", function() {
+	if(this.color === undefined || this.color === "?") {
+		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
+			if(game.dungeon[game.theRoom].content[i] instanceof Banner && game.dungeon[game.theRoom].content[i].color !== undefined && game.dungeon[game.theRoom].content[i].color !== "?") {
+				this.color = game.dungeon[game.theRoom].content[i].color;
+				break;
+			}
+		}
+		if(this.color === undefined || this.color === "?") {
+			this.color = game.dungeon[game.theRoom].colorScheme;
+		}
+	}
+	if(this.graphic === null) {
+		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
+			if(game.dungeon[game.theRoom].content[i] instanceof Banner && game.dungeon[game.theRoom].content[i].graphic !== null) {
+				this.graphic = game.dungeon[game.theRoom].content[i].graphic;
+				break;
+			}
+		}
+		if(this.graphic === null) {
+			this.graphic = ["gradient", "border"].randomItem();
+		}
+		if(TESTING_MODE) {
+			this.graphic = "border";
+		}
+	}
 });
 function GlassWindow(x, y, color) {
 	this.x = x;
 	this.y = y;
 	this.color = color;
 };
-GlassWindow.method("exist", function() {
+GlassWindow.method("update", function() {
 	game.dungeon[game.theRoom].background = "plain";
+});
+GlassWindow.method("display", function() {
 	c.save(); {
-		var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.9);
+		var center = graphics3D.point3D(this.x, this.y, 0.9);
 		/* delete bricks behind window */
 		function clip() {
 			c.beginPath();
@@ -4494,9 +4368,9 @@ GlassWindow.method("exist", function() {
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.fillCanvas();
 		/* background */
-		graphics3D.cube(this.x + p.worldX - 40, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null);
-		graphics3D.cube(this.x + p.worldX + 20, this.y + p.worldY - 200, 20, 190, 0.72, 0.78, null, null);
-		graphics3D.cube(this.x + p.worldX - 200, this.y + p.worldY - 10, 400, 100, 0.7, 0.8, null, null);
+		graphics3D.cube(this.x - 40, this.y - 200, 20, 190, 0.72, 0.78, null, null);
+		graphics3D.cube(this.x + 20, this.y - 200, 20, 190, 0.72, 0.78, null, null);
+		graphics3D.cube(this.x - 200, this.y - 10, 400, 100, 0.7, 0.8, null, null);
 		var renderingObjects = game.dungeon[game.theRoom].renderingObjects;
 		for(var i = renderingObjects.length - 6; i < renderingObjects.length; i ++) {
 			var obj = renderingObjects[i];
@@ -4553,13 +4427,30 @@ function Roof(x, y, w) {
 	this.w = w;
 	this.type = null;
 };
-Roof.method("exist", function() {
+Roof.method("update", function() {
 	if(this.type === null) {
 		this.type = ["none", "flat", "sloped", "curved"].randomItem();
+		if(TESTING_MODE) {
+			this.type = "curved";
+		}
 	}
 	if(this.type === "flat") {
-		graphics3D.cube(-100, this.y + p.worldY - 1100, 1000, 1000, 0.9, 1.1);
-		collisions.rect(-100, this.y + p.worldY - 1100, 1000, 1000);
+		collisions.rect(-100, this.y - 1100, 1000, 1000);
+	}
+	else if(this.type === "sloped") {
+		collisions.line(this.x - this.w, this.y, this.x - (this.w / 3), this.y - 100);
+		collisions.line(this.x + this.w, this.y, this.x + (this.w / 3), this.y - 100);
+		collisions.rect(this.x - this.w, this.y - 200, 2 * this.w, 100);
+	}
+	else if(this.type === "curved") {
+		while(Math.distSq(p.x, this.y - (this.y - (p.y - 7)) / 2, this.x, this.y) > (this.w / 2) * (this.w / 2) && p.y - 7 < this.y) {
+			p.y ++;
+		}
+	}
+});
+Roof.method("display", function() {
+	if(this.type === "flat") {
+		graphics3D.cube(-100, this.y - 1100, 1000, 1000, 0.9, 1.1);
 	}
 	else if(this.type === "sloped") {
 		graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
@@ -4569,36 +4460,33 @@ Roof.method("exist", function() {
 			},
 			{
 				x: -100,
-				y: this.y + p.worldY
+				y: this.y
 			},
 			{
-				x: this.x + p.worldX - this.w,
-				y: this.y + p.worldY
+				x: this.x - this.w,
+				y: this.y
 			},
 			{
-				x: this.x + p.worldX - (this.w / 3),
-				y: this.y + p.worldY - 100
+				x: this.x - (this.w / 3),
+				y: this.y - 100
 			},
 			{
-				x: this.x + p.worldX + (this.w / 3),
-				y: this.y + p.worldY - 100
+				x: this.x + (this.w / 3),
+				y: this.y - 100
 			},
 			{
-				x: this.x + p.worldX + this.w,
-				y: this.y + p.worldY
+				x: this.x + this.w,
+				y: this.y
 			},
 			{
 				x: 900,
-				y: this.y + p.worldY - 100
+				y: this.y - 100
 			},
 			{
 				x: 900,
 				y: -100
 			}
 		]);
-		collisions.line(this.x + p.worldX - this.w, this.y + p.worldY, this.x + p.worldX - (this.w / 3), this.y + p.worldY - 100);
-		collisions.line(this.x + p.worldX + this.w, this.y + p.worldY, this.x + p.worldX + (this.w / 3), this.y + p.worldY - 100);
-		collisions.rect(this.x + p.worldX - this.w, this.y + p.worldY - 200, 2 * this.w, 100);
 	}
 	else if(this.type === "curved") {
 		if(this.points === undefined) {
@@ -4611,18 +4499,26 @@ Roof.method("exist", function() {
 		}
 		var array = [];
 		for(var i = 0; i < this.points.length; i += (this.points.length / 36)) {
-			array.push({x: this.points[Math.floor(i)].x + p.worldX, y: this.points[Math.floor(i)].y + p.worldY});
+			array.push({x: this.points[Math.floor(i)].x, y: this.points[Math.floor(i)].y});
 		}
 		for(var i = 1; i < array.length; i ++) {
 			collisions.line(array[i].x, array[i].y, array[i - 1].x, array[i - 1].y);
 		}
-		array.splice(0, 0, {x: -100, y: -100}, {x: -100, y: this.y + p.worldY}, {x: this.x + p.worldX - this.w, y: this.y + p.worldY});
-		array.push({x: this.x + p.worldX + this.w, y: this.y + p.worldY});
-		array.push({x: canvas.width + 100, y: this.y + p.worldY});
+		array.splice(0, 0, {x: -100, y: -100}, {x: -100, y: this.y}, {x: this.x - this.w, y: this.y});
+		array.push({x: this.x + this.w, y: this.y});
+		array.push({x: canvas.width + 100, y: this.y});
 		array.push({x: canvas.width + 100, y: -100});
 		graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, array);
-		while(Math.distSq(p.x + p.worldX, this.y - (this.y - (p.y + p.worldY - 7)) / 2, this.x, this.y) > (this.w / 2) * (this.w / 2) && p.y - 7 < this.y) {
-			p.y ++;
+	}
+});
+Roof.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	if(this.type === "curved" && Object.typeof(this.points) === "array") {
+		for(var i = 0; i < this.points.length; i ++) {
+			var point = this.points[i];
+			point.x += x;
+			point.y += y;
 		}
 	}
 });
@@ -4631,11 +4527,11 @@ function Fountain(x, y) {
 	this.y = y;
 	this.waterAnimations = [];
 };
-Fountain.method("exist", function() {
+Fountain.method("display", function() {
 	/* water slot */
-	graphics3D.cutoutRect(this.x + p.worldX - 50, this.y + p.worldY - 160, 100, 10, "rgba(0, 0, 0, 0)", "rgba(150, 150, 150)", 0.8, 0.9);
+	graphics3D.cutoutRect(this.x - 50, this.y - 160, 100, 10, "rgba(0, 0, 0, 0)", "rgba(150, 150, 150)", 0.8, 0.9);
 
-	var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.92);
+	var center = graphics3D.point3D(this.x, this.y, 0.92);
 	game.dungeon[game.theRoom].setRenderingStyle(function() {
 		c.beginPath();
 		c.rect(center.x - (50 * 0.92), 0, (100 * 0.92), canvas.height);
@@ -4643,9 +4539,9 @@ Fountain.method("exist", function() {
 	});
 	c.save(); {
 		/* water */
-		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 10, 0.8, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)");
-		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 150, 0.9, 0.92, "rgba(100, 100, 255, 0)", "rgb(100, 100, 255)");
-		graphics3D.cube(this.x + p.worldX - 50, this.y + p.worldY - 150, 100, 150, 0.9, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)");
+		graphics3D.cube(this.x - 50, this.y - 150, 100, 10, 0.8, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)");
+		graphics3D.cube(this.x - 50, this.y - 150, 100, 150, 0.9, 0.92, "rgba(100, 100, 255, 0)", "rgb(100, 100, 255)");
+		graphics3D.cube(this.x - 50, this.y - 150, 100, 150, 0.9, 0.92, "rgb(100, 100, 255)", "rgb(100, 100, 255)");
 		/*
 		Each water graphic's y-value is on a scale from 0 to 250. Each one is 50 tall. The corner of the fountain is at 100, so any value less than 100 is on the horizontal section and anything greater than 100 is on the vertical section.
 		*/
@@ -4669,21 +4565,20 @@ Fountain.method("exist", function() {
 			*/
 			if(y < HORIZONTAL_FOUNTAIN_HEIGHT) {
 				return {
-					x: self.x + p.worldX + x,
-					y: self.y + p.worldY - 150,
+					x: self.x + x,
+					y: self.y - 150,
 					z: Math.map(y, 0, HORIZONTAL_FOUNTAIN_HEIGHT, 0.8, 0.92)
 				};
 			}
 			else {
 				return {
-					x: self.x + p.worldX + x,
-					y: self.y + p.worldY - 150 + Math.map(y, HORIZONTAL_FOUNTAIN_HEIGHT, TOTAL_FOUNTAIN_HEIGHT, 0, 150),
+					x: self.x + x,
+					y: self.y - 150 + Math.map(y, HORIZONTAL_FOUNTAIN_HEIGHT, TOTAL_FOUNTAIN_HEIGHT, 0, 150),
 					z: 0.92
 				};
 			}
 		};
 		for(var i = 0; i < this.waterAnimations.length; i ++) {
-			this.waterAnimations[i].y += 2;
 			var topY = this.waterAnimations[i].y;
 			var bottomY = this.waterAnimations[i].y + 50;
 			if(topY > 225) {
@@ -4714,15 +4609,20 @@ Fountain.method("exist", function() {
 				));
 			}
 		}
-		if(utilities.frameCount % 15 === 0) {
-			this.waterAnimations.push( {x: Math.randomInRange(-50, 50), y: -50} );
-		}
 	} c.restore();
 	/* base */
 	game.dungeon[game.theRoom].clearRenderingStyle();
-	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 10, 50, 0.9, 1);
-	graphics3D.cube(this.x + p.worldX + 90, this.y + p.worldY - 50, 10, 50, 0.9, 1);
-	graphics3D.cube(this.x + p.worldX - 100, this.y + p.worldY - 50, 200, 50, 0.98, 1);
+	graphics3D.cube(this.x - 100, this.y - 50, 10, 50, 0.9, 1);
+	graphics3D.cube(this.x + 90, this.y - 50, 10, 50, 0.9, 1);
+	graphics3D.cube(this.x - 100, this.y - 50, 200, 50, 0.98, 1);
+});
+Fountain.method("update", function() {
+	for(var i = 0; i < this.waterAnimations.length; i ++) {
+		this.waterAnimations[i].y += 2;
+	}
+	if(utilities.frameCount % 15 === 0) {
+		this.waterAnimations.push( {x: Math.randomInRange(-50, 50), y: -50} );
+	}
 });
 function Gear(x, y, size, dir) {
 	this.x = x;
@@ -4740,8 +4640,8 @@ function Gear(x, y, size, dir) {
 	}
 };
 Gear.method("exist", function() {
-	var centerB = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 0.95);
-	var centerF = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, 1.05);
+	var centerB = graphics3D.point3D(this.x, this.y, 0.95);
+	var centerF = graphics3D.point3D(this.x, this.y, 1.05);
 	/* sides */
 	var gearType = "inside";
 	c.fillStyle = "rgb(150, 150, 150)";
@@ -4766,8 +4666,8 @@ Gear.method("exist", function() {
 					{ x: centerF.x + next.x, y: centerF.y + next.y }
 				);
 				collisions.line(
-					this.x + p.worldX + current.x, this.y + p.worldY + current.y,
-					this.x + p.worldX + next.x, this.y + p.worldY + next.y,
+					this.x + current.x, this.y + current.y,
+					this.x + next.x, this.y + next.y,
 					{ moving: true }
 				);
 			}
@@ -4783,8 +4683,8 @@ Gear.method("exist", function() {
 					{ x: centerF.x + next.x, y: centerF.y + next.y }
 				);
 				collisions.line(
-					this.x + p.worldX + current.x, this.y + p.worldY + current.y,
-					this.x + p.worldX + next.x, this.y + p.worldY + next.y,
+					this.x + current.x, this.y + current.y,
+					this.x + next.x, this.y + next.y,
 					{ moving: true, extraBouncy: (next.x < this.size * 0.8) }
 				);
 			}
@@ -4802,8 +4702,8 @@ Gear.method("exist", function() {
 					{ x: centerF.x + next.x, y: centerF.y + next.y }
 				);
 				collisions.line(
-					this.x + p.worldX + current.x, this.y + p.worldY + current.y,
-					this.x + p.worldX + next.x, this.y + p.worldY + next.y,
+					this.x + current.x, this.y + current.y,
+					this.x + next.x, this.y + next.y,
 					{ moving: true }
 				);
 			}
@@ -4819,8 +4719,8 @@ Gear.method("exist", function() {
 					{ x: centerF.x + next.x, y: centerF.y + next.y }
 				);
 				collisions.line(
-					this.x + p.worldX + current.x, this.y + p.worldY + current.y,
-					this.x + p.worldX + next.x, this.y + p.worldY + next.y,
+					this.x + current.x, this.y + current.y,
+					this.x + next.x, this.y + next.y,
 					{ moving: true, extraBouncy: (current.x < this.size * 0.8) }
 				);
 			}
@@ -4858,6 +4758,8 @@ Gear.method("exist", function() {
 	c.fill();
 	this.rot += (this.dir === "right") ? 0.5 : -0.5;
 });
+Gear.method("display", function() {});
+Gear.method("update", function() {});
 function MovingWall(x, y, w, h, startZ) {
 	this.x = x;
 	this.y = y;
@@ -4868,12 +4770,12 @@ function MovingWall(x, y, w, h, startZ) {
 };
 MovingWall.method("exist", function() {
 	if(this.z >= 1) {
-		collisions.rect(this.x + p.worldX, this.y + p.worldY, this.w, this.h);
+		collisions.rect(this.x, this.y, this.w, this.h);
 	}
 	if(this.z > 0.9) {
 		var color = Math.map(this.z, 0.9, 1.1, 100, 110);
 		color = (color > 110) ? 110 : color;
-		graphics3D.cube(this.x + p.worldX, this.y + p.worldY, this.w, this.h, 0.9, this.z, "rgb(" + color + ", " + color + ", " + color + ")", "rgb(150, 150, 150)");
+		graphics3D.cube(this.x, this.y, this.w, this.h, 0.9, this.z, "rgb(" + color + ", " + color + ", " + color + ")", "rgb(150, 150, 150)");
 	}
 	this.z += this.zDir;
 	this.z = Math.max(0.9, this.z);
@@ -4927,7 +4829,7 @@ Room.method("exist", function(index) {
 			obj.exist("player");
 			c.globalAlpha = 1;
 			/* simple enemy attack */
-			if(obj.x + p.worldX + obj.hitbox.right > p.x - 5 && obj.x + p.worldX + obj.hitbox.left < p.x + 5 && obj.y + p.worldY + obj.hitbox.bottom > p.y - 5 && obj.y + p.worldY + obj.hitbox.top < p.y + 46 && obj.attackRecharge < 0 && !obj.complexAttack && obj.timePurified <= 0) {
+			if(obj.x + obj.hitbox.right > p.x - 5 && obj.x + obj.hitbox.left < p.x + 5 && obj.y + obj.hitbox.bottom > p.y - 5 && obj.y + obj.hitbox.top < p.y + 46 && obj.attackRecharge < 0 && !obj.complexAttack && obj.timePurified <= 0) {
 				obj.attackRecharge = 45;
 				var damage = Math.randomInRange(obj.damLow, obj.damHigh);
 				p.hurt(damage, obj.name);
@@ -4946,7 +4848,7 @@ Room.method("exist", function(index) {
 			}
 			/* show hitboxes */
 			if(SHOW_HITBOXES) {
-				debugging.hitboxes.push({x: obj.x + p.worldX + obj.hitbox.left, y: obj.y + p.worldY + obj.hitbox.top, w: Math.dist(obj.hitbox.left, obj.hitbox.right), h: Math.dist(obj.hitbox.top, obj.hitbox.bottom), color: "green"});
+				debugging.hitboxes.push({x: obj.x + obj.hitbox.left, y: obj.y + obj.hitbox.top, w: Math.dist(obj.hitbox.left, obj.hitbox.right), h: Math.dist(obj.hitbox.top, obj.hitbox.bottom), color: "green"});
 			}
 		}
 		else if(obj instanceof Boulder) {
@@ -4956,8 +4858,8 @@ Room.method("exist", function(index) {
 			}
 			boulderIndexes.push(i);
 		}
-		else {
-			obj.exist();
+		else if(typeof obj.update === "function") {
+			obj.update();
 		}
 		if(obj.splicing) {
 			if(typeof obj.remove === "function") {
@@ -4984,6 +4886,26 @@ Room.method("exist", function(index) {
 	}
 });
 Room.method("display", function() {
+	for(var i = 0; i < this.content.length; i ++) {
+		var obj = this.content[i];
+		if(typeof obj.translate === "function") {
+			obj.translate(-game.camera.x + canvas.width / 2, -game.camera.y + canvas.height / 2);
+		}
+		else {
+			obj.x -= (game.camera.x - canvas.width / 2);
+			obj.y -= (game.camera.y - canvas.height / 2);
+		}
+	}
+	this.content.forEach(
+		function(obj) {
+			if(obj instanceof Item) {
+				obj._display();
+			}
+			else if(typeof obj.display === "function") {
+				obj.display();
+			}
+		}
+	);
 	/* Displays the objects in the room in order. */
 	var sorter = function(a, b) {
 		if(a.depth === b.depth) {
@@ -5007,6 +4929,7 @@ Room.method("display", function() {
 		} c.restore();
 	}
 	/* show hitboxes */
+	c.lineWidth = 5;
 	for(var i = 0; i < debugging.hitboxes.length; i ++) {
 		if(debugging.hitboxes[i].color === "light blue") {
 			c.strokeStyle = "rgb(0, " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ", " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ")";
@@ -5018,17 +4941,28 @@ Room.method("display", function() {
 			c.strokeStyle = "rgb(0, " + (Math.sin(utilities.frameCount / 30) * 30 + 225) + ", 0)";
 		}
 		if(debugging.hitboxes[i].r !== undefined) {
-			c.strokeCircle(debugging.hitboxes[i].x, debugging.hitboxes[i].y, debugging.hitboxes[i].r);
+			c.strokeCircle(debugging.hitboxes[i].x - (game.camera.x - canvas.width / 2), debugging.hitboxes[i].y - (game.camera.y - canvas.height / 2), debugging.hitboxes[i].r);
 		}
 		else {
-			c.strokeRect(debugging.hitboxes[i].x, debugging.hitboxes[i].y, debugging.hitboxes[i].w, debugging.hitboxes[i].h);
+			c.strokeRect(debugging.hitboxes[i].x - (game.camera.x - canvas.width / 2), debugging.hitboxes[i].y - (game.camera.y - canvas.height / 2), debugging.hitboxes[i].w, debugging.hitboxes[i].h);
+		}
+	}
+
+	for(var i = 0; i < this.content.length; i ++) {
+		var obj = this.content[i];
+		if(typeof obj.translate === "function") {
+			obj.translate(game.camera.x - canvas.width / 2, game.camera.y - canvas.height / 2);
+		}
+		else {
+			obj.x += (game.camera.x - canvas.width / 2);
+			obj.y += (game.camera.y - canvas.height / 2);
 		}
 	}
 });
 Room.method("displayBackground", function() {
 	if(this.background === "bricks") {
 		c.save(); {
-			c.translate((p.worldX * 0.9) % 100, (p.worldY * 0.9) % 100);
+			c.translate((-game.camera.x * 0.9) % 100, (-game.camera.y * 0.9) % 100);
 			c.strokeStyle = "rgb(110, 110, 110)";
 			c.lineWidth = 4;
 			for(var y = -100; y < 900; y += 50) {
@@ -5130,31 +5064,8 @@ Item.method("remove", function() {
 	p.addItem(this);
 });
 Item.method("exist", function() {
-	this.animate();
-	/* display (clipped into only where it overlaps the nearest chest horizontally) */
-	var nearestChest = game.dungeon[game.theRoom].content[0];
-	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-		var obj = game.dungeon[game.theRoom].content[i];
-		if(obj instanceof Chest && Math.distSq(obj.x, obj.y, this.x, this.y) < Math.distSq(nearestChest.x, nearestChest.y, this.x, this.y)) {
-			nearestChest = obj;
-		}
-	}
-	var self = this;
-	game.dungeon[game.theRoom].render(new RenderingOrderObject(
-		function() {
-			c.save(); {
-				c.globalAlpha = Math.constrain(self.opacity, 0, 1);
-				c.beginPath();
-				c.rect(nearestChest.x + p.worldX - 30, nearestChest.y + p.worldY - 1000, 60, 1000);
-				c.clip();
-				c.save(); {
-					c.translate(self.x + p.worldX, self.y + p.worldY);
-					self.display("item");
-				}
-			} c.restore();
-		},
-		1
-	));
+	this.update();
+	this._display();
 });
 Item.method("displayDesc", function(x, y, dir) {
 	dir = dir || "left";
@@ -5244,6 +5155,37 @@ Item.method("displayDesc", function(x, y, dir) {
 			textY = c.displayTextOverLines(this.desc[i].content, x - 205, textY + 12, 190, 12);
 		}
 	}
+});
+Item.method("_display", function() {
+	/*
+	This function is used to display the items in-game (the ones in chests). It is used because the individual items already have a method `display`.
+	*/
+	var nearestChest = game.dungeon[game.theRoom].content[0];
+	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
+		var obj = game.dungeon[game.theRoom].content[i];
+		if(obj instanceof Chest && Math.distSq(obj.x, obj.y, this.x, this.y) < Math.distSq(nearestChest.x, nearestChest.y, this.x, this.y)) {
+			nearestChest = obj;
+		}
+	}
+	var self = this;
+	game.dungeon[game.theRoom].render(new RenderingOrderObject(
+		function() {
+			c.save(); {
+				c.globalAlpha = Math.constrain(self.opacity, 0, 1);
+				c.beginPath();
+				c.rect(nearestChest.x - 30, nearestChest.y - 1000, 60, 1000);
+				c.clip();
+				c.save(); {
+					c.translate(self.x, self.y);
+					self.display("item");
+				}
+			} c.restore();
+		},
+		1
+	));
+});
+Item.method("update", function() {
+	this.animate();
 });
 
 /* weapons */
@@ -6209,7 +6151,6 @@ MagicQuiver.method("display", function() {
 		c.rotate(Math.rad(45));
 		c.fillRect(-10, -20, 20, 40);
 		c.fillCircle(0, 20, 10);
-		c.translate(-p.worldX, -p.worldY);
 		new ShotArrow(-3, -20, 0, -2).exist();
 		new ShotArrow(3, -30, 0, -2).exist();
 	} c.restore();
@@ -6457,12 +6398,12 @@ function Boulder(x, y, damage) {
 	this.opacity = 1;
 };
 Boulder.method("exist", function() {
-	var p1b = graphics3D.point3D(this.x + p.worldX - 40, this.y + p.worldY, 0.9);
-	var p2b = graphics3D.point3D(this.x + p.worldX + 40, this.y + p.worldY, 0.9);
-	var p3b = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY - 100, 0.9);
-	var p1f = graphics3D.point3D(this.x + p.worldX - 40, this.y + p.worldY, 1.1);
-	var p2f = graphics3D.point3D(this.x + p.worldX + 40, this.y + p.worldY, 1.1);
-	var p3f = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY - 100, 1.1);
+	var p1b = graphics3D.point3D(this.x - 40, this.y, 0.9);
+	var p2b = graphics3D.point3D(this.x + 40, this.y, 0.9);
+	var p3b = graphics3D.point3D(this.x, this.y - 100, 0.9);
+	var p1f = graphics3D.point3D(this.x - 40, this.y, 1.1);
+	var p2f = graphics3D.point3D(this.x + 40, this.y, 1.1);
+	var p3f = graphics3D.point3D(this.x, this.y - 100, 1.1);
 
 	/* sides */
 	c.globalAlpha = Math.max(this.opacity, 0);
@@ -6487,7 +6428,7 @@ Boulder.method("exist", function() {
 				thing.hurt(this.damage, true);
 				this.hitAnEnemy = true;
 			}
-			if(this.x + p.worldX + 40 > p.x - 5 && this.x + p.worldX - 40 < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && !this.hitAPlayer) {
+			if(this.x + 40 > p.x - 5 && this.x - 40 < p.x + 5 && this.y > p.y - 7 && this.y < p.y + 46 && !this.hitAPlayer) {
 				p.hurt(this.damage, "a chunk of rock");
 				this.hitAPlayer = true;
 			}
@@ -6506,12 +6447,12 @@ function BoulderVoid(x, y) {
 	this.opacity = 1;
 };
 BoulderVoid.method("exist", function() {
-	var p1b = graphics3D.point3D(this.x + p.worldX - 40, this.y + p.worldY, 0.9);
-	var p2b = graphics3D.point3D(this.x + p.worldX + 40, this.y + p.worldY, 0.9);
-	var p3b = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY - 100, 0.9);
-	var p1f = graphics3D.point3D(this.x + p.worldX - 40, this.y + p.worldY, 1.1);
-	var p2f = graphics3D.point3D(this.x + p.worldX + 40, this.y + p.worldY, 1.1);
-	var p3f = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY - 100, 1.1);
+	var p1b = graphics3D.point3D(this.x - 40, this.y, 0.9);
+	var p2b = graphics3D.point3D(this.x + 40, this.y, 0.9);
+	var p3b = graphics3D.point3D(this.x, this.y - 100, 0.9);
+	var p1f = graphics3D.point3D(this.x - 40, this.y, 1.1);
+	var p2f = graphics3D.point3D(this.x + 40, this.y, 1.1);
+	var p3f = graphics3D.point3D(this.x, this.y - 100, 1.1);
 	c.save(); {
 		c.globalAlpha = Math.max(this.opacity, 0);
 		c.fillStyle = "rgb(110, 110, 110)";
@@ -6589,7 +6530,7 @@ WindBurst.method("display", function() {
 		c.globalAlpha = Math.max(this.opacity, 0);
 		c.strokeStyle = "rgb(150, 150, 150)";
 		c.lineWidth = 4;
-		c.translate(this.x + p.worldX, this.y + p.worldY);
+		c.translate(this.x, this.y);
 		c.scale(this.dir === "right" ? -1 : 1, 1);
 		/* large wind graphic */
 		c.strokeLine(0, 0, 32, 0);
@@ -6723,7 +6664,7 @@ Barricade.method("getDesc", function() {
 Barricade.method("use", function() {
 	var doorNearby = false;
 	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x + p.worldX, game.dungeon[game.inRoom].content[i].y + p.worldY, 0.9);
+		var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, 0.9);
 		if(game.dungeon[game.inRoom].content[i] instanceof Door && Math.dist(loc.x, loc.y, 400, 400) <= 100 && !game.dungeon[game.inRoom].content[i].barricaded) {
 			doorNearby = true;
 			break;
@@ -6735,7 +6676,7 @@ Barricade.method("use", function() {
 	var closestDist = null;
 	var closestIndex = 0;
 	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x + p.worldX, game.dungeon[game.inRoom].content[i].y + p.worldY, 0.9);
+		var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, 0.9);
 		var theDist = Math.dist(loc.x, loc.y, 400, 400);
 		if((game.dungeon[game.inRoom].content[i] instanceof Door && theDist <= closestDist) || !(game.dungeon[game.inRoom].content[closestIndex] instanceof Door)) {
 			closestIndex = i;
@@ -6828,7 +6769,7 @@ ShotArrow.method("display", function() {
 			var angle = Math.atan2(self.velX, self.velY);
 			c.save(); {
 				c.globalAlpha = Math.max(0, self.opacity);
-				c.translate(self.x + p.worldX, self.y + p.worldY);
+				c.translate(self.x, self.y);
 				c.rotate(Math.rad(90) - angle);
 				c.strokeStyle = "rgb(139, 69, 19)";
 				c.lineWidth = 4;
@@ -6923,7 +6864,7 @@ function RandomEnemy(x, y, notEnemy) {
 	this.y = y;
 	this.notEnemy = notEnemy; // use this to specify any enemy BUT a certain enemy
 };
-RandomEnemy.method("exist", function() {
+RandomEnemy.method("update", function() {
 	if(!this.splicing) {
 		this.generate();
 		this.splicing = true;
@@ -7006,20 +6947,20 @@ Enemy.method("displayStats", function() {
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
 			c.globalAlpha = Math.max(0, self.opacity);
-			var middle = ((self.x + p.worldX + self.hitbox.right) + (self.x + p.worldX + self.hitbox.left)) / 2;
+			var middle = ((self.x + self.hitbox.right) + (self.x + self.hitbox.left)) / 2;
 			if(self instanceof Dragonling) {
-				middle = self.x + p.worldX;
+				middle = self.x;
 			}
 			c.fillStyle = "rgb(150, 150, 150)";
-			c.fillRect(middle - 30, self.y + p.worldY + self.hitbox.top - 15, 60, 10);
-			c.fillCircle(middle - 30, self.y + p.worldY + self.hitbox.top - 10, 5);
-			c.fillCircle(middle + 30, self.y + p.worldY + self.hitbox.top - 10, 5);
+			c.fillRect(middle - 30, self.y + self.hitbox.top - 15, 60, 10);
+			c.fillCircle(middle - 30, self.y + self.hitbox.top - 10, 5);
+			c.fillCircle(middle + 30, self.y + self.hitbox.top - 10, 5);
 			c.fillStyle = "rgb(255, 0, 0)";
 			var visualHealth = self.health / self.maxHealth * 60;
 			self.visualHealth += (visualHealth - self.visualHealth) / 10;
-			c.fillRect(middle - 30, self.y + p.worldY + self.hitbox.top - 15, self.visualHealth, 10);
-			c.fillCircle(middle - 30, self.y + p.worldY + self.hitbox.top - 10, 5);
-			c.fillCircle(middle - 30 + self.visualHealth, self.y + p.worldY + self.hitbox.top - 10, 5);
+			c.fillRect(middle - 30, self.y + self.hitbox.top - 15, self.visualHealth, 10);
+			c.fillCircle(middle - 30, self.y + self.hitbox.top - 10, 5);
+			c.fillCircle(middle - 30 + self.visualHealth, self.y + self.hitbox.top - 10, 5);
 		},
 		1
 	))
@@ -7110,7 +7051,7 @@ Enemy.method("exist", function() {
 		this.y += this.velY;
 	}
 	if(this.timeFrozen > 0 && !(this instanceof Wraith)) {
-		graphics3D.cube(this.x + p.worldX + this.hitbox.left, this.y + p.worldY + this.hitbox.top, (this.hitbox.right - this.hitbox.left), (this.hitbox.bottom - this.hitbox.top), 0.95, 1.05, "rgba(0, 128, 200, 0.5)", "rgba(0, 128, 200, 0.5)");
+		graphics3D.cube(this.x + this.hitbox.left, this.y + this.hitbox.top, (this.hitbox.right - this.hitbox.left), (this.hitbox.bottom - this.hitbox.top), 0.95, 1.05, "rgba(0, 128, 200, 0.5)", "rgba(0, 128, 200, 0.5)");
 	}
 	if(typeof this.attack === "function" && this.timeFrozen < 0) {
 		this.attack();
@@ -7193,7 +7134,7 @@ Spider.method("display", function() {
 			c.lineWidth = 4;
 			c.fillStyle = "rgb(0, 0, 0)";
 			c.strokeStyle = "rgb(0, 0, 0)";
-			c.fillCircle(self.x + p.worldX, self.y + p.worldY, 20);
+			c.fillCircle(self.x, self.y, 20);
 
 			for(var scale = -1; scale <= 1; scale += (1 - (-1)) ) {
 				/* scaling is used to flip the legs (for left + right pairs of legs) */
@@ -7201,8 +7142,8 @@ Spider.method("display", function() {
 					for(var legSize = 10; legSize <= 20; legSize += (20 - 10)) {
 						c.save(); {
 							c.translate(
-								self.x + p.worldX + (scale * (legSize === 10 ? 14 : 16)),
-								self.y + p.worldY + (legSize === 10 ? 14 : 4)
+								self.x + (scale * (legSize === 10 ? 14 : 16)),
+								self.y + (legSize === 10 ? 14 : 4)
 							);
 							c.rotate(Math.rad(rotation));
 							c.scale(scale, 1);
@@ -7218,8 +7159,8 @@ Spider.method("display", function() {
 			}
 			/* eyes */
 			c.fillStyle = "rgb(" + (255 - self.purity) + ", 0, " + self.purity + ")";
-			c.fillCircle(self.x + p.worldX - 10, self.y + p.worldY - 10, 5);
-			c.fillCircle(self.x + p.worldX + 10, self.y + p.worldY - 10, 5);
+			c.fillCircle(self.x - 10, self.y - 10, 5);
+			c.fillCircle(self.x + 10, self.y - 10, 5);
 		},
 		1
 	));
@@ -7227,7 +7168,7 @@ Spider.method("display", function() {
 Spider.method("update", function(dest) {
 	if(dest === "player") {
 		if(this.timePurified < 0) {
-			if(this.x + p.worldX < p.x) {
+			if(this.x < p.x) {
 				this.velX = 2;
 			}
 			else {
@@ -7236,7 +7177,7 @@ Spider.method("update", function(dest) {
 		}
 		else {
 			if(this.timePurified === 599) {
-				this.walking = {dir: (this.x + p.worldX < p.x) ? "right" : "left", time: 60};
+				this.walking = {dir: (this.x < p.x) ? "right" : "left", time: 60};
 			}
 			if(this.walking.dir === "right") {
 				this.x ++;
@@ -7280,7 +7221,7 @@ Spider.method("update", function(dest) {
 		this.x += this.velX;
 		this.y += this.velY;
 		this.velY += 0.1;
-		if(this.canJump && Math.dist(this.x + p.worldX, p.x) <= 130 && Math.dist(this.x + p.worldX, p.x) >= 120 && dest === "player") {
+		if(this.canJump && Math.dist(this.x, p.x) <= 130 && Math.dist(this.x, p.x) >= 120 && dest === "player") {
 			this.velY = -4;
 		}
 		this.canJump = false;
@@ -7332,16 +7273,16 @@ Bat.method("display", function() {
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
 			c.fillStyle = "rgb(0, 0, 0)";
-			c.fillCircle(self.x + p.worldX, self.y + p.worldY, 10);
+			c.fillCircle(self.x, self.y, 10);
 
 			c.fillStyle = "rgb(" + (255 - self.purity) + ", 0, " + self.purity + ")";
-			c.fillCircle(self.x + p.worldX - 2, self.y + p.worldY - 4, 2);
-			c.fillCircle(self.x + p.worldX + 2, self.y + p.worldY - 4, 2);
+			c.fillCircle(self.x - 2, self.y - 4, 2);
+			c.fillCircle(self.x + 2, self.y - 4, 2);
 
 			c.fillStyle = "rgb(0, 0, 0)";
 			for(var scale = -1; scale <= 1; scale += 2) {
 				c.save(); {
-					c.translate(self.x + p.worldX + (5 * scale), self.y + p.worldY);
+					c.translate(self.x + (5 * scale), self.y);
 					c.rotate(Math.rad(self.wings * scale));
 					c.scale(scale, 1);
 					c.fillPoly(
@@ -7367,16 +7308,16 @@ Bat.method("update", function(dest) {
 		}
 
 		if(this.timePurified < 0) {
-			if(this.x + p.worldX < p.x) {
+			if(this.x < p.x) {
 				this.velX += 0.1;
 			}
-			else if(this.x + p.worldX > p.x) {
+			else if(this.x > p.x) {
 				this.velX -= 0.1;
 			}
-			if(this.y + p.worldY < p.y) {
+			if(this.y < p.y) {
 				this.velY += 0.1;
 			}
-			else if(this.y + p.worldY > p.y) {
+			else if(this.y > p.y) {
 			this.velY -= 0.1;
 		}
 		}
@@ -7471,42 +7412,42 @@ Skeleton.method("display", function() {
 			/* head */
 			c.fillStyle = "rgb(255, 255, 255)";
 			c.strokeStyle = "rgb(255, 255, 255)";
-			c.fillCircle(self.x + p.worldX, self.y + p.worldY + 3, 7);
-			c.fillRect(self.x + p.worldX - 3, self.y + p.worldY + 3, 6, 10);
+			c.fillCircle(self.x, self.y + 3, 7);
+			c.fillRect(self.x - 3, self.y + 3, 6, 10);
 			/* body */
-			c.strokeLine(self.x + p.worldX, self.y + p.worldY, self.x + p.worldX, self.y + p.worldY + 36);
+			c.strokeLine(self.x, self.y, self.x, self.y + 36);
 			/* legs */
 			c.strokeLine(
-				self.x + p.worldX, self.y + p.worldY + 36,
-				self.x + p.worldX + self.legs, self.y + p.worldY + 36 + 7
+				self.x, self.y + 36,
+				self.x + self.legs, self.y + 36 + 7
 			);
 			c.strokeLine(
-				self.x + p.worldX, self.y + p.worldY + 36,
-				self.x + p.worldX - self.legs, self.y + p.worldY + 36 + 7
+				self.x, self.y + 36,
+				self.x - self.legs, self.y + 36 + 7
 			);
 			self.legs += self.legDir;
 			self.legDir = (self.legs < -7) ? 0.5 : self.legDir;
 			self.legDir = (self.legs > 7) ? -0.5 : self.legDir;
 			/* arms */
 			c.strokeLine(
-				self.x + p.worldX     , self.y + p.worldY + 15,
-				self.x + p.worldX + 10, self.y + p.worldY + 15
+				self.x     , self.y + 15,
+				self.x + 10, self.y + 15
 			);
 			c.strokeLine(
-				self.x + p.worldX + 8, self.y + p.worldY + 15,
-				self.x + p.worldX + 8, self.y + p.worldY + 15 + 10
+				self.x + 8, self.y + 15,
+				self.x + 8, self.y + 15 + 10
 			);
 			c.strokeLine(
-				self.x + p.worldX     , self.y + p.worldY + 15,
-				self.x + p.worldX - 10, self.y + p.worldY + 15
+				self.x     , self.y + 15,
+				self.x - 10, self.y + 15
 			);
 			c.strokeLine(
-				self.x + p.worldX - 8, self.y + p.worldY + 15,
-				self.x + p.worldX - 8, self.y + p.worldY + 15 + 10
+				self.x - 8, self.y + 15,
+				self.x - 8, self.y + 15 + 10
 			);
 			/* ribcage */
-			for(var y = self.y + p.worldY + 22; y < self.y + p.worldY + 34; y += 4) {
-				c.strokeLine(self.x + p.worldX - 5, y, self.x + p.worldX + 5, y);
+			for(var y = self.y + 22; y < self.y + 34; y += 4) {
+				c.strokeLine(self.x - 5, y, self.x + 5, y);
 			}
 		},
 		1
@@ -7518,8 +7459,8 @@ Skeleton.method("update", function(dest) {
 		this.x += this.velX;
 		this.y += this.velY;
 		this.velY += 0.1;
-		this.velX += (this.x + p.worldX < p.x) ? 0.1 : 0;
-		this.velX -= (this.x + p.worldX > p.x) ? 0.1 : 0;
+		this.velX += (this.x < p.x) ? 0.1 : 0;
+		this.velX -= (this.x > p.x) ? 0.1 : 0;
 		this.velX *= 0.96;
 		if(Math.random() <= 0.02 && this.canJump) {
 			this.velY = Math.randomInRange(-2, -5);
@@ -7560,6 +7501,7 @@ function SkeletonWarrior(x, y) {
 	this.attackArmDir = 3;
 	this.canHit = true;
 	this.timeSinceAttack = 0;
+	this.facing = "right";
 
 	/* hitbox */
 	this.hitbox = {
@@ -7588,44 +7530,44 @@ SkeletonWarrior.method("display", function() {
 			/* head */
 			c.fillStyle = "rgb(255, 255, 255)";
 			c.strokeStyle = "rgb(255, 255, 255)";
-			c.fillCircle(self.x + p.worldX, self.y + p.worldY + 3, 7);
-			c.fillRect(self.x + p.worldX - 3, self.y + p.worldY + 3, 6, 10);
+			c.fillCircle(self.x, self.y + 3, 7);
+			c.fillRect(self.x - 3, self.y + 3, 6, 10);
 			/* body */
 			c.strokeLine(
-				self.x + p.worldX, self.y + p.worldY,
-				self.x + p.worldX, self.y + p.worldY + 36
+				self.x, self.y,
+				self.x, self.y + 36
 			);
 			/* legs */
 			c.strokeLine(
-				self.x + p.worldX            , self.y + p.worldY + 36,
-				self.x + p.worldX + self.legs, self.y + p.worldY + 36 + 7
+				self.x            , self.y + 36,
+				self.x + self.legs, self.y + 36 + 7
 			);
 			c.strokeLine(
-				self.x + p.worldX            , self.y + p.worldY + 36,
-				self.x + p.worldX - self.legs, self.y + p.worldY + 36 + 7
+				self.x            , self.y + 36,
+				self.x - self.legs, self.y + 36 + 7
 			);
 			self.legs += self.legDir;
 			self.legDir = (self.legs < -7) ? 0.5 : self.legDir;
 			self.legDir = (self.legs > 7) ? -0.5 : self.legDir;
 			/* arms */
-			if(self.x + p.worldX > p.x) {
+			if(self.facing === "left") {
 				/* right arm (normal) */
 				c.strokeLine(
-					self.x + p.worldX     , self.y + p.worldY + 15,
-					self.x + p.worldX + 10, self.y + p.worldY + 15
+					self.x     , self.y + 15,
+					self.x + 10, self.y + 15
 				);
 				c.strokeLine(
-					self.x + p.worldX + 8, self.y + p.worldY + 15,
-					self.x + p.worldX + 8, self.y + p.worldY + 15 + 10
+					self.x + 8, self.y + 15,
+					self.x + 8, self.y + 15 + 10
 				);
 				/* left shoulder (normal) */
 				c.strokeLine(
-					self.x + p.worldX     , self.y + p.worldY + 15,
-					self.x + p.worldX - 10, self.y + p.worldY + 15
+					self.x     , self.y + 15,
+					self.x - 10, self.y + 15
 				);
 				/* left arm (attacking) */
 				c.save(); {
-					c.translate(self.x + p.worldX - 8, self.y + p.worldY + 15);
+					c.translate(self.x - 8, self.y + 15);
 					c.rotate(Math.rad(self.attackArm));
 					c.strokeLine(0, 0, -10, 0);
 					/* sword */
@@ -7636,21 +7578,21 @@ SkeletonWarrior.method("display", function() {
 			else {
 				/* left arm (normal) */
 				c.strokeLine(
-					self.x + p.worldX     , self.y + p.worldY + 15,
-					self.x + p.worldX - 10, self.y + p.worldY + 15
+					self.x     , self.y + 15,
+					self.x - 10, self.y + 15
 				);
 				c.strokeLine(
-					self.x + p.worldX - 8, self.y + p.worldY + 15,
-					self.x + p.worldX - 8, self.y + p.worldY + 15 + 10
+					self.x - 8, self.y + 15,
+					self.x - 8, self.y + 15 + 10
 				);
 				/* right shoulder (normal) */
 				c.strokeLine(
-					self.x + p.worldX     , self.y + p.worldY + 15,
-					self.x + p.worldX + 10, self.y + p.worldY + 15
+					self.x     , self.y + 15,
+					self.x + 10, self.y + 15
 				);
 				/* right arm (attacking) */
 				c.save(); {
-					c.translate(self.x + p.worldX + 8, self.y + p.worldY + 15);
+					c.translate(self.x + 8, self.y + 15);
 					c.rotate(Math.rad(-self.attackArm));
 					c.strokeLine(0, 0, 10, 0);
 					/* sword */
@@ -7659,10 +7601,10 @@ SkeletonWarrior.method("display", function() {
 				} c.restore();
 			}
 			/* ribcage */
-			for(var y = self.y + p.worldY + 22; y < self.y + p.worldY + 34; y += 4) {
+			for(var y = self.y + 22; y < self.y + 34; y += 4) {
 				c.strokeLine(
-					self.x + p.worldX - 5, y,
-					self.x + p.worldX + 5, y
+					self.x - 5, y,
+					self.x + 5, y
 				);
 			}
 		},
@@ -7671,16 +7613,17 @@ SkeletonWarrior.method("display", function() {
 });
 SkeletonWarrior.method("update", function(dest) {
 	if(dest === "player") {
+		this.facing = (this.x < p.x) ? "right" : "left";
 		/* movement */
 		this.x += this.velX;
 		this.y += this.velY;
-		if(this.x + p.worldX < p.x) {
-			this.velX = (this.x + p.worldX < p.x - 60) ? this.velX + 0.1 : this.velX;
-			this.velX = (this.x + p.worldX > p.x - 60) ? this.velX - 0.1 : this.velX;
+		if(this.x < p.x) {
+			this.velX = (this.x < p.x - 60) ? this.velX + 0.1 : this.velX;
+			this.velX = (this.x > p.x - 60) ? this.velX - 0.1 : this.velX;
 		}
 		else {
-			this.velX = (this.x + p.worldX < p.x + 60) ? this.velX + 0.1 : this.velX;
-			this.velX = (this.x + p.worldX > p.x + 60) ? this.velX - 0.1 : this.velX;
+			this.velX = (this.x < p.x + 60) ? this.velX + 0.1 : this.velX;
+			this.velX = (this.x > p.x + 60) ? this.velX - 0.1 : this.velX;
 		}
 		this.velX *= 0.96;
 		this.velY += 0.1;
@@ -7707,10 +7650,10 @@ SkeletonWarrior.method("attack", function() {
 	this.timeSinceAttack ++;
 	this.attackArmDir = (this.attackArm > 360) ? -3 : this.attackArmDir;
 	this.attackArmDir = (this.attackArm < 270) ? 3 : this.attackArmDir;
-	if(this.x + p.worldX < p.x) {
+	if(this.x < p.x) {
 		var swordEnd = Math.rotate(10, -60, -this.attackArm);
-		swordEnd.x += this.x + p.worldX + 8;
-		swordEnd.y += this.y + p.worldY + 15;
+		swordEnd.x += this.x + 8;
+		swordEnd.y += this.y + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
 			var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 			p.hurt(damage, this.name);
@@ -7721,8 +7664,8 @@ SkeletonWarrior.method("attack", function() {
 	}
 	else {
 		var swordEnd = Math.rotate(-10, -60, this.attackArm);
-		swordEnd.x += this.x + p.worldX - 8;
-		swordEnd.y += this.y + p.worldY + 15;
+		swordEnd.x += this.x - 8;
+		swordEnd.y += this.y + 15;
 		if(swordEnd.x > p.x - 5 && swordEnd.x < p.x + 5 && swordEnd.y > p.y && swordEnd.y < p.y + 46 && this.canHit) {
 			var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 			p.hurt(damage, this.name);
@@ -7778,31 +7721,31 @@ SkeletonArcher.method("display", function() {
 			/* head */
 			c.fillStyle = "rgb(255, 255, 255)";
 			c.strokeStyle = "rgb(255, 255, 255)";
-			c.fillCircle(self.x + p.worldX, self.y + p.worldY + 3, 7);
-			c.fillRect(self.x + p.worldX - 3, self.y + p.worldY + 3, 6, 10);
+			c.fillCircle(self.x, self.y + 3, 7);
+			c.fillRect(self.x - 3, self.y + 3, 6, 10);
 			/* body */
 			c.strokeLine(
-				self.x + p.worldX, self.y + p.worldY,
-				self.x + p.worldX, self.y + p.worldY + 36
+				self.x, self.y,
+				self.x, self.y + 36
 			);
 			/* legs */
 			c.strokeLine(
-				self.x + p.worldX            , self.y + p.worldY + 36,
-				self.x + p.worldX + self.legs, self.y + p.worldY + 36 + 7
+				self.x            , self.y + 36,
+				self.x + self.legs, self.y + 36 + 7
 			);
 			c.strokeLine(
-				self.x + p.worldX            , self.y + p.worldY + 36,
-				self.x + p.worldX - self.legs, self.y + p.worldY + 36 + 7
+				self.x            , self.y + 36,
+				self.x - self.legs, self.y + 36 + 7
 			);
 			/* shoulders */
 			c.strokeLine(
-				self.x + p.worldX - 10, self.y + p.worldY + 15,
-				self.x + p.worldX + 10, self.y + p.worldY + 15
+				self.x - 10, self.y + 15,
+				self.x + 10, self.y + 15
 			);
 			/* right arm */
-			if(self.x + p.worldX < p.x && self.timeSinceAttack > 60) {
+			if(self.x < p.x && self.timeSinceAttack > 60) {
 				c.save(); {
-					c.translate(self.x + p.worldX + 8, self.y + p.worldY + 15);
+					c.translate(self.x + 8, self.y + 15);
 					c.rotate(Math.rad(self.aimRot));
 					c.strokeLine(0, 0, 10, 0);
 					c.translate(10, 0);
@@ -7812,14 +7755,14 @@ SkeletonArcher.method("display", function() {
 			}
 			else {
 				c.strokeLine(
-					self.x + p.worldX + 8, self.y + p.worldY + 15,
-					self.x + p.worldX + 8, self.y + p.worldY + 15 + 10
+					self.x + 8, self.y + 15,
+					self.x + 8, self.y + 15 + 10
 				);
 			}
 			/* left arm */
-			if(self.x + p.worldX > p.x && self.timeSinceAttack > 60) {
+			if(self.x > p.x && self.timeSinceAttack > 60) {
 				c.save(); {
-					c.translate(self.x + p.worldX - 8, self.y + p.worldY + 15);
+					c.translate(self.x - 8, self.y + 15);
 					c.rotate(Math.rad(-self.aimRot));
 					c.strokeLine(0, 0, -10, 0);
 
@@ -7831,15 +7774,15 @@ SkeletonArcher.method("display", function() {
 			}
 			else {
 				c.strokeLine(
-					self.x + p.worldX - 8, self.y + p.worldY + 15,
-					self.x + p.worldX - 8, self.y + p.worldY + 15 + 10
+					self.x - 8, self.y + 15,
+					self.x - 8, self.y + 15 + 10
 				);
 			}
 			/* ribcage */
-			for(var y = self.y + p.worldY + 22; y < self.y + p.worldY + 34; y += 4) {
+			for(var y = self.y + 22; y < self.y + 34; y += 4) {
 				c.strokeLine(
-					self.x + p.worldX - 5, y,
-					self.x + p.worldX + 5, y
+					self.x - 5, y,
+					self.x + 5, y
 				);
 			}
 		},
@@ -7849,9 +7792,9 @@ SkeletonArcher.method("display", function() {
 SkeletonArcher.method("update", function(dest) {
 	if(dest === "player") {
 		this.legs += this.legDir;
-		if(this.x + p.worldX < p.x) {
+		if(this.x < p.x) {
 			/* moving towards p.x - 200 */
-			if(this.x + p.worldX < p.x - 205 || this.x + p.worldX > p.x - 195) {
+			if(this.x < p.x - 205 || this.x > p.x - 195) {
 				this.legDir = (this.legs > 7) ? -0.5 : this.legDir;
 				this.legDir = (this.legs < -7) ? 0.5 : this.legDir;
 			}
@@ -7862,7 +7805,7 @@ SkeletonArcher.method("update", function(dest) {
 		}
 		else {
 			/* moving towards p.x + 200 */
-			if(this.x + p.worldX < p.x + 195 || this.x + p.worldX > p.x + 205) {
+			if(this.x < p.x + 195 || this.x > p.x + 205) {
 				this.legDir = (this.legs > 7) ? -0.5 : this.legDir;
 				this.legDir = (this.legs < -7) ? 0.5 : this.legDir;
 			}
@@ -7873,13 +7816,13 @@ SkeletonArcher.method("update", function(dest) {
 		}
 		/* movement */
 		this.y += this.velY;
-		if(this.x + p.worldX > p.x) {
-			this.x = (this.x + p.worldX < p.x + 195) ? this.x + 2 : this.x;
-			this.x = (this.x + p.worldX > p.x + 205) ? this.x - 2 : this.x;
+		if(this.x > p.x) {
+			this.x = (this.x < p.x + 195) ? this.x + 2 : this.x;
+			this.x = (this.x > p.x + 205) ? this.x - 2 : this.x;
 		}
 		else {
-			this.x = (this.x + p.worldX < p.x - 195) ? this.x + 2 : this.x;
-			this.x = (this.x + p.worldX > p.x - 205) ? this.x - 2 : this.x;
+			this.x = (this.x < p.x - 195) ? this.x + 2 : this.x;
+			this.x = (this.x > p.x - 205) ? this.x - 2 : this.x;
 		}
 		this.velY += 0.1;
 		this.canJump = false;
@@ -7896,15 +7839,15 @@ SkeletonArcher.method("attack", function() {
 	/* attack */
 	this.timeSinceAttack ++;
 	if(this.timeSinceAttack > 60) {
-		if(this.x + p.worldX < p.x) {
+		if(this.x < p.x) {
 			var velocity = Math.rotate(50, 0, this.aimRot);
 			velocity.x /= 5;
 			velocity.y /= 5;
 			var velY = velocity.y / 1.75;
 			var velX = velocity.x / 1.75;
 			var simulationVelY = velY;
-			velocity.x += this.x + p.worldX + 8;
-			velocity.y += this.y + p.worldY + 15;
+			velocity.x += this.x + 8;
+			velocity.y += this.y + 15;
 			var x = velocity.x;
 			var y = velocity.y;
 			while(x < p.x) {
@@ -7916,7 +7859,7 @@ SkeletonArcher.method("attack", function() {
 				this.timeSinceAttack = 0;
 				this.timeAiming = 0;
 				var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
-				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
+				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 			}
 			else if(y <= p.y - 7) {
 				this.aimRot ++;
@@ -7926,7 +7869,7 @@ SkeletonArcher.method("attack", function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
-						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
+						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
 			}
@@ -7938,7 +7881,7 @@ SkeletonArcher.method("attack", function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
-						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
+						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
 			}
@@ -7950,8 +7893,8 @@ SkeletonArcher.method("attack", function() {
 			var velY = velocity.y / 1.75;
 			var velX = velocity.x / 1.75;
 			var simulationVelY = velY;
-			velocity.x += this.x + p.worldX - 8;
-			velocity.y += this.y + p.worldY + 15;
+			velocity.x += this.x - 8;
+			velocity.y += this.y + 15;
 			var x = velocity.x;
 			var y = velocity.y;
 			while(x > p.x) {
@@ -7963,7 +7906,7 @@ SkeletonArcher.method("attack", function() {
 				this.timeSinceAttack = 0;
 				this.timeAiming = 0;
 				var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
-				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
+				game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 			}
 			else if(y <= p.y - 7) {
 				this.aimRot ++;
@@ -7973,7 +7916,7 @@ SkeletonArcher.method("attack", function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
-						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
+						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
 			}
@@ -7985,7 +7928,7 @@ SkeletonArcher.method("attack", function() {
 						this.timeSinceAttack = 0;
 						this.timeAiming = 0;
 						var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
-						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x - p.worldX, velocity.y - p.worldY, velX, velY, damage, "enemy", "none", "a skeletal archer"));
+						game.dungeon[game.inRoom].content.push(new ShotArrow(velocity.x, velocity.y, velX, velY, damage, "enemy", "none", "a skeletal archer"));
 					}
 				}
 			}
@@ -8013,7 +7956,7 @@ Particle.method("display", function(noRequest) {
 	noRequest = noRequest || false;
 
 	var self = this;
-	var center = graphics3D.point3D(this.x + p.worldX, this.y + p.worldY, this.z);
+	var center = graphics3D.point3D(this.x, this.y, this.z);
 	var radius = this.size * this.z;
 	var display = function() {
 		c.save(); {
@@ -8083,8 +8026,8 @@ Wraith.method("display", function() {
 Wraith.method("update", function(dest) {
 	if(dest === "player") {
 		/* movement */
-		if(Math.dist(this.x + p.worldX, this.y + p.worldY, p.x, p.y) <= 100) {
-			var idealX = (this.x + p.worldX < p.x) ? p.x - p.worldX - 150 : p.x - p.worldX + 150;
+		if(Math.dist(this.x, this.y, p.x, p.y) <= 100) {
+			var idealX = (this.x < p.x) ? p.x - 150 : p.x + 150;
 			this.x += (idealX - this.x) / 60;
 		}
 		this.timeSinceAttack ++;
@@ -8097,7 +8040,7 @@ Wraith.method("update", function(dest) {
 Wraith.method("attack", function() {
 	/* attacking */
 	if(this.timeSinceAttack > 60) {
-		var velocity = Math.normalize(p.x - (this.x + p.worldX), p.y - (this.y + p.worldY));
+		var velocity = Math.normalize(p.x - (this.x), p.y - (this.y));
 		velocity.x *= 10;
 		velocity.y *= 10;
 		game.dungeon[game.theRoom].content.push(new MagicCharge(this.x, this.y, velocity.x, velocity.y, "shadow", Math.randomInRange(this.damLow, this.damHigh)));
@@ -8106,6 +8049,15 @@ Wraith.method("attack", function() {
 });
 Wraith.method("handleCollision", function(direction, collision) {
 
+});
+Wraith.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	for(var i = 0; i < this.particles.length; i ++) {
+		var particle = this.particles[i];
+		particle.x += x;
+		particle.y += y;
+	}
 });
 
 function MagicCharge(x, y, velX, velY, type, damage) {
@@ -8125,13 +8077,22 @@ function MagicCharge(x, y, velX, velY, type, damage) {
 	};
 	this.noTeleportCollisions = true;
 };
-MagicCharge.method("exist", function() {
+MagicCharge.method("display", function() {
 	/* graphics */
 	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].exist();
+		this.particles[i].display();
 		if(this.particles[i].opacity <= 0) {
 			this.particles.splice(i, 1);
 		}
+	}
+});
+MagicCharge.method("update", function() {
+	/* collision with player */
+	// if(this.x > p.x - 5 && this.x < p.x + 5 && this.y > p.y - 7 && this.y < p.y + 46 && (this.type === "shadow" || (this.type === "fire" && this.shotBy === "enemy"))) {
+	if(utilities.collidesWith(this, p) && (this.type === "shadow" || (this.type === "fire" && this.shotBy === "enemy"))) {
+		var damage = Math.round(Math.randomInRange(40, 50));
+		p.hurt(damage, (this.type === "shadow") ? "a wraith" : "a dragonling");
+		this.splicing = true;
 	}
 	const COLORS = {
 		"shadow": "rgb(0, 0, 0)",
@@ -8169,7 +8130,7 @@ MagicCharge.method("exist", function() {
 						if(lowestIndex !== null) {
 							if(block instanceof Block) {
 								if(enemy.x > block.x && enemy.x < block.x + block.w && block.y + block.h > game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h) {
-									if(block.y + game.dungeon[game.inRoom].content[j].h <= enemy.y - p.worldY + enemy.hitbox.top) {
+									if(block.y + game.dungeon[game.inRoom].content[j].h <= enemy.y + enemy.hitbox.top) {
 										lowestIndex = j;
 									}
 								}
@@ -8178,7 +8139,7 @@ MagicCharge.method("exist", function() {
 						else if(game.dungeon[game.inRoom].content[j] instanceof Block) {
 							if(lowestIndex === null) {
 								if(enemy.x > game.dungeon[game.inRoom].content[j].x && enemy.x < game.dungeon[game.inRoom].content[j].x + game.dungeon[game.inRoom].content[j].w) {
-									if(game.dungeon[game.inRoom].content[j].y <= enemy.y - p.worldY) {
+									if(game.dungeon[game.inRoom].content[j].y <= enemy.y) {
 										lowestIndex = j;
 									}
 								}
@@ -8212,17 +8173,11 @@ MagicCharge.method("exist", function() {
 			if(Math.distSq(this.x, this.y, bridge.x, bridge.y + 500) < 250000) {
 				this.splicing = true;
 				if(this.type === "chaos") {
-					p.x = this.x + p.worldX;
-					p.y = this.y + p.worldY - 46;
+					p.x = this.x;
+					p.y = this.y - 46;
 				}
 			}
 		}
-	}
-	/* collision with player */
-	if(this.x + p.worldX > p.x - 5 && this.x + p.worldX < p.x + 5 && this.y + p.worldY > p.y - 7 && this.y + p.worldY < p.y + 46 && (this.type === "shadow" || (this.type === "fire" && this.shotBy === "enemy"))) {
-		var damage = Math.round(Math.randomInRange(40, 50));
-		p.hurt(damage, (this.type === "shadow") ? "a wraith" : "a dragonling");
-		this.splicing = true;
 	}
 });
 MagicCharge.method("remove", function() {
@@ -8234,8 +8189,8 @@ MagicCharge.method("handleCollision", function(direction, collision) {
 	this.splicing = true;
 	/* teleport player to position for chaos charges */
 	if(this.type === "chaos" && !p.aiming) {
-		p.x = this.x + p.worldX;
-		p.y = this.y + p.worldY;
+		p.x = this.x;
+		p.y = this.y;
 		for(var j = 0; j < collisions.length; j ++) {
 			while(p.x + 5 > collisions.collisions[i].x && p.x - 5 < collisions.collisions[i].x + 10 && p.y + 46 > collisions.collisions[i].y && p.y - 7 < collisions.collisions[i].y + collisions.collisions[i].h) {
 				p.x --;
@@ -8250,6 +8205,15 @@ MagicCharge.method("handleCollision", function(direction, collision) {
 				p.y --;
 			}
 		}
+	}
+});
+MagicCharge.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	for(var i = 0; i < this.particles.length; i ++) {
+		var particle = this.particles[i];
+		particle.x += x;
+		particle.y += y;
 	}
 });
 
@@ -8290,7 +8254,7 @@ Troll.method("display", function() {
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
 			c.save(); {
-				c.translate(self.x + p.worldX, self.y + p.worldY);
+				c.translate(self.x, self.y);
 				c.scale(0.75, 0.75);
 				/* rounded shoulders */
 				c.fillStyle = "rgb(0, 128, 0)";
@@ -8343,14 +8307,14 @@ Troll.method("display", function() {
 			} c.restore();
 			/* right arm */
 			c.save(); {
-				c.translate(self.x + p.worldX + 40, self.y + p.worldY - 10);
+				c.translate(self.x + 40, self.y - 10);
 				if(self.armAttacking === "right") {
 					c.rotate(Math.rad(self.attackArm));
 				}
 				else {
 					c.rotate(Math.rad(60));
 				}
-				if(self.x + p.worldX < p.x && self.currentAction === "melee-attack") {
+				if(self.x < p.x && self.currentAction === "melee-attack") {
 					c.fillStyle = "rgb(139, 69, 19)";
 					c.fillPoly(
 						45, 0,
@@ -8370,14 +8334,14 @@ Troll.method("display", function() {
 			} c.restore();
 			/* left arm */
 			c.save(); {
-				c.translate(self.x + p.worldX - 40, self.y + p.worldY - 10);
+				c.translate(self.x - 40, self.y - 10);
 				if(self.armAttacking === "left") {
 					c.rotate(Math.rad(-self.attackArm));
 				}
 				else {
 					c.rotate(Math.rad(-60));
 				}
-				if(self.x + p.worldX > p.x && self.currentAction === "melee-attack") {
+				if(self.x > p.x && self.currentAction === "melee-attack") {
 					c.fillStyle = "rgb(139, 69, 19)";
 					c.fillPoly(
 						-45, 0,
@@ -8422,17 +8386,17 @@ Troll.method("update", function() {
 	this.attackArm += this.attackArmDir;
 	/* this.attackRecharge ++; */
 	if(this.currentAction === "move") {
-		if(this.x + p.worldX < p.x) {
-			this.velX = (this.x + p.worldX < p.x - 100) ? 1 : this.velX;
-			this.velX = (this.x + p.worldX > p.x - 100) ? -1 : this.velX;
+		if(this.x < p.x) {
+			this.velX = (this.x < p.x - 100) ? 1 : this.velX;
+			this.velX = (this.x > p.x - 100) ? -1 : this.velX;
 		}
 		else {
-			this.velX = (this.x + p.worldX < p.x + 100) ? 1 : this.velX;
-			this.velX = (this.x + p.worldX > p.x + 100) ? -1 : this.velX;
+			this.velX = (this.x < p.x + 100) ? 1 : this.velX;
+			this.velX = (this.x > p.x + 100) ? -1 : this.velX;
 		}
 		this.timeDoingAction ++;
 		if(this.timeDoingAction > 90) {
-			if(Math.dist(this.x + p.worldX, p.x) > 150) {
+			if(Math.dist(this.x, p.x) > 150) {
 				this.currentAction = "ranged-attack";
 			}
 			else {
@@ -8445,7 +8409,7 @@ Troll.method("update", function() {
 	else if(this.currentAction === "ranged-attack") {
 		this.velX = 0;
 		this.walking = false;
-		if(this.x + p.worldX < p.x) {
+		if(this.x < p.x) {
 			this.armAttacking = "left";
 		}
 		else {
@@ -8455,6 +8419,8 @@ Troll.method("update", function() {
 			this.attackArmDir = -5;
 		}
 		if(this.attackArm < -45) {
+			console.log("throwing rock");
+			console.log(this.x, this.y);
 			if(this.armAttacking === "left") {
 				game.dungeon[game.theRoom].content.push(new Rock(this.x - 40 - 35, this.y - 10 - 35, 3, -4));
 			}
@@ -8475,7 +8441,7 @@ Troll.method("update", function() {
 		this.attackArmDir = (this.attackArm > 80) ? -2 : this.attackArmDir;
 		this.attackArmDir = (this.attackArm < 0) ? 2 : this.attackArmDir;
 		this.attackArmDir = (this.attackArmDir === 0) ? -2 : this.attackArmDir;
-		if(this.x + p.worldX < p.x) {
+		if(this.x < p.x) {
 			this.armAttacking = "right";
 		}
 		else {
@@ -8492,15 +8458,15 @@ Troll.method("update", function() {
 			if(this.armAttacking === "left") {
 				weaponPos.x = -weaponPos.x;
 			}
-			weaponPos.x += this.x + p.worldX + (this.armAttacking === "right" ? 40 : -40);
-			weaponPos.y += this.y + p.worldY - 10;
+			weaponPos.x += this.x + (this.armAttacking === "right" ? 40 : -40);
+			weaponPos.y += this.y - 10;
 			if(weaponPos.x > p.x - 5 && weaponPos.x < p.x + 5 && weaponPos.y > p.y - 7 && weaponPos.y < p.y + 46 && this.attackRecharge < 0) {
 				p.hurt(Math.floor(Math.randomInRange(40, 50)), "a troll");
 				this.attackRecharge = 45;
 			}
 		}
 	}
-	collisions.rect(this.x + p.worldX - 40, this.y + p.worldY - 20, 80, 60);
+	collisions.rect(this.x - 40, this.y - 20, 80, 60);
 });
 Troll.method("handleCollision", function(direction, collision) {
 
@@ -8519,25 +8485,15 @@ function Rock(x, y, velX, velY) {
 };
 Rock.method("exist", function() {
 	if(!this.hitSomething) {
-		this.x += this.velX;
-		this.y += this.velY;
-		this.velY += 0.1;
-		c.save(); {
-			c.globalAlpha = this.opacity;
-			c.fillStyle = "rgb(140, 140, 140)";
-			c.fillCircle(this.x + p.worldX, this.y + p.worldY, 20);
-		} c.restore();
 	}
-	if(!this.hitPlayer && this.x + p.worldX + 20 > p.x - 5 && this.x + p.worldX - 20 < p.x + 5 && this.y + p.worldY + 20 > p.y - 7 && this.y + p.worldY - 20 < p.y + 46) {
-		p.hurt(Math.randomInRange(40, 50), "a troll");
-		this.hitPlayer = true;
+	if(!this.hitPlayer && this.x + 20 > p.x - 5 && this.x - 20 < p.x + 5 && this.y + 20 > p.y - 7 && this.y - 20 < p.y + 46) {
 	}
 	if(this.hitSomething) {
 		c.save(); {
 			c.fillStyle = "rgb(140, 140, 140)";
 			for(var i = 0; i < this.fragments.length; i ++) {
 				c.globalAlpha = this.fragments[i].opacity;
-				c.fillCircle(this.fragments[i].x + p.worldX, this.fragments[i].y + p.worldY, 5);
+				c.fillCircle(this.fragments[i].x, this.fragments[i].y, 5);
 				this.fragments[i].x += this.fragments[i].velX;
 				this.fragments[i].y += this.fragments[i].velY;
 				this.fragments[i].velY += 0.1;
@@ -8547,6 +8503,49 @@ Rock.method("exist", function() {
 				}
 			}
 		} c.restore();
+	}
+});
+Rock.method("display", function() {
+	if(!this.hitSomething) {
+		c.save(); {
+			c.globalAlpha = this.opacity;
+			c.fillStyle = "rgb(140, 140, 140)";
+			c.fillCircle(this.x, this.y, 20);
+		} c.restore();
+	}
+	else {
+		c.save(); {
+			c.fillStyle = "rgb(140, 140, 140)";
+			for(var i = 0; i < this.fragments.length; i ++) {
+				c.globalAlpha = this.fragments[i].opacity;
+				c.fillCircle(this.fragments[i].x, this.fragments[i].y, 5);
+			}
+		} c.restore();
+	}
+});
+Rock.method("update", function() {
+	if(!this.hitSomething) {
+		this.x += this.velX;
+		this.y += this.velY;
+		this.velY += 0.1;
+	}
+	else {
+		c.save(); {
+			c.fillStyle = "rgb(140, 140, 140)";
+			for(var i = 0; i < this.fragments.length; i ++) {
+				this.fragments[i].x += this.fragments[i].velX;
+				this.fragments[i].y += this.fragments[i].velY;
+				this.fragments[i].velY += 0.1;
+				this.fragments[i].opacity -= 0.05;
+				if(this.fragments[i].opacity <= 0) {
+					this.splicing = true;
+				}
+			}
+		} c.restore();
+	}
+	if(!this.hitPlayer && utilities.collidesWith(this, p)) {
+		p.hurt(Math.randomInRange(40, 50), "a troll");
+		this.hitPlayer = true;
 	}
 });
 Rock.method("handleCollision", function(direction, collision) {
@@ -8561,11 +8560,20 @@ Rock.method("handleCollision", function(direction, collision) {
 		}
 	}
 });
+Rock.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	for(var i = 0; i < this.fragments.length; i ++) {
+		var particle = this.fragments[i];
+		particle.x += x;
+		particle.y += y;
+	}
+});
 
 function Dragonling(x, y) {
 	Enemy.call(this, x, y);
-	this.destX = (p.x - p.worldX);
-	this.destY = (p.y - p.worldY);
+	this.destX = p.x;
+	this.destY = p.y;
 	this.velX = 0;
 	this.velY = 0;
 	this.pos = [];
@@ -8601,16 +8609,16 @@ Dragonling.method("display", function() {
 			/* back wing */
 			c.globalAlpha = Math.constrain(self.opacity, 0, 1);
 			c.fillStyle  = "rgb(0, 235, 0)";
-			var p1 = {x: self.pos[25].x + p.worldX, y: self.pos[25].y + p.worldY};
+			var p1 = {x: self.pos[25].x, y: self.pos[25].y};
 			var slope = Math.normalize(self.pos[11].x - self.pos[5].x, self.pos[11].y - self.pos[5].y);
-			var p2 = graphics3D.point3D((slope.x * 15) + self.pos[25].x + p.worldX, (slope.y * 15) + self.pos[25].y + p.worldY, 0.9);
-			var p3 = graphics3D.point3D((-slope.x * 15) + self.pos[25].x + p.worldX, (-slope.y * 15) + self.pos[25].y + p.worldY, 0.9);
+			var p2 = graphics3D.point3D((slope.x * 15) + self.pos[25].x, (slope.y * 15) + self.pos[25].y, 0.9);
+			var p3 = graphics3D.point3D((-slope.x * 15) + self.pos[25].x, (-slope.y * 15) + self.pos[25].y, 0.9);
 			var p4 = graphics3D.point3D(p1.x, p1.y, 0.8);
 			c.fillPoly(p2, p4, p3, p1);
 			/* mouth */
 			c.fillStyle = "rgb(0, 255, 0)";
 			c.save(); {
-				c.translate(self.x + p.worldX, self.y + p.worldY);
+				c.translate(self.x, self.y);
 				c.rotate(Math.rad(self.rot));
 				c.fillPoly(
 					0, -10,
@@ -8624,10 +8632,7 @@ Dragonling.method("display", function() {
 			/* tail */
 			c.strokeStyle = "rgb(0, 255, 0)";
 			c.lineWidth = 5;
-			c.save(); {
-				c.translate(p.worldX, p.worldY);
-				c.strokeLine.apply(c, self.pos);
-			} c.restore();
+			c.strokeLine.apply(c, self.pos);
 			/* update tail position */
 			self.pos.push({x: self.x, y: self.y});
 			if(self.pos.length > 30) {
@@ -8635,8 +8640,8 @@ Dragonling.method("display", function() {
 			}
 			/* front wing */
 			c.fillStyle = "rgb(20, 255, 20)";
-			var p2 = graphics3D.point3D((slope.x * 15) + self.pos[25].x + p.worldX, (slope.y * 15) + self.pos[25].y + p.worldY, 1.1);
-			var p3 = graphics3D.point3D((-slope.x * 15) + self.pos[25].x + p.worldX, (-slope.y * 15) + self.pos[25].y + p.worldY, 1.1);
+			var p2 = graphics3D.point3D((slope.x * 15) + self.pos[25].x, (slope.y * 15) + self.pos[25].y, 1.1);
+			var p3 = graphics3D.point3D((-slope.x * 15) + self.pos[25].x, (-slope.y * 15) + self.pos[25].y, 1.1);
 			var p4 = graphics3D.point3D(p1.x, p1.y, 1.2);
 			c.fillPoly(p2, p4, p3, p1);
 		},
@@ -8667,8 +8672,8 @@ Dragonling.method("update", function() {
 	this.rot += (this.rot < idealAngle) ? 2 : -2;
 	/* update destination */
 	if(this.currentAction === "bite") {
-		this.destX = p.x - p.worldX;
-		this.destY = p.y - p.worldY;
+		this.destX = p.x;
+		this.destY = p.y;
 	}
 	else if(this.currentAction === "shoot") {
 		if(this.velY > 0) {
@@ -8681,7 +8686,7 @@ Dragonling.method("update", function() {
 		}
 	}
 	/* bite mouth */
-	if((Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 5, p.y - 7) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x - 5, p.y - 7) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x + 5, p.y + 46) <= 1600 || Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x - 5, p.y + 46) <= 1600) && this.mouthDir === 0 && this.currentAction === "bite") {
+	if((Math.distSq(this.x, this.y, p.x + 5, p.y - 7) <= 1600 || Math.distSq(this.x, this.y, p.x - 5, p.y - 7) <= 1600 || Math.distSq(this.x, this.y, p.x + 5, p.y + 46) <= 1600 || Math.distSq(this.x, this.y, p.x - 5, p.y + 46) <= 1600) && this.mouthDir === 0 && this.currentAction === "bite") {
 		this.mouthDir = -1;
 		this.currentAction = "shoot";
 	}
@@ -8693,8 +8698,8 @@ Dragonling.method("update", function() {
 	}
 	this.mouth += this.mouthDir;
 	/* shoot fireballs */
-	var idealAngle = Math.calculateDegrees(this.x - (p.x - p.worldX), this.y - (p.y - p.worldY)) - 90;
-	if(this.reload > 120 && Math.dist(this.rot, idealAngle) <= 2 && Math.distSq(this.x + p.worldX, this.y + p.worldY, p.x, p.y) >= 10000) {
+	var idealAngle = Math.calculateDegrees(this.x - p.x, this.y - p.y) - 90;
+	if(this.reload > 120 && Math.dist(this.rot, idealAngle) <= 2 && Math.distSq(this.x, this.y, p.x, p.y) >= 10000) {
 		game.dungeon[game.theRoom].content.push(new MagicCharge(this.x, this.y, theVel.x, theVel.y, "fire", Math.randomInRange(40, 50)));
 		game.dungeon[game.theRoom].content[game.dungeon[game.theRoom].content.length - 1].shotBy = "enemy";
 		this.currentAction = "bite";
@@ -8712,6 +8717,15 @@ Dragonling.method("update", function() {
 });
 Dragonling.method("handleCollision", function() {
 
+});
+Dragonling.method("translate", function(x, y) {
+	this.x += x;
+	this.y += y;
+	for(var i = 0; i < this.pos.length; i ++) {
+		var position = this.pos[i];
+		position.x += x;
+		position.y += y;
+	}
 });
 
 
@@ -8754,10 +8768,10 @@ var utilities = {
 		}
 		if(obj2 instanceof Player) {
 			return (
-				obj1.x + p.worldX + obj1.hitbox.right > obj2.x + obj2.hitbox.left &&
-				obj1.x + p.worldX + obj1.hitbox.left < obj2.x + obj2.hitbox.right &&
-				obj1.y + p.worldY + obj1.hitbox.bottom > obj2.y + obj2.hitbox.top &&
-				obj1.y + p.worldY + obj1.hitbox.top < obj2.y + obj2.hitbox.bottom
+				obj1.x + obj1.hitbox.right > obj2.x + obj2.hitbox.left &&
+				obj1.x + obj1.hitbox.left < obj2.x + obj2.hitbox.right &&
+				obj1.y + obj1.hitbox.bottom > obj2.y + obj2.hitbox.top &&
+				obj1.y + obj1.hitbox.top < obj2.y + obj2.hitbox.bottom
 			);
 		}
 		return (
@@ -9152,11 +9166,12 @@ var debugging = {
 				if(game.rooms[i].name === id) {
 					game.rooms[i].add();
 					var room = game.dungeon[0];
+					console.log(room.getInstancesOf(RandomEnemy));
 					for(var j = 0; j < room.content.length; j ++) {
 						var object = room.content[j];
 						if(object instanceof Door) {
-							p.x = object.x + p.worldX;
-							p.y = object.y + p.worldY - 46;
+							p.x = object.x;
+							p.y = object.y - 46;
 						}
 					}
 					room.colorScheme = ["red", "green", "blue"].randomItem();
@@ -9165,7 +9180,7 @@ var debugging = {
 			}
 			throw new Error("Could not find room ID of '" + id + "'");
 		};
-		loadRoom("combat1");
+		loadRoom("reward4");
 		/* change doors in first room */
 		for(var i = 0; i < game.dungeon[0].content.length; i ++) {
 			if(game.dungeon[0].content[i] instanceof Door) {
@@ -9177,7 +9192,7 @@ var debugging = {
 		for(var i = 0; i < game.items.length; i ++) {
 			// p.addItem(new game.items[i]());
 		}
-		p.addItem(new Barricade());
+		p.addItem(new WoodBow());
 		p.addItem(new EnergyStaff());
 		p.addItem(new Arrow(Infinity));
 	},
@@ -9509,7 +9524,7 @@ var game = {
 							new Roof(0, -300, 500),
 							new Door(-450, 0, ["ambient"], false),
 							new Door(0, 0, ["reward"], true, false, "toggle"),
-							new Door(450, 0, ["ambient"], false),
+							new Door(450, 0, ["ambient"], false).beginDebugging(),
 							new Decoration(300, -50), new Decoration(-300, -50),
 							new Decoration(150, -50), new Decoration(-150, -50),
 							new RandomEnemy(0, 0)
@@ -9975,7 +9990,7 @@ var game = {
 				}
 			}
 
-			if(p.worldX < -350 && game.tutorial.infoText === "arrow keys to move, up to jump") {
+			if(p.x > 350 && game.tutorial.infoText === "arrow keys to move, up to jump") {
 				for(var i = 0; i < game.dungeon[0].content.length; i ++) {
 					if(game.dungeon[0].content[i] instanceof MovingWall && game.dungeon[0].content[i].x <= 400) {
 						game.dungeon[0].content[i].zDir = 0.01;
@@ -10039,7 +10054,11 @@ var game = {
 			}
 
 			game.dungeon[game.inRoom].displayShadowEffect();
+			p.x -= (game.camera.x - canvas.width / 2);
+			p.y -= (game.camera.y - canvas.height / 2);
 			p.display();
+			p.x += (game.camera.x - canvas.width / 2);
+			p.y += (game.camera.y - canvas.height / 2);
 			p.gui();
 
 			c.fillStyle = "rgb(255, 255, 255)";
@@ -10106,14 +10125,18 @@ var game = {
 			}
 			this.opacity = Math.constrain(this.opacity, 0, 1);
 		}
+	},
+
+	camera: {
+		x: 0,
+		y: 0
 	}
 };
 var ui = {
 	homeScreen: {
 		display: function() {
 			graphics3D.boxFronts = [];
-			p.worldX = 0;
-			p.worldY = 0;
+			game.camera = { x: 0, y: 0 };
 			game.inRoom = 0;
 			game.dungeon = [new Room(null, [])];
 			new Block(-100, 600, 1000, 200).display();
@@ -10281,8 +10304,7 @@ var ui = {
 			c.fillText("You explored " + p.roomsExplored + " rooms.", 400, 340);
 			c.fillText("You defeated " + p.enemiesKilled + " monsters.", 400, 380);
 			c.fillText("You were killed by " + p.deathCause, 400, 420);
-			p.worldX = 0;
-			p.worldY = 0;
+			game.camera = { x: 0, y: 0 };
 			game.dungeon = [new Room()];
 			game.theRoom = 0;
 			game.inRoom = 0;
@@ -10643,7 +10665,7 @@ var ui = {
 				if(item instanceof Barricade) {
 					var doorNearby = false;
 					for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-						var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x + p.worldX, game.dungeon[game.inRoom].content[i].y + p.worldY, 0.9);
+						var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, 0.9);
 						if(game.dungeon[game.inRoom].content[i] instanceof Door && Math.dist(loc.x, loc.y, 400, 400) <= 100 && !game.dungeon[game.inRoom].content[i].barricaded) {
 							doorNearby = true;
 							break;
@@ -10914,8 +10936,7 @@ function timer() {
 				p.roomsExplored ++;
 				p.fallDir = -0.05;
 				game.inRoom = game.numRooms;
-				p.worldX = 0;
-				p.worldY = 0;
+				game.camera = { x: 0, y: 0 };
 				p.x = 500;
 				p.y = -100;
 				p.velY = 2;
@@ -10944,7 +10965,13 @@ function timer() {
 		game.dungeon[game.inRoom].display();
 		game.dungeon[game.inRoom].displayShadowEffect();
 
+		var locationBeforeOffset = { x: p.x, y: p.y };
+		p.x -= (game.camera.x - canvas.width / 2);
+		p.y -= (game.camera.y - canvas.height / 2);
 		p.display();
+		p.x = locationBeforeOffset.x;
+		p.y = locationBeforeOffset.y;
+
 		p.gui();
 		ui.infoBar.calculateActions();
 		ui.infoBar.display();
