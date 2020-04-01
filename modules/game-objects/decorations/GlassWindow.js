@@ -1,7 +1,7 @@
-function GlassWindow(x, y, color) {
+function GlassWindow(x, y) {
 	this.x = x;
 	this.y = y;
-	this.color = color;
+	this.color = game.dungeon[game.theRoom].colorScheme;
 };
 GlassWindow.method("update", function() {
 	game.dungeon[game.theRoom].background = "plain";

@@ -801,7 +801,7 @@ var game = {
 		},
 		ambient3: {
 			name: "ambient3",
-			colorScheme: "all",
+			colorScheme: null,
 			difficulty: 0,
 			extraDoors: 1,
 			add: function() {
@@ -895,7 +895,6 @@ var game = {
 						"plain"
 					)
 				);
-				game.dungeon[game.dungeon.length - 1].colorScheme = "blue";
 			}
 		},
 		ambient6: {
@@ -923,7 +922,6 @@ var game = {
 						"?"
 					)
 				);
-				game.dungeon[game.dungeon.length - 1].colorScheme = "green";
 			}
 		},
 		secret1: {
@@ -1350,7 +1348,6 @@ var game = {
 					],
 					"?"
 				));
-				game.dungeon[game.dungeon.length - 1].colorScheme = "red";
 			}
 		},
 		reward4: {
@@ -1442,6 +1439,7 @@ var game = {
 	},
 
 	generateNewRoom: function(entranceDoor) {
+		var previousRoom = game.inRoom;
 		p.roomsExplored ++;
 		p.numHeals ++;
 		/* Calculate distance to nearest unexplored door */
@@ -1472,14 +1470,27 @@ var game = {
 			return false;
 		});
 		possibleRooms = possibleRooms.filter(function(room) {
-			return (room.name !== game.dungeon[game.theRoom].type);
+			return (room.name !== game.dungeon[previousRoom].type);
 		});
 		/* Add selected room */
 		var roomIndex = possibleRooms.randomIndex();
 		possibleRooms[roomIndex].add();
 		game.dungeon[game.dungeon.length - 1].id = "?";
+		if(possibleRooms[roomIndex].colorScheme && !possibleRooms[roomIndex].colorScheme.includes("|")) {
+			game.dungeon[game.dungeon.length - 1].colorScheme = possibleRooms[roomIndex].colorScheme;
+			if(game.dungeon[game.dungeon.length - 1].colorScheme === "all") {
+				if(game.dungeon[previousRoom].colorScheme === null) {
+					game.dungeon[game.dungeon.length - 1].colorScheme = ["red", "green", "blue"].randomItem();
+				}
+				else {
+					game.dungeon[game.dungeon.length - 1].colorScheme = game.dungeon[previousRoom].colorScheme;
+				}
+			}
+		}
+		else {
+			// rooms that can be multiple colors but not any color should implement their special logic in the add() function.
+		}
 		/* Reset transition variables */
-		var previousRoom = game.inRoom;
 		game.inRoom = game.numRooms;
 		p.enteringDoor = false;
 		p.exitingDoor = true;
@@ -1520,27 +1531,6 @@ var game = {
 				game.dungeon[i].content[theIndex].dest = previousRoom;
 				/* Assign this door to lead to new door */
 				entranceDoor.dest = game.inRoom;
-			}
-		}
-		/* Assign new room's color scheme */
-		for(var i = 0; i < game.dungeon.length; i ++) {
-			if(game.dungeon[i].id === game.numRooms - 1 && game.dungeon[i].type !== "ambient5" && game.dungeon[i].type !== "reward2" && game.dungeon[i].type !== "reward3" && game.dungeon[i].type !== "secret1" && game.dungeon[i].type !== "secret3") {
-				var hasDecorations = false;
-				decorationLoop: for(var j = 0; j < game.dungeon[i].content.length; j ++) {
-					if(game.dungeon[i].content[j] instanceof Decoration || game.dungeon[i].content[j] instanceof Torch) {
-						hasDecorations = true;
-						break decorationLoop;
-					}
-				}
-				if(!hasDecorations) {
-					game.dungeon[i].colorScheme = null;
-				}
-				if(game.dungeon[previousRoom].colorScheme === null && hasDecorations) {
-					game.dungeon[i].colorScheme = ["red", "green", "blue"].randomItem();
-				}
-				if(game.dungeon[previousRoom].colorScheme !== null && hasDecorations) {
-					game.dungeon[i].colorScheme = game.dungeon[previousRoom].colorScheme;
-				}
 			}
 		}
 	},

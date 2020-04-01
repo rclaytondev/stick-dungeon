@@ -9,29 +9,24 @@ function Decoration(x, y) {
 Decoration.method("update", function() {
 	if(this.type === null) {
 		/* find self in the current room */
-		var selfIndex = null;
-		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			if(game.dungeon[game.theRoom].content[i] instanceof Decoration) {
-				selfIndex = i;
-				break;
-			}
-		}
+		var selfIndex = game.dungeon[game.theRoom].content.indexOf(this);
 		/* find other decorations to copy */
 		var resolved = false;
 		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			if(game.dungeon[game.theRoom].content[i] instanceof Torch) {
-				game.dungeon[game.inRoom].content[selfIndex] = new Torch(this.x, this.y, game.dungeon[game.theRoom].content[i].color);
+			var obj = game.dungeon[game.theRoom].content[i];
+			if(obj instanceof Torch) {
+				game.dungeon[game.inRoom].content[selfIndex] = new Torch(this.x, this.y);
 				game.dungeon[game.inRoom].content[selfIndex].lit = true;
 				resolved = true;
 				break;
 			}
-			else if(game.dungeon[game.theRoom].content[i] instanceof Banner) {
-				game.dungeon[game.inRoom].content[selfIndex] = new Banner(this.x, this.y - 30, game.dungeon[game.theRoom].content[i].color);
+			else if(obj instanceof Banner) {
+				game.dungeon[game.inRoom].content[selfIndex] = new Banner(this.x, this.y - 30);
 				resolved = true;
 				break;
 			}
-			else if(game.dungeon[game.theRoom].content[i] instanceof GlassWindow) {
-				game.dungeon[game.inRoom].content[selfIndex] = new GlassWindow(this.x, this.y, game.dungeon[game.theRoom].content[i].color);
+			else if(obj instanceof GlassWindow) {
+				game.dungeon[game.inRoom].content[selfIndex] = new GlassWindow(this.x, this.y);
 				resolved = true;
 				break;
 			}
@@ -46,7 +41,7 @@ Decoration.method("update", function() {
 				game.dungeon[game.theRoom].content[selfIndex] = new Banner(x, y - 30);
 			};
 			function window(x, y) {
-				game.dungeon[game.theRoom].content[selfIndex] = new GlassWindow(x, y, game.dungeon[game.theRoom].colorScheme);
+				game.dungeon[game.theRoom].content[selfIndex] = new GlassWindow(x, y);
 			};
 			var decoration = [torch, banner, window].randomItem();
 			if(TESTING_MODE) {

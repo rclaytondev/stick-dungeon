@@ -1,7 +1,7 @@
-function Banner(x, y, color) {
+function Banner(x, y) {
 	this.x = x;
 	this.y = y;
-	this.color = color;
+	this.color = game.dungeon[game.theRoom].colorScheme;
 	this.graphic = null;
 };
 Banner.method("display", function() {
@@ -58,17 +58,6 @@ Banner.method("display", function() {
 	graphics3D.cube(this.x - 30, this.y - 50, 60, 10, 0.9, 0.92, "rgb(139, 69, 19)", "rgb(159, 89, 39)");
 });
 Banner.method("update", function() {
-	if(this.color === undefined || this.color === "?") {
-		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			if(game.dungeon[game.theRoom].content[i] instanceof Banner && game.dungeon[game.theRoom].content[i].color !== undefined && game.dungeon[game.theRoom].content[i].color !== "?") {
-				this.color = game.dungeon[game.theRoom].content[i].color;
-				break;
-			}
-		}
-		if(this.color === undefined || this.color === "?") {
-			this.color = game.dungeon[game.theRoom].colorScheme;
-		}
-	}
 	if(this.graphic === null) {
 		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
 			if(game.dungeon[game.theRoom].content[i] instanceof Banner && game.dungeon[game.theRoom].content[i].graphic !== null) {
