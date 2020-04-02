@@ -20,8 +20,10 @@ Roof.method("update", function() {
 		collisions.solids.rect(this.x - this.w, this.y - 200, 2 * this.w, 100);
 	}
 	else if(this.type === "curved") {
-		while(Math.distSq(p.x, this.y - (this.y - (p.y + p.hitbox.top)) / 2, this.x, this.y) > (this.w / 2) * (this.w / 2) && p.y + p.hitbox.top < this.y) {
-			p.y ++;
+		if(game.inRoom === game.theRoom) {
+			while(Math.distSq(p.x, this.y - (this.y - (p.y + p.hitbox.top)) / 2, this.x, this.y) > (this.w / 2) * (this.w / 2) && p.y + p.hitbox.top < this.y) {
+				p.y ++;
+			}
 		}
 	}
 });
