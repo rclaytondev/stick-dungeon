@@ -151,7 +151,7 @@ Door.method("update", function() {
 	var topLeft = graphics3D.point3D(this.x - 30, this.y - 60, 0.9);
 	var bottomRight = graphics3D.point3D(this.x + 30, this.y, 0.9);
 	if(collisions.objectIntersectsRect(p, { x: this.x - 30, y: this.y - 60, w: 60, h: 60}) && p.canJump && !p.enteringDoor && !p.exitingDoor && p.guiOpen === "none" && !this.barricaded) {
-		if(io.keys[83]) {
+		if(io.keys.KeyS) {
 			p.enteringDoor = true;
 			this.entering = true;
 		}

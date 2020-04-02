@@ -116,7 +116,7 @@ Player.method("display", function(straightArm) {
 	c.strokeLine(this.x, this.y + 36, this.x - this.legs, this.y + 46);
 	c.strokeLine(this.x, this.y + 36, this.x + this.legs, this.y + 46);
 	/* Leg Animations */
-	if(io.keys[37] || io.keys[39]) {
+	if(io.keys.ArrowLeft || io.keys.ArrowRight) {
 		this.legs += this.legDir;
 		if(this.legs >= 5) {
 			this.legDir = -0.5;
@@ -125,7 +125,7 @@ Player.method("display", function(straightArm) {
 			this.legDir = 0.5;
 		}
 	}
-	if(!io.keys[37] && !io.keys[39]) {
+	if(!io.keys.ArrowLeft && !io.keys.ArrowRight) {
 		this.legDir = (this.legs < 0) ? -0.5 : 0.5;
 		this.legDir = (this.legs >= 5 || this.legs <= -5) ? 0 : this.legDir;
 		this.legs += this.legDir;
@@ -356,28 +356,28 @@ Player.method("update", function() {
 	io.keys = this.enteringDoor ? [] : io.keys;
 	/* Change selected slots when number keys are pressed */
 	if(this.guiOpen !== "crystal-infusion" && !this.attacking) {
-		if(io.keys[49]) {
+		if(io.keys.Digit1) {
 			this.activeSlot = 0;
 		}
-		else if(io.keys[50]) {
+		else if(io.keys.Digit2) {
 			this.activeSlot = 1;
 		}
-		else if(io.keys[51]) {
+		else if(io.keys.Digit3) {
 			this.activeSlot = 2;
 		}
 	}
 	/* Movement + Jumping */
 	if(this.guiOpen === "none") {
-		if(io.keys[37]) {
+		if(io.keys.ArrowLeft) {
 			this.velocity.x -= 0.1;
 		}
-		else if(io.keys[39]) {
+		else if(io.keys.ArrowRight) {
 			this.velocity.x += 0.1;
 		}
 	}
 	this.x += this.velocity.x;
 	this.y += this.velocity.y;
-	if(io.keys[38] && this.canJump && !this.aiming) {
+	if(io.keys.ArrowUp && this.canJump && !this.aiming) {
 		this.velocity.y = -10;
 	}
 	/* Velocity Cap */
@@ -388,7 +388,7 @@ Player.method("update", function() {
 		this.velocity.x = -4;
 	}
 	/* Friction + Gravity */
-	if(!io.keys[37] && !io.keys[39]) {
+	if(!io.keys.ArrowLeft && !io.keys.ArrowRight) {
 		this.velocity.x *= 0.93;
 	}
 	if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon && !(this.invSlots[this.activeSlot].content instanceof Dagger) && this.class !== "warrior") {
@@ -479,8 +479,8 @@ Player.method("update", function() {
 });
 Player.method("useItem", function() {
 	/* Update facing direction */
-	this.facing = io.keys[39] ? "right" : this.facing;
-	this.facing = io.keys[37] ? "left" : this.facing;
+	this.facing = io.keys.ArrowRight ? "right" : this.facing;
+	this.facing = io.keys.ArrowLeft ? "left" : this.facing;
 	if(this.canStopAttacking) {
 		this.attacking = false;
 	}
@@ -500,7 +500,7 @@ Player.method("useItem", function() {
 		}
 	}
 	/* Begin Attacking + Use Non-weapon Items */
-	if(io.keys[65] && this.invSlots[this.activeSlot].content !== "empty") {
+	if(io.keys.KeyA && this.invSlots[this.activeSlot].content !== "empty") {
 		if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon) {
 			this.invSlots[this.activeSlot].content.attack();
 			this.attacking = true;
@@ -598,7 +598,7 @@ Player.method("useItem", function() {
 	}
 	this.timeSinceAttack ++;
 	/* Change angle for aiming */
-	if(this.aiming && io.keys[38] && this.aimRot > -45) {
+	if(this.aiming && io.keys.ArrowUp && this.aimRot > -45) {
 		if((this.attackingWith instanceof RangedWeapon && this.class !== "archer") || (this.attackingWith instanceof MagicWeapon && this.class !== "mage")) {
 			this.aimRot += 1.5; // slow down movement if you're not using the right class weapon
 		}
@@ -608,7 +608,7 @@ Player.method("useItem", function() {
 			this.chargeLoc = Math.rotate((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 		}
 	}
-	if(this.aiming && io.keys[40] && this.aimRot < 45) {
+	if(this.aiming && io.keys.ArrowDown && this.aimRot < 45) {
 		if((this.attackingWith instanceof RangedWeapon && this.class !== "archer") || (this.attackingWith instanceof MagicWeapon && this.class !== "mage")) {
 			this.aimRot -= 1.5; // slow down movement if you're using the wrong class weapon
 		}
@@ -742,7 +742,7 @@ Player.method("gui", function() {
 		}
 	}
 	/* Change GUI Open */
-	if(io.keys[68] && !this.openingBefore) {
+	if(io.keys.KeyD && !this.openingBefore) {
 		if(this.guiOpen === "none") {
 			this.guiOpen = "inventory";
 		}
@@ -754,7 +754,7 @@ Player.method("gui", function() {
 		}
 		this.openCooldown = 2;
 	}
-	if(io.keys[27]) {
+	if(io.keys.Escape) {
 		/* escape key to exit guis */
 		this.guiOpen = "none";
 	}
@@ -918,7 +918,7 @@ Player.method("gui", function() {
 	}
 	else if(this.guiOpen === "crystal-infusion") {
 		ui.infoBar.actions.d = "cancel";
-		if(io.keys[68]) {
+		if(io.keys.KeyD) {
 			this.guiOpen = "none";
 		}
 		/* Background */
@@ -1438,7 +1438,7 @@ Player.method("gui", function() {
 			}
 		}
 	}
-	this.openingBefore = io.keys[68];
+	this.openingBefore = io.keys.KeyD;
 });
 Player.method("addItem", function(item) {
 	/*

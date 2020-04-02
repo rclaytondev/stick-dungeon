@@ -33,7 +33,7 @@ Chest.method("update", function() {
 	}
 	if(Math.dist(this.x, p.x) < 65 && Math.dist(this.y, p.y + p.hitbox.bottom) < 10 && p.canJump && !this.opening) {
 		ui.infoBar.actions.s = "open chest";
-		if(io.keys[83]) {
+		if(io.keys.KeyS) {
 			this.opening = true;
 			if(p.x < this.x) {
 				this.openDir = "right";

@@ -99,7 +99,7 @@ Statue.method("display", function() {
 });
 Statue.method("update", function() {
 	/* stealing Weapons */
-	if(io.keys[83] && Math.dist(this.x, this.y, p.x, p.y) <= 100 && !this.itemStolen) {
+	if(io.keys.KeyS && Math.dist(this.x, this.y, p.x, p.y) <= 100 && !this.itemStolen) {
 		this.itemStolen = true;
 		p.addItem(this.itemHolding);
 	}

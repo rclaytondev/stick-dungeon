@@ -51,8 +51,8 @@ var io = {
 		io.mouse.y = (event.clientY - canvasRect.top) / (canvasRect.bottom - canvasRect.top) * canvas.height;
 	},
 	initialized: function() {
-		document.body.onkeydown = function() { io.keys[event.which] = true; };
-		document.body.onkeyup = function() { io.keys[event.which] = false; };
+		document.body.onkeydown = function() { io.keys[event.code] = true; };
+		document.body.onkeyup = function() { io.keys[event.code] = false; };
 		document.body.onmousedown = function() { io.mouse.pressed = true; };
 		document.body.onmouseup = function() { io.mouse.pressed = false; };
 		document.body.onmousemove = function() { io.getMousePos(event); };
@@ -1620,10 +1620,10 @@ var game = {
 			if(game.dungeon[0].content[5].r <= -84 && game.tutorial.infoText === "press S to interact with objects\n(for example: opening a chest)") {
 				game.tutorial.infoText = "press D to view your items";
 			}
-			if(io.keys[65] && p.invSlots[p.activeSlot].content !== "empty" && game.tutorial.infoText === "press A to use the item you are holding") {
+			if(io.keys.KeyA && p.invSlots[p.activeSlot].content !== "empty" && game.tutorial.infoText === "press A to use the item you are holding") {
 				game.tutorial.infoText = "press the number keys (1, 2, 3) to switch between items";
 			}
-			if((io.keys[49] || io.keys[50] || io.keys[51]) && game.tutorial.infoText === "press the number keys (1, 2, 3) to switch between items") {
+			if((io.keys.Digit1 || io.Digit2 || io.Digit3) && game.tutorial.infoText === "press the number keys (1, 2, 3) to switch between items") {
 				game.tutorial.infoText = "you can aim ranged weapons";
 				game.tutorial.infoTextTime = 0;
 			}
@@ -1632,7 +1632,7 @@ var game = {
 				if(game.tutorial.infoText === "you can aim ranged weapons" && (p.invSlots[p.activeSlot].content instanceof RangedWeapon || p.invSlots[p.activeSlot].content instanceof MagicWeapon)) {
 					game.tutorial.infoText = "hold down the A key";
 				}
-				else if(game.tutorial.infoText === "and then press up or down to aim" && (io.keys[38] || io.keys[40])) {
+				else if(game.tutorial.infoText === "and then press up or down to aim" && (io.keys.ArrowUp || io.keys.ArrowDown)) {
 					game.tutorial.infoText = "then you can release A to shoot";
 				}
 				else if(game.tutorial.infoText === "that's all you need to know. good luck!") {
@@ -1642,11 +1642,11 @@ var game = {
 					game.transitions.nextScreen = "home";
 				}
 			}
-			if(io.keys[65] && game.tutorial.infoText === "hold down the A key") {
+			if(io.keys.KeyA && game.tutorial.infoText === "hold down the A key") {
 				game.tutorial.infoText = "and then press up or down to aim";
 				game.tutorial.infoTextTime = 0;
 			}
-			if(!io.keys[65] && game.tutorial.infoText === "then you can release A to shoot") {
+			if(!io.keys.KeyA && game.tutorial.infoText === "then you can release A to shoot") {
 				game.tutorial.infoText = "almost done. try fighting this monster for practice";
 				game.dungeon[0].content[3].zDir = -0.01;
 			}

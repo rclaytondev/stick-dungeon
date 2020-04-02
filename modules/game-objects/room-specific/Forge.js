@@ -73,7 +73,7 @@ Forge.method("display", function() {
 Forge.method("update", function() {
 	if(Math.dist(this.x, p.x) <= 100 && !this.used && p.guiOpen === "none") {
 		ui.infoBar.actions.s = "use forge";
-		if(io.keys[83]) {
+		if(io.keys.KeyS) {
 			p.guiOpen = "reforge-item";
 		}
 	}
