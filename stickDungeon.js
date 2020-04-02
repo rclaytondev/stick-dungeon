@@ -51,7 +51,12 @@ var io = {
 		io.mouse.y = (event.clientY - canvasRect.top) / (canvasRect.bottom - canvasRect.top) * canvas.height;
 	},
 	initialized: function() {
-		document.body.onkeydown = function() { io.keys[event.code] = true; };
+		document.body.onkeydown = function() {
+			io.keys[event.code] = true;
+			if(event.code === "Tab") {
+				event.preventDefault();
+			}
+		};
 		document.body.onkeyup = function() { io.keys[event.code] = false; };
 		document.body.onmousedown = function() { io.mouse.pressed = true; };
 		document.body.onmouseup = function() { io.mouse.pressed = false; };
@@ -728,6 +733,75 @@ var debugging = {
 		}
 		else {
 			p.invSlots[id].content = "empty";
+		}
+	},
+
+	keyAbilities: {
+		/*
+		This object is used for special abilities given while testing. (You have to enable TESTING_MODE to turn these on)
+		 - Ability to cycle through all the doors in a room, teleporting the player to the next / previous door
+		 - Ability to enter a door and skip the fading screen animation
+		 - Ability to kill all enemies in the room
+		 - Ability to kill all enemies in all rooms
+		To add a new key ability, define a method on the `keyBinds` object below to return whether or not to activate the key ability for a given keyset. Then define a function on this object (with the same name) that should be run when the keys are pressed.
+		*/
+		keyBinds: {
+			goToNextDoor: (keySet) => keySet.Tab && !(keySet.ShiftLeft || keySet.ShiftRight),
+			goToPreviousDoor: (keySet) => keySet.Tab && (keySet.ShiftLeft || keySet.ShiftRight),
+			enterDoorWithoutTransition: (keySet) => keySet.KeyQ,
+			killEnemiesInRoom: (keySet) => keySet.KeyW && !(keySet.ShiftLeft || keySet.ShiftRight),
+			killAllEnemies: (keySet) => keySet.KeyW && (keySet.ShiftLeft || keySet.ShiftRight)
+		},
+
+		checkForKeyAbilities: function() {
+			for(var i in this.keyBinds) {
+				if(this.keyBinds.hasOwnProperty(i) && this.keyBinds[i](io.keys) && !this.keyBinds[i](utils.pastInputs.keys)) {
+					this[i](); // call method with same name on this object
+				}
+			}
+		},
+
+		getNearestDoorIndex: function() {
+			var nearestDoor = game.dungeon[game.inRoom].getInstancesOf(Door).min((door) => Math.dist(door.x, door.y, p.x, p.y));
+			var nearestDoorIndex = game.dungeon[game.inRoom].content.indexOf(nearestDoor);
+			return nearestDoorIndex;
+		},
+		movePlayerToDoor: function(door) {
+			p.x = door.x;
+			p.y = door.y - p.hitbox.bottom;
+		},
+		goToNextDoor: function() {
+			var nearestDoorIndex = this.getNearestDoorIndex();
+			var nearestDoor = game.dungeon[game.inRoom].content[nearestDoorIndex];
+			var doors = game.dungeon[game.inRoom].getInstancesOf(Door);
+			nearestDoorIndex = doors.indexOf(nearestDoor);
+			var nextDoorIndex = nearestDoorIndex + 1;
+			if(nextDoorIndex >= doors.length) { nextDoorIndex = 0; }
+			this.movePlayerToDoor(doors[nextDoorIndex]);
+		},
+		goToPreviousDoor: function() {
+			var nearestDoorIndex = this.getNearestDoorIndex();
+			var nearestDoor = game.dungeon[game.inRoom].content[nearestDoorIndex];
+			var doors = game.dungeon[game.inRoom].getInstancesOf(Door);
+			nearestDoorIndex = doors.indexOf(nearestDoor);
+			var nearestDoorIndex = nearestDoorIndex - 1;
+			if(nearestDoorIndex < 0) { nearestDoorIndex = doors.length - 1; }
+			this.movePlayerToDoor(doors[nearestDoorIndex]);
+		},
+
+		enterDoorWithoutTransition: function() {
+			var nearestDoorIndex = this.getNearestDoorIndex();
+			var nearestDoor = game.dungeon[game.inRoom].content[nearestDoorIndex];
+			nearestDoor.enter(p);
+		},
+
+		killEnemiesInRoom: function() {
+			game.dungeon[game.inRoom].content.filter(obj => obj instanceof Enemy).forEach((enemy) => { enemy.hurt(10000); });
+		},
+		killAllEnemies: function() {
+			game.dungeon.forEach((room) => {
+				room.content.filter(obj => obj instanceof Enemy).forEach((enemy) => { enemy.hurt(10000); });
+			});
 		}
 	}
 };
@@ -2537,6 +2611,7 @@ function timer() {
 	if(TESTING_MODE) {
 		p.health = p.maxHealth;
 		p.mana = p.maxMana;
+		debugging.keyAbilities.checkForKeyAbilities();
 	}
 	c.globalAlpha = 1;
 	io.cursor = "auto";

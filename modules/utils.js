@@ -638,7 +638,7 @@ Array.method("min", function(func) {
 	*/
 	if(typeof func === "function") {
 		var lowestIndex = 0;
-		var lowestValue = 0;
+		var lowestValue = Infinity;
 		for(var i = 0; i < this.length; i ++) {
 			var value = func(this[i]);
 			if(value < lowestValue) {
@@ -646,18 +646,18 @@ Array.method("min", function(func) {
 				lowestValue = value;
 			}
 		}
-		return lowestValue;
+		return this[lowestIndex];
 	}
 	else {
 		var lowestIndex = 0;
-		var lowestValue = 0;
+		var lowestValue = Infinity;
 		for(var i = 0; i < this.length; i ++) {
 			if(this[i] < lowestValue) {
 				lowestIndex = i;
 				lowestValue = this[i];
 			}
 		}
-		return lowestValue;
+		return this[lowestIndex];
 	}
 });
 Array.method("max", function(func) {
@@ -666,7 +666,7 @@ Array.method("max", function(func) {
 	*/
 	if(typeof func === "function") {
 		var highestIndex = 0;
-		var highestValue = 0;
+		var highestValue = -Infinity;
 		for(var i = 0; i < this.length; i ++) {
 			var value = func(this[i]);
 			if(value < highestValue) {
@@ -674,18 +674,18 @@ Array.method("max", function(func) {
 				highestValue = value;
 			}
 		}
-		return highestValue;
+		return this[highestIndex];
 	}
 	else {
 		var highestIndex = 0;
-		var highestValue = 0;
+		var highestValue = -Infinity;
 		for(var i = 0; i < this.length; i ++) {
 			if(this[i] < highestValue) {
 				highestIndex = i;
 				highestValue = this[i];
 			}
 		}
-		return highestValue;
+		return this[highestIndex];
 	}
 });
 Array.method("containsInstanceOf", function(constructor) {
