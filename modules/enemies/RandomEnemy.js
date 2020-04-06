@@ -6,7 +6,6 @@ function RandomEnemy(x, y, notEnemy) {
 RandomEnemy.method("update", function() {
 	if(!this.toBeRemoved) {
 		this.generate();
-		this.toBeRemoved = true;
 	}
 });
 RandomEnemy.method("generate", function() {
@@ -51,4 +50,6 @@ RandomEnemy.method("generate", function() {
 	/* Pick an enemy and add it to the game */
 	var enemyIndex = possibleEnemies.randomIndex();
 	game.dungeon[game.inRoom].content.push(new possibleEnemies[enemyIndex](this.x, this.y - new possibleEnemies[enemyIndex]().hitbox.bottom));
+
+	this.toBeRemoved = true;
 });

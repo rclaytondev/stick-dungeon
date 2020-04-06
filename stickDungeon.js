@@ -1430,7 +1430,7 @@ var game = {
 							new Border("floor-to-left", { x: 200, y: -200 }),
 
 							new Door(100, -200, ["combat", "parkour", "secret"]),
-							
+
 							new Stairs(200, 0, 10, "right"),
 							new Chest(500, 0),
 							new Decoration(500, -100),
