@@ -2177,11 +2177,12 @@ var ui = {
 			c.fillText("You were killed by " + p.deathCause, 400, 420);
 			game.camera.x = 0;
 			game.camera.y = 0;
-			game.dungeon = [new Room()];
 			game.theRoom = 0;
 			game.inRoom = 0;
-			new Block(-100, 700, 1000, 200).display();
-			game.dungeon[0].display();
+			game.dungeon = [new Room()];
+			game.dungeon[0].displayImmediately(function() {
+				graphics3D.cube(-Border.OFFSCREEN_BUFFER, canvas.height - 100, canvas.width + (Border.OFFSCREEN_BUFFER * 2), Border.LARGE_NUMBER, 0.9, 1.1);
+			});
 
 			this.homeButton.display();
 			this.retryButton.display();

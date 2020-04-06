@@ -1,7 +1,7 @@
 /** ROOM DATA **/
 function Room(type, content, id, minWorldY, background) {
 	this.type = type;
-	this.content = content;
+	this.content = content || [];
 	this.id = id;
 	this.pathScore = null;
 	this.background = background || null;
