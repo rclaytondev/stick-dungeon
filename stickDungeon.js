@@ -657,7 +657,12 @@ var debugging = {
 			else {
 				p.x = 0, p.y = 0;
 			}
-			room.colorScheme = ["red", "green", "blue"].randomItem();
+			if(game.rooms[id].colorScheme === "all") {
+				room.colorScheme = ["red", "green", "blue"].randomItem();
+			}
+			else {
+				room.colorScheme = game.rooms[id].colorScheme;
+			}
 			game.dungeon[0].getInstancesOf(Door).forEach(function(obj) { obj.containingRoomID = 0; });
 		};
 		loadRoom("parkour1");
@@ -1241,7 +1246,7 @@ var game = {
 		},
 		parkour3: {
 			name: "parkour3",
-			colorScheme: "all",
+			colorScheme: null,
 			difficulty: 4,
 			extraDoors: 0.5,
 			add: function() {
@@ -1254,8 +1259,8 @@ var game = {
 							new Border("floor-to-left", { x: 200, y: -300 }),
 							new Border("floor-to-right", { x: 800, y: 0 }),
 
-							new Door(100, -300),
-							new Door(900, 0),
+							new Door(100, -300, ["reward"]),
+							new Door(900, 0, ["ambient"]),
 
 							new TiltPlatform(400, -200),
 							new TiltPlatform(600, -100),
@@ -1560,7 +1565,11 @@ var game = {
 					}
 				}
 				if(doorIndexes.length === 0) {
-					doorIndexes = game.dungeon[i].content[j].getInstancesOf(Door);
+					for(var j = 0; j < game.dungeon[i].content.length; j ++) {
+						if(game.dungeon[i].content[j] instanceof Door) {
+							doorIndexes.push(j);
+						}
+					}
 				}
 				var theIndex = doorIndexes.randomItem();
 				/* update door graphic types inside room */
