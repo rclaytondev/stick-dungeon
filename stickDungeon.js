@@ -21,7 +21,6 @@ var utils = {
 			return false;
 		},
 		initializeEverything: function() {
-			return;
 			while(this.initFuncs.length > 0) {
 				for(var i = 0; i < this.initFuncs.length; i ++) {
 					try {
@@ -812,6 +811,8 @@ var debugging = {
 	}
 };
 var game = {
+	onScreen: "home",
+
 	items: [
 		Dagger, Sword, Spear, //melee weapons
 		WoodBow, MetalBow, MechBow, LongBow, //ranged weapons
@@ -1882,6 +1883,8 @@ var ui = {
 					game.transitions.onScreenChange = function() {
 						p.class = self.player;
 						p.reset();
+						p.x = 0;
+						p.y = 0 - p.hitbox.bottom;
 					};
 					game.transitions.dir = "fade-out";
 					game.transitions.color = "rgb(0, 0, 0)";
