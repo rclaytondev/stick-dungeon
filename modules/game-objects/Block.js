@@ -10,3 +10,6 @@ Block.method("update", function() {
 Block.method("display", function() {
 	graphics3D.cube(this.x, this.y, this.w, this.h, 0.9, 1.1);
 });
+Block.method("reflect", function() {
+	return new Block(-(this.x + this.w), this.y, this.w, this.h);
+});

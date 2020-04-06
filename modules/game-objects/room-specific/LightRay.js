@@ -77,3 +77,6 @@ LightRay.method("translate", function(x, y) {
 	this.y += y;
 	this.floorY += y;
 });
+LightRay.method("reflect", function() {
+	return new LightRay(-(this.x + this.w), this.w, this.floorY);
+});

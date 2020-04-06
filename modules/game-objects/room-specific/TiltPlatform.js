@@ -101,3 +101,10 @@ TiltPlatform.method("translate", function(x, y) {
 	this.platformX += x;
 	this.platformY += y;
 });
+TiltPlatform.method("reflect", function() {
+	var reflected = this.clone();
+	reflected.ORIGINAL_X = -reflected.ORIGINAL_X;
+	reflected.platformX = -reflected.platformX;
+	reflected.x = -reflected.x;
+	return reflected;
+});

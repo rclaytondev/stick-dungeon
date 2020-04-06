@@ -648,10 +648,16 @@ var debugging = {
 				throw new Error("Could not find room ID of '" + id + "'");
 			}
 			game.rooms[id].add();
+			if(Math.random() < 0.5) { game.dungeon.lastItem().reflect(); }
 			var room = game.dungeon[0];
 			var entranceDoor = room.content.filter((obj) => (obj instanceof Door))[0];
-			p.x = entranceDoor.x;
-			p.y = entranceDoor.y - p.hitbox.bottom;
+			if(entranceDoor instanceof Door) {
+				p.x = entranceDoor.x;
+				p.y = entranceDoor.y - p.hitbox.bottom;
+			}
+			else {
+				p.x = 0, p.y = 0;
+			}
 			room.colorScheme = ["red", "green", "blue"].randomItem();
 			game.dungeon[0].getInstancesOf(Door).forEach(function(obj) { obj.containingRoomID = 0; });
 		};
@@ -830,17 +836,19 @@ var game = {
 					new Room(
 						"ambient1",
 						[
-							new Pillar(200, 500, 200),
-							new Pillar(400, 500, 200),
-							new Pillar(600, 500, 200),
-							new Pillar(800, 500, 200),
-							new Block(-200, 500, 2000, 2000),//floor
-							new Block(-600, -200, 700, 2000), //left wall
-							new Block(-400, -1000, 2000, 1300), //ceiling
-							new Block(900, -200, 500, 1000), //right wall
-							new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
-							new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
-							new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
+							new Border("floor", { y: 0 }),
+							new Border("ceiling", { y: -200 }),
+							new Border("wall-to-left", { x: -400 }),
+							new Border("wall-to-right", { x: 400 }),
+
+							new Door(-200, 0, ["ambient", "combat", "parkour", "secret"]),
+							new Door(0, 0, ["ambient", "combat", "parkour", "secret"]),
+							new Door(200, 0, ["ambient", "combat", "parkour", "secret"]),
+
+							new Pillar(-300, 0, 200),
+							new Pillar(-100, 0, 200),
+							new Pillar(100, 0, 200),
+							new Pillar(300, 0, 200)
 						],
 						"?"
 					)
@@ -857,16 +865,18 @@ var game = {
 					new Room(
 						"ambient2",
 						[
-							new Block(-1000, -1000, 1300, 2000), //left wall
-							new Block(-100, 500, 1500, 500), //floor
-							new Block(-400, -1000, 2000, 1300), //roof
-							new Block(1000, -500, 1000, 1100), //right wall
-							new Torch(500, 440),
-							new Torch(600, 440),
-							new Torch(700, 440),
-							new Torch(800, 440),
-							new Door(400, 500, ["combat", "parkour", "secret"], false, false, "toggle"),
-							new Door(900, 500, ["combat", "parkour", "secret"], false, false, "toggle")
+							new Border("wall-to-left", { x: -350 }),
+							new Border("wall-to-right", { x: 350 }),
+							new Border("floor", { y: 0 }),
+							new Border("ceiling", { y: -200 }),
+
+							new Door(-250, 0, ["combat", "parkour", "secret"]),
+							new Door(250, 0, ["combat", "parkour", "secret"]),
+
+							new Torch(-150, -60),
+							new Torch(-50, -60),
+							new Torch(50, -60),
+							new Torch(150, -60),
 						],
 						"?"
 					)
@@ -879,42 +889,24 @@ var game = {
 			difficulty: 0,
 			extraDoors: 1,
 			add: function() {
-				if(Math.random() < 0.5) {
-					game.dungeon.push(
-						new Room(
-							"ambient3",
-							[
-								new Block(-4000, 0, 8000, 1000), //floor
-								new Stairs(200, 0, 10, "right"),
-								new Block(600, -4000, 4000, 4100), //right wall
-								new Door(500, 0, ["combat", "parkour", "secret"], true, false, "toggle"),
-								new Block(-800, -200, 1001, 1000), //higher floor
-								new Door(100, -200, ["combat", "parkour", "secret"]),
-								new Block(-1000, -4000, 1000, 8000), //left wall
-								new Block(-4000, -1400, 8000, 1000) //roof
-							],
-							"?"
-						)
-					);
-				}
-				else {
-					game.dungeon.push(
-						new Room(
-							"ambient3",
-							[
-								new Block(-4000, 0, 8000, 1000), //floor
-								new Stairs(-200, 0, 10, "left"),
-								new Block(-4600, -4000, 4000, 4100), //left wall
-								new Door(-500, 0, ["combat", "parkour", "secret"], true, false, "toggle"),
-								new Block(-200, -200, 1000, 1000), //higher floor
-								new Door(-100, -200, ["combat", "parkour", "secret"]),
-								new Block(0, -4000, 1000, 8000), //right wall
-								new Block(-4000, -1400, 8000, 1000) //roof
-							],
-							"?"
-						)
-					);
-				}
+				game.dungeon.push(
+					new Room(
+						"ambient3",
+						[
+							new Border("floor", { y: 0 }),
+							new Border("ceiling", { y: -400 }),
+							new Border("wall-to-right", { x: 600 }),
+							new Border("wall-to-left", { x: 0 }),
+
+							new Door(500, 0, ["combat", "parkour", "secret"], true, false, "toggle"),
+							new Door(100, -200, ["combat", "parkour", "secret"]),
+
+							new Border("floor-to-left", { x: 200, y: -200 }),
+							new Stairs(200, 0, 10, "right"),
+						],
+						"?"
+					)
+				);
 			}
 		},
 		ambient4: {
@@ -926,20 +918,22 @@ var game = {
 					new Room(
 						"ambient4",
 						[
-							new Block(-1000, -1000, 1300, 2000), //left wall
-							new Block(-100, 500, 600, 1000), //left floor
-							new Block(780, 500, 1000, 1000), //right floor
-							new Block(-400, -1000, 2000, 1300), //roof
-							new Block(980, -500, 1000, 1100), //right wall
-							new FallBlock(520, 500),
-							new FallBlock(560, 500),
-							new FallBlock(600, 500),
-							new FallBlock(640, 500),
-							new FallBlock(680, 500),
-							new FallBlock(720, 500),
-							new FallBlock(760, 500),
-							new Door(400, 500, ["combat", "parkour", "secret"], false, false, "toggle"),
-							new Door(880, 500, ["combat", "parkour", "secret"], false, false, "toggle")
+							new Border("wall-to-left", { x: -340 }),
+							new Border("wall-to-right", { x: 340 }),
+							new Border("floor-to-left", { x: -140, y: 0 }),
+							new Border("floor-to-right", { x: 140, y: 0 }),
+							new Border("ceiling", { y: -200 }),
+
+							new Door(-240, 0, ["combat", "parkour", "secret"]),
+							new Door(240, 0, ["combat", "parkour", "secret"]),
+
+							new FallBlock(-120, 0),
+							new FallBlock(-80, 0),
+							new FallBlock(-40, 0),
+							new FallBlock(0, 0),
+							new FallBlock(40, 0),
+							new FallBlock(80, 0),
+							new FallBlock(120, 0),
 						],
 						"?",
 						-200
@@ -956,13 +950,15 @@ var game = {
 					new Room(
 						"ambient5",
 						[
-							new Fountain(650, 500),
-							new Block(-1000, -1000, 1300, 2000), //left wall
-							new Block(-100, 500, 1500, 500), //floor
-							new Block(999, -500, 1000, 1100), //right wall
-							new Roof(650, 200, 350),
-							new Door(400, 500, ["combat", "parkour", "secret"], false, false, "toggle"),
-							new Door(900, 500, ["combat", "parkour", "secret"], false, false, "toggle")
+							new Border("wall-to-left", { x: -350 }),
+							new Border("wall-to-right", { x: 350 }),
+							new Border("floor", { y: 0 }),
+							new Roof(0, -300, 350),
+
+							new Door(-250, 0, ["combat", "parkour", "secret"]),
+							new Door(250, 0, ["combat", "parkour", "secret"]),
+
+							new Fountain(0, 0)
 						],
 						"?",
 						undefined,
@@ -979,19 +975,19 @@ var game = {
 			add: function() {
 				game.dungeon.push(
 					new Room(
-						"secret1",
+						"ambient6",
 						[
-							new Block(-1000, -1000, 1000, 2000), //left wall
-							new Block(-100, 500, 1010, 500), //floor
-							new Block(900, -1000, 1000, 2000), //right wall,
-							new Door(100, 500, ["ambient", "combat", "parkour"]),
-							new Door(800, 500, ["ambient", "combat", "parkour"]),
-							new LightRay(200, 500, 500),
-							new Tree(450, 500),
-							new Block(-300, 0, 500, 100), //left roof,
-							new Block(700, 0, 500, 100), //right roof
-							new Block(-300, -1300, 500, 1302), //left roof
-							new Block(700, -1300, 500, 1302), //right roof
+							new Border("wall-to-left", { x: -450 }),
+							new Border("wall-to-right", { x: 450 }),
+							new Border("floor", { y: 0 }),
+							new Border("ceiling-to-left", { x: -250, y: -400 }),
+							new Border("ceiling-to-right", { x: 250, y: -400 }),
+
+							new Door(-350, 0, ["ambient", "combat", "parkour"]),
+							new Door(350, 0, ["ambient", "combat", "parkour"]),
+
+							new LightRay(-250, 500, 0),
+							new Tree(0, 0)
 						],
 						"?"
 					)
@@ -1036,15 +1032,17 @@ var game = {
 					new Room(
 						"secret1",
 						[
-							new Block(-1000, -1000, 1000, 2000), //left wall
-							new Block(-100, 500, 1010, 500), //floor
-							new Block(600, -1000, 1000, 2000), //right wall,
-							new Roof(300, 200, 300),
-							new Decoration(200, 450),
-							new Decoration(400, 450),
-							new Statue(300, 370, new Sword()),
-							new Door(100, 500, ["ambient", "combat", "parkour"]),
-							new Door(500, 500, ["ambient", "combat", "parkour"])
+							new Border("wall-to-left", { x: -300 }),
+							new Border("wall-to-right", { x: 300 }),
+							new Border("floor", { y: 0 }),
+							new Roof(0, -300, 300),
+
+							new Door(-200, 0, ["ambient", "combat", "parkour"]),
+							new Door(200, 0, ["ambient", "combat", "parkour"]),
+
+							new Statue(0, -130),
+							new Decoration(-100, -50),
+							new Decoration(100, -50)
 						],
 						"?"
 					)
@@ -1069,16 +1067,18 @@ var game = {
 					new Room(
 						"combat1",
 						[
-							new Block(-2000, 0, 4000, 1000), //floor
-							new Block(-1000, -4000, 500, 8000), //left wall
-							new Block(500, -4000, 1000, 8000), //right wall
+							new Border("floor", { y: 0 }),
+							new Border("wall-to-left", { x: -500 }),
+							new Border("wall-to-right", { x: 500 }),
 							new Roof(0, -300, 500),
+
 							new Door(-450, 0, ["ambient"], false),
 							new Door(0, 0, ["reward"], true, false, "toggle"),
-							new Door(450, 0, ["ambient"], false).beginDebugging(),
+							new Door(450, 0, ["ambient"], false),
+
+							new RandomEnemy(0, 0),
 							new Decoration(300, -50), new Decoration(-300, -50),
-							new Decoration(150, -50), new Decoration(-150, -50),
-							new RandomEnemy(0, 0)
+							new Decoration(150, -50), new Decoration(-150, -50)
 						],
 						"?"
 					)
@@ -1095,18 +1095,20 @@ var game = {
 					new Room(
 						"combat2",
 						[
-							new Stairs(200, 0, 10, "right"),
-							new Stairs(0, 0, 10, "left"),
-							new Block(-4000, 0, 8000, 1000), //floor
-							new Block(600, -4000, 4000, 4100), //right wall
-							new Block(-1400, -4000, 1000, 8000), //left wall
-							new Block(0, -200, 201, 1000), //higher floor
-							new Block(-4000, -1400, 8000, 1000), //roof
-							new Door(-300, 0, ["reward"], true),
-							new Door(500, 0, ["reward"], true),
-							new Door(100, -200, ["ambient"], false, false, "toggle"),
-							new RandomEnemy(500, 0),
-							new RandomEnemy(-300, 0)
+							new Border("wall-to-left", { x: -500 }),
+							new Border("wall-to-right", { x: 500 }),
+							new Border("floor", { y: 0 }),
+							new Border("ceiling", { y: -400 }),
+
+							new Door(-400, 0, ["reward"]),
+							new Door(0, -200, ["ambient"]),
+							new Door(400, 0, ["reward"]),
+
+							new Stairs(-100, 0, 10, "left"),
+							new Block(-100, -200, 200, 200),
+							new Stairs(100, 0, 10, "right"),
+							new RandomEnemy(-400, 0),
+							new RandomEnemy(400, 0)
 						],
 						"?"
 					)
@@ -1123,14 +1125,16 @@ var game = {
 					new Room(
 						"combat3",
 						[
-							new Block(-100, 0, 200, 8000), //left floor
-							new Block(-4000, -4000, 3900, 8000), //left wall
-							new Block(900, 0, 300, 8000), //right floor
-							new Block(1100, -4000, 1000, 8000), //right wall
-							new Bridge(500, -200),
-							new Door(1000, 0, ["reward"]),
-							new Door(0, 0, ["reward"]),
-							new RandomEnemy(500, -200)
+							new Border("wall-to-left", { x: -600 }),
+							new Border("wall-to-right", { x: 600 }),
+							new Border("floor-to-left", { x: -400, y: 0 }),
+							new Border("floor-to-right", { x: 400, y: 0 }),
+
+							new Door(-500, 0, ["reward"]),
+							new Door(500, 0, ["reward"]),
+
+							new Bridge(0, -200),
+							new RandomEnemy(0, -200)
 						],
 						"?",
 						undefined,
@@ -1149,20 +1153,22 @@ var game = {
 					new Room(
 						"combat4",
 						[
-							new Block(-300, 0, 600, 1000), //center platform
-							new Pillar(-150, 0, 200),
-							new Pillar(150, 0, 200),
-							new Decoration(0, -200),
-							new Pillar(-400, 900, 850),
-							new Pillar(400, 900, 850),
-							new Block(-1500, 100, 1000, 1000), //left floor
-							new Block(500, 100, 1000, 1000), //right floor
-							new Block(-1700, -4000, 1000, 8000), //left wall
-							new Block(700, -4000, 1000, 8000), //left wall
+							new Border("floor-to-left", { x: -500, y: 100 }),
+							new Border("floor-to-right", { x: 500, y: 100 }),
+							new Border("wall-to-left", { x: -700 }),
+							new Border("wall-to-right", { x: 700 }),
+
 							new Door(0, 0, ["reward"], true, false, "toggle"),
 							new Door(-600, 100, ["ambient", "secret"]),
 							new Door(600, 100, ["ambient", "secret"]),
-							new RandomEnemy(0, 0)
+
+							new Block(-300, 0, 600, Border.LARGE_NUMBER),
+							new Decoration(0, -200),
+							new RandomEnemy(0, 0),
+							new Pillar(-400, Border.LARGE_NUMBER, Border.LARGE_NUMBER - 50),
+							new Pillar(-150, 0, 200),
+							new Pillar(150, 0, 200),
+							new Pillar(400, Border.LARGE_NUMBER, Border.LARGE_NUMBER - 50)
 						],
 						"?",
 						200
@@ -1180,23 +1186,24 @@ var game = {
 					new Room(
 						"parkour1",
 						[
-							new Block(-1000, -1000, 1000, 2000), //left wall
-							new Block(-1000, 500, 1200, 1000), //left floor
-							new Door(100, 500, ["ambient"], false),
-							new FallBlock(300, 475),
-							new FallBlock(400, 450),
-							new FallBlock(500, 425),
-							new Block(600, 400, 200, 2000), //middle platform
-							new Door(700, 400, ["reward"], true, false, "toggle"),
-							new FallBlock(900, 425),
-							new FallBlock(1000, 450),
-							new FallBlock(1100, 475),
-							new Block(1200, 500, 1000, 2000), //right floor
-							new Block(1400, -1000, 1000, 2000), //right wall
-							new Door(1300, 500, ["ambient"], false),
-							new Roof(700, 200, 700),
-							new Decoration(600, 350),
-							new Decoration(800, 350)
+							new Border("wall-to-left", { x: -700 }),
+							new Border("wall-to-right", { x: 700 }),
+							new Border("floor-to-left", { x: -500, y: 0 }),
+							new Border("floor-to-right", { x: 500, y: 0 }),
+
+							new Door(-600, 0, ["ambient"]),
+							new Door(0, -100, ["reward"], true, false, "toggle"),
+							new Door(600, 0, ["ambient"]),
+
+							new Block(-100, -100, 200, Border.LARGE_NUMBER),
+							new Decoration(-100, -150),
+							new Decoration(100, -150),
+							new FallBlock(-400, -25),
+							new FallBlock(-300, -50),
+							new FallBlock(-200, -75),
+							new FallBlock(200, -75),
+							new FallBlock(300, -50),
+							new FallBlock(400, -25),
 						],
 						"?",
 						-200
@@ -1214,15 +1221,16 @@ var game = {
 					new Room(
 						"parkour2",
 						[
-							new Block(0, -4000, 1000, 8000), //left wall
-							new Block(200, 0, 1000, 4000), //left floor
-							new Door(1100, 0, ["ambient"]),
-							new Block(1550, 200, 200, 8000), //middle platform
-							new Pulley(1300, 150, 1850, 150, 200, 150),
-							new Door(1650, 200, ["reward"], true),
-							new Block(2100, 0, 1000, 4000), //right floor
-							new Block(2300, -4000, 1000, 8000), //right wall
-							new Door(2200, 0, ["ambient"])
+							new Border("wall-to-left", { x: -650 }),
+							new Border("wall-to-right", { x: 650 }),
+							new Border("floor-to-left", { x: -450, y: 0 }),
+							new Border("floor-to-right", { x: 450, y: 0 }),
+
+							new Door(-550, 0, ["ambient"]),
+							new Door(550, 0, ["ambient"]),
+
+							new Block(-100, 200, 200, Border.LARGE_NUMBER),
+							new Pulley(-350, 150, 200, 150, 200, 150),
 						],
 						"?",
 						0
@@ -1236,50 +1244,25 @@ var game = {
 			difficulty: 4,
 			extraDoors: 0.5,
 			add: function() {
-				if(Math.random() < 0.5) {
-					game.dungeon.push(
-						new Room(
-							"parkour3",
-							[
-								new Block(-100, 0, 1000, 1000), //lower floor
-								new Block(100, -4000, 1000, 8000), //left wall
-								new TiltPlatform(-300, -100),
-								new TiltPlatform(-500, -200),
-								new Block(-1700, -300, 1000, 1000), //upper floor
-								new Block(-1900, -4000, 1000, 8000), //right wall
-								new Door(0, 0, ["ambient"]),
-								new Door(-800, -300, ["reward"], true),
-								new Roof(-400, -500, 500),
-								new Decoration(-100, -50),
-								new Decoration(-700, -350)
-							],
-							"?",
-							420
-						)
-					);
-				}
-				else {
-					game.dungeon.push(
-						new Room(
-							"parkour3",
-							[
-								new Block(-100, -300, 1000, 1000), //upper floor
-								new Block(100, -4000, 1000, 8000), //left wall
-								new TiltPlatform(-300, -200),
-								new TiltPlatform(-500, -100),
-								new Block(-1700, 0, 1000, 1000), //lower floor
-								new Block(-1900, -4000, 1000, 8000), //right wall
-								new Door(0, -300, ["reward"], true),
-								new Door(-800, 0, ["reward"]),
-								new Roof(-400, -500, 500),
-								new Decoration(-700, -50),
-								new Decoration(-100, -350)
-							],
-							"?",
-							420
-						)
-					);
-				}
+				game.dungeon.push(
+					new Room(
+						"parkour3",
+						[
+							new Border("wall-to-left", { x: 0 }),
+							new Border("wall-to-right", { x: 1000 }),
+							new Border("floor-to-left", { x: 200, y: -300 }),
+							new Border("floor-to-right", { x: 800, y: 0 }),
+
+							new Door(100, -300),
+							new Door(900, 0),
+
+							new TiltPlatform(400, -200),
+							new TiltPlatform(600, -100),
+						],
+						"?",
+						420
+					)
+				);
 			}
 		},
 		parkour4: {
@@ -1292,22 +1275,20 @@ var game = {
 					new Room(
 						"parkour4",
 						[
-							new Decoration(-1200, -140),
-							new Decoration(0, -140),
-							new Decoration(-1200, -540),
-							new Decoration(0, -540),
-							new Block(-100, 0, 1000, 4000), //right floor
-							new Block(100, -4000, 1000, 8000), //right wall
-							new Pulley(-400, 200, -1000, 200, -150, 150),
-							new TiltPlatform(-600, -100),
-							new Block(-2100, 0, 1000, 1000), //left floor
-							new Block(-2300, -4000, 1000, 8000), //left wall
-							new Block(-100, -400, 1000, 100), //upper right floor
-							new Block(-2100, -400, 1000, 100), //upper left floor
-							new Door(-1200, 0, ["ambient"]),
-							new Door(0, 0, ["ambient"]),
-							new Door(-1200, -400, ["reward"], true, false, "toggle"),
-							new Door(0, -400, ["reward"], true, false, "toggle")
+							new Border("wall-to-left", { x: -700 }),
+							new Border("wall-to-right", { x: 700 }),
+							new Border("floor-to-left", { x: -500, y: 0 }),
+							new Border("floor-to-right", { x: 500, y: 0 }),
+
+							new Door(-600, 0, ["ambient"]),
+							new Door(600, 0, ["ambient"]),
+							new Door(-600, -400, ["reward", true, false, "toggle"]),
+							new Door(600, -400, ["reward", true, false, "toggle"]),
+
+							new Block(-700, -400, 200, 100),
+							new Block(500, -400, 200, 100),
+							new Pulley(-400, 200, 200, 200, -150, 150),
+							new TiltPlatform(0, -100)
 						],
 						"?",
 						300
@@ -1325,13 +1306,13 @@ var game = {
 					new Room(
 						"reward1",
 						[
-							new Block(-4000, 0, 8000, 1000), // floor
-							new Block(-1500, -4000, 1300, 8000), //left wall
-							new Block(200, -4000, 1000, 8000), //right wall
-							new Block(-4000, -2000, 8000, 1800), //roof
+							new Border("floor", { y: 0 }),
+							new Border("wall-to-left", { x: -200 }),
+							new Border("wall-to-right", { x: 200 }),
+							new Border("ceiling", { y: -200 }),
 							new Chest(-100, 0),
 							new Chest(100, 0),
-							new Door(0, 0, "blah")
+							new Door(0, 0, "")
 						],
 						"?"
 					)
@@ -1362,15 +1343,16 @@ var game = {
 					chooser = 0;
 				}
 				if((p.healthAltarsFound >= 5 || game.dungeon[game.inRoom].colorScheme === "blue") && (p.manaAltarsFound >= 5 || game.dungeon[game.inRoom].colorScheme === "red")) {
+					console.log("hello");
 					game.dungeon.push(
 						new Room(
 							"reward",
 							[
-								new Block(-2000, 500, 4000, 500), //floor
-								new Block(-1000, -1000, 800, 2000), //left wall
-								new Block(200, -1000, 500, 3000), //right wall
-								new Block(-1000, -2000, 2000, 2300), //roof,
-								new Door(0, 500, ["things should go here... maybe? i dont think so lol"], false),
+								new Border("floor", { y: 500 }),
+								new Border("wall-to-left", { x: -200 }),
+								new Border("wall-to-right", { x: 200 }),
+								new Border("ceiling", { y: 300 }),
+								new Door(0, 500, [""], false),
 								new Chest(-100, 500),
 								new Chest(100, 500)
 							],
@@ -1384,18 +1366,22 @@ var game = {
 					new Room(
 						"reward2",
 						[
-							new Block(0, 0, 4000, 4000), //floor
-							new Block(0, -4000, 1000, 5000), //left wall
-							new Block(1500, -4000, 1000, 5000), //right wall
-							new Block(0, -2000, 8000, 1800), //roof
-							new Door(1100, 0, ["combat", "parkour"], false, true),
-							new Door(1400, 0, ["combat", "parkour"], false, true),
-							new Block(1210, -40, 80, 100),
-							new Block(1200, -201, 100, 41),
-							new Stairs(1290, 0, 2, "right"),
-							new Stairs(1210, 0, 2, "left"),
-							new Block(1180, -200, 140, 20),
-							new Altar(1250, -100, chooser < 0.5 ? "health" : "mana")
+							new Border("floor", { y: 0 }),
+							new Border("ceiling", { y: -200 }),
+							new Border("wall-to-left", { x: -250 }),
+							new Border("wall-to-right", { x: 250 }),
+
+							new Door(-150, 0, ["combat", "parkour"], false, true),
+							new Door(150, 0, ["combat", "parkour"], false, true),
+
+							new Block(-40, -40, 80, 40),
+							new Stairs(-40, 0, 2, "left"),
+							new Stairs(40, 0, 2, "right"),
+
+							new Block(-60, -201, 120, 41),
+							new Block(-80, -200, 160, 20),
+
+							new Altar(0, -100, chooser < 0.5 ? "health" : "mana")
 						],
 						"?"
 					)
@@ -1412,13 +1398,15 @@ var game = {
 				game.dungeon.push(new Room(
 					"reward3",
 					[
-						new Block(0, 0, 4000, 4000), //floor
-						new Block(0, -4000, 1000, 5000), //left wall
-						new Block(1500, -4000, 1000, 5000), //right wall
-						new Block(0, -2000, 8000, 1700), //roof
-						new Forge(1250, 0),
-						new Door(1050, 0, ["combat", "parkour"], false, true),
-						new Door(1450, 0, ["combat", "parkour"], false, true)
+						new Border("floor", { y: 0 }),
+						new Border("wall-to-left", { x: -250 }),
+						new Border("wall-to-right", { x: 250 }),
+						new Border("ceiling", { y: -300 }),
+
+						new Door(-200, 0, ["combat", "parkour"], false, true),
+						new Door(200, 0, ["combat", "parkour"], false, true),
+
+						new Forge(0, 0)
 					],
 					"?"
 				));
@@ -1430,44 +1418,25 @@ var game = {
 			difficulty: 0,
 			extraDoors: 0,
 			add: function() {
-				if(Math.random() < 0.5) {
-					game.dungeon.push(
-						new Room(
-							"reward4",
-							[
-								new Block(-4000, 0, 8000, 1000), //floor
-								new Stairs(200, 0, 10, "right"),
-								new Block(600, -4000, 4000, 4100), //right wall
-								new Chest(500, 0),
-								new Decoration(500, -100),
-								new Block(-800, -200, 1001, 1000), //higher floor
-								new Door(100, -200, ["combat", "parkour", "secret"]),
-								new Block(-1000, -4000, 1000, 8000), //left wall
-								new Block(-4000, -1400, 8000, 1000) //roof
-							],
-							"?"
-						)
-					);
-				}
-				else {
-					game.dungeon.push(
-						new Room(
-							"reward4",
-							[
-								new Block(-4000, 0, 8000, 1000), //floor
-								new Stairs(-200, 0, 10, "left"),
-								new Block(-4600, -4000, 4000, 4100), //left wall
-								new Chest(-500, 0),
-								new Decoration(-500, -100),
-								new Block(-200, -200, 1000, 1000), //higher floor
-								new Door(-100, -200, ["combat", "parkour", "secret"]),
-								new Block(0, -4000, 1000, 8000), //right wall
-								new Block(-4000, -1400, 8000, 1000) //roof
-							],
-							"?"
-						)
-					);
-				}
+				game.dungeon.push(
+					new Room(
+						"reward4",
+						[
+							new Border("floor", { y: 0 }),
+							new Border("wall-to-right", { x: 600 }),
+							new Border("wall-to-left", { x: 0 }),
+							new Border("ceiling", { y: -400 }),
+							new Border("floor-to-left", { x: 200, y: -200 }),
+
+							new Door(100, -200, ["combat", "parkour", "secret"]),
+							
+							new Stairs(200, 0, 10, "right"),
+							new Chest(500, 0),
+							new Decoration(500, -100),
+						],
+						"?"
+					)
+				);
 			}
 		},
 
@@ -1549,6 +1518,7 @@ var game = {
 		/* Add selected room */
 		var roomIndex = possibleRooms.randomIndex();
 		possibleRooms[roomIndex].add();
+		if(Math.random() < 0.5) { game.dungeon.lastItem().reflect(); }
 		game.dungeon[game.dungeon.length - 1].id = "?";
 		if(possibleRooms[roomIndex].colorScheme && !possibleRooms[roomIndex].colorScheme.includes("|")) {
 			game.dungeon[game.dungeon.length - 1].colorScheme = possibleRooms[roomIndex].colorScheme;
@@ -2055,14 +2025,15 @@ var ui = {
 						game.dungeon = [new Room(
 							"tutorial",
 							[
-								new Block(-4000, 400, 8000, 1000), /* floor */
-								new Block(-4000, -4000, 4400, 8000), /* left wall */
+								new Border("floor", { y: 400 }),
+								new Border("wall-to-left", { x: 400 }),
+								new Border("wall-to-right", { x: 1700 }),
+								new Border("floor-to-right", { x: 700, y: 300 }),
+
 								new MovingWall(400, -4000, 300, 4400),
 								new MovingWall(1100, -4000, 300, 4300, 1.1),
-								new Block(700, 300, 1000, 1000), /* higher floor */
 								new Chest(900, 300),
 								new Spider(1600, 200),
-								new Block(1700, -4000, 1000, 8000) /* far right wall */
 							],
 							"?"
 						)];
@@ -2654,28 +2625,16 @@ function timer() {
 				game.inRoom = game.numRooms;
 				game.camera.x = 0;
 				game.camera.y = 0;
-				p.x = 500;
-				p.y = -100;
+				p.x = 0;
+				p.y = -600;
 				p.velocity.y = 2;
 				p.fallDmg = Math.round(Math.randomInRange(40, 50));
-				game.dungeon.push(
-					new Room(
-						"ambient1",
-						[
-							new Pillar(200, 500, Math.randomInRange(200, 300)),
-							new Pillar(400, 500, Math.randomInRange(200, 300)),
-							new Pillar(600, 500, Math.randomInRange(200, 300)),
-							new Pillar(800, 500, Math.randomInRange(200, 300)),
-							new Block(-200, 500, 2000, 600),//floor
-							new Block(-600, -1200, 700, 3000), //left wall
-							new Block(900, -1200, 500, 3000), //right wall
-							new Door(300,  500, ["ambient", "combat", "parkour", "secret"]),
-							new Door(500,  500, ["ambient", "combat", "parkour", "secret"]),
-							new Door(700,  500, ["ambient", "combat", "parkour", "secret"])
-						],
-						"?"
-					)
-				);
+
+				/* load a room like ambient1 (three doors with pillars room), but without a roof and with randomized pillar sizes */
+				game.rooms.ambient1.add();
+				var addedRoom = game.dungeon.lastItem();
+				addedRoom.content = addedRoom.content.filter((obj) => !(obj instanceof Border && obj.type === "ceiling"));
+				addedRoom.content.filter((obj) => obj instanceof Pillar).forEach((pillar) => { pillar.h = Math.randomInRange(200, 300); });
 			};
 		}
 

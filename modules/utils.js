@@ -709,7 +709,12 @@ String.method("startsWith", function(substring) {
 	return this.substring(0, substring.length) === substring;
 });
 Object.method("clone", function() {
-	var clone = new this.constructor();
+	if(Array.isArray(this)) {
+		var clone = [];
+	}
+	else {
+		var clone = Object.create(this.__proto__);
+	}
 	for(var i in this) {
 		if(this.hasOwnProperty(i)) {
 			if(typeof this[i] === "object" && this[i] !== null) {

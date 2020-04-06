@@ -216,3 +216,15 @@ Room.method("displayImmediately", function(func, thisArg) {
 		renderingObject.display();
 	}
 });
+Room.method("reflect", function() {
+	this.content = this.content.map((obj) => {
+		if(typeof obj.reflect === "function") {
+			return obj.reflect();
+		}
+		else {
+			var reflected = obj.clone();
+			reflected.x = -reflected.x;
+			return reflected;
+		}
+	});
+});

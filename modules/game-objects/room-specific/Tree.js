@@ -6,7 +6,9 @@ function Tree(x, y) {
 	this.y = y;
 };
 Tree.method("update", function() {
-	var loc = graphics3D.point3D(this.x, this.y, 0.95);
+	var loc = graphics3D.point3D(this.x + game.camera.getOffsetX(), this.y + game.camera.getOffsetY(), 0.95);
+	loc.x -= game.camera.getOffsetX();
+	loc.y -= game.camera.getOffsetY();
 	collisions.solids.line(loc.x - 6, loc.y - 100, loc.x - 150, loc.y - 100, {walls: ["top"]});
 	collisions.solids.line(loc.x + 6, loc.y - 120, loc.x + 150, loc.y - 120, {walls: ["top"]});
 	collisions.solids.line(loc.x - 5, loc.y - 170, loc.x - 100, loc.y - 180, {walls: ["top"]});

@@ -37,3 +37,6 @@ Stairs.method("translate", function(x, y) {
 		step.y += y;
 	}
 });
+Stairs.method("reflect", function() {
+	return new Stairs(-this.x, this.y, this.numSteps, (this.dir === "right" ? "left" : "right"));
+});
