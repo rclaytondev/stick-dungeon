@@ -1350,21 +1350,7 @@ var game = {
 				}
 				if((p.healthAltarsFound >= 5 || game.dungeon[game.inRoom].colorScheme === "blue") && (p.manaAltarsFound >= 5 || game.dungeon[game.inRoom].colorScheme === "red")) {
 					console.log("hello");
-					game.dungeon.push(
-						new Room(
-							"reward",
-							[
-								new Border("floor", { y: 500 }),
-								new Border("wall-to-left", { x: -200 }),
-								new Border("wall-to-right", { x: 200 }),
-								new Border("ceiling", { y: 300 }),
-								new Door(0, 500, [""], false),
-								new Chest(-100, 500),
-								new Chest(100, 500)
-							],
-							"?"
-						)
-					);
+					game.rooms.reward1.add();
 				}
 				p.healthAltarsFound += (chooser < 0.5) ? 1 : 0;
 				p.manaAltarsFound += (chooser > 0.5) ? 1 : 0;
