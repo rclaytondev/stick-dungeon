@@ -71,6 +71,9 @@ Chest.method("generateItem", function() {
 		/* 50% coins, 50% miscellaneous */
 		var options = [this.generateCoins, this.generateMiscellaneousItem];
 	}
+	if(debugging.settings.DEBUGGING_MODE && debugging.settings.ALWAYS_ITEMS_IN_CHESTS) {
+		options = [this.generateMiscellaneousItem];
+	}
 	return (options.randomItem()).call(this);
 });
 Chest.method("generateCoins", function() {

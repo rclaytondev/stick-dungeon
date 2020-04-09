@@ -7,8 +7,8 @@ function Roof(x, y, w) {
 Roof.method("update", function() {
 	if(this.type === null) {
 		this.type = ["none", "flat", "sloped", "curved"].randomItem();
-		if(TESTING_MODE) {
-			this.type = "curved";
+		if(debugging.settings.DEBUGGING_MODE && debugging.settings.CEILING_TYPE !== null) {
+			this.type = debugging.settings.CEILING_TYPE;
 		}
 	}
 	if(this.type === "flat") {

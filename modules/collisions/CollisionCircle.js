@@ -35,8 +35,7 @@ CollisionCircle.method("collide", function(obj) {
 		}
 	}
 	else {
-		/* Add a hitbox if 'SHOW_HITBOXES' is true (for debugging) */
-		if(SHOW_HITBOXES) {
+		if(debugging.settings.DEBUGGING_MODE && debugging.settings.SHOW_HITBOXES) {
 			debugging.hitboxes.push({x: this.x, y: this.y, r: this.r, color: "dark blue"});
 		}
 		/* collide with objects */

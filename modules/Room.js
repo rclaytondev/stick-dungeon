@@ -25,13 +25,6 @@ Room.method("exist", function(index) {
 	var boulderIndexes = [];
 	var chargeIndexes = [];
 	p.canUseEarth = true;
-	/* testing */
-	this.content.forEach(function(obj) {
-		if(obj instanceof Enemy) {
-			//this.content[i].health = this.content[i].maxHealth;
-			// this.content.splice(i, 1);
-		}
-	});
 	/* load all types of items */
 	for(var i = 0; i < this.content.length; i ++) {
 		var obj = this.content[i];
@@ -40,8 +33,7 @@ Room.method("exist", function(index) {
 		}
 		if(obj instanceof Enemy) {
 			Enemy.prototype.update.call(obj);
-			/* show hitboxes */
-			if(SHOW_HITBOXES) {
+			if(debugging.settings.DEBUGGING_MODE && debugging.settings.SHOW_HITBOXES) {
 				debugging.hitboxes.push({x: obj.x + obj.hitbox.left, y: obj.y + obj.hitbox.top, w: Math.dist(obj.hitbox.left, obj.hitbox.right), h: Math.dist(obj.hitbox.top, obj.hitbox.bottom), color: "green"});
 			}
 		}

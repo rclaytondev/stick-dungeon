@@ -9,9 +9,16 @@ RandomEnemy.method("update", function() {
 	}
 });
 RandomEnemy.method("generate", function() {
-	if(game.enemies.length === 0 && TESTING_MODE) {
-		this.toBeRemoved = true;
-		return;
+	if(game.enemies.length === 0) {
+		if(debugging.settings.DEBUGGING_MODE) {
+			/* the developer has probably emptied the enemy array to remove enemies from the game (no error necessary) */
+			this.toBeRemoved = true;
+			return;
+		}
+		else {
+			/* there are no enemies to generate; this isn't supposed to ever happen in-game -> throw error */
+			throw new Error("No enemies were found that could be generated.");
+		}
 	}
 	/* Wait until the decorations are resolved before generating enemy */
 	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {

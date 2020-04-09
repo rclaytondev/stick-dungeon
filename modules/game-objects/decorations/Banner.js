@@ -68,8 +68,8 @@ Banner.method("update", function() {
 		if(this.graphic === null) {
 			this.graphic = ["gradient", "border"].randomItem();
 		}
-		if(TESTING_MODE) {
-			this.graphic = "border";
+		if(debugging.settings.DEBUGGING_MODE && debugging.settings.BANNER_TYPE !== null) {
+			this.graphic = debugging.settings.BANNER_TYPE;
 		}
 	}
 });

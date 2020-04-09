@@ -339,7 +339,7 @@ Player.method("displayHitbox", function() {
 	/*
 	Adds the player's hitbox to the debugging hitbox array.
 	*/
-	if(SHOW_HITBOXES) {
+	if(debugging.settings.DEBUGGING_MODE && debugging.settings.SHOW_HITBOXES) {
 		debugging.hitboxes.push({
 			color: "green",
 			x: p.x + p.hitbox.left,
@@ -569,7 +569,7 @@ Player.method("useItem", function() {
 			}
 			weaponPos.x += this.x;
 			weaponPos.y += this.y + 26 - this.velocity.y;
-			if(SHOW_HITBOXES) {
+			if(debugging.settings.DEBUGGING_MODE && debugging.settings.SHOW_HITBOXES) {
 				c.fillStyle = "rgb(0, 255, 0)";
 				c.fillRect(weaponPos.x - 3, weaponPos.y - 3, 6, 6);
 			}

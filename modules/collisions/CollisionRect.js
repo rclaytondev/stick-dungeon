@@ -73,8 +73,7 @@ CollisionRect.method("collide", function(obj) {
 		}
 	}
 	else {
-		/* Add a hitbox if 'SHOW_HITBOXES' is true (for debugging) */
-		if(SHOW_HITBOXES) {
+		if(debugging.settings.DEBUGGING_MODE && debugging.settings.SHOW_HITBOXES) {
 			debugging.hitboxes.push({x: this.x, y: this.y, w: this.w, h: this.h, color: this.settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
 		}
 		/* collide with objects */

@@ -44,8 +44,8 @@ Decoration.method("update", function() {
 				game.dungeon[game.theRoom].content[selfIndex] = new GlassWindow(x, y);
 			};
 			var decoration = [torch, banner, window].randomItem();
-			if(TESTING_MODE) {
-				// decoration = torch;
+			if(debugging.settings.DEBUGGING_MODE && debugging.settings.DECORATION_TYPE !== null) {
+				decoration = [torch, banner, window].filter(func => func.name === debugging.settings.DECORATION_TYPE)[0];
 			}
 			decoration(this.x, this.y);
 		}

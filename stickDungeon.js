@@ -4,8 +4,6 @@ var c = canvas.getContext("2d");
 
 const FPS = 60;
 const FLOOR_WIDTH = 0.1;
-const TESTING_MODE = true;
-const SHOW_HITBOXES = false;
 
 
 
@@ -617,202 +615,6 @@ var collisions = {
 	},
 	objectIntersectsCircle: function(obj, circle) {
 		return collisions.rectangleIntersectsCircle(obj.hitbox.translate(obj.x, obj.y), circle);
-	}
-};
-var debugging = {
-	/*
-	This object provides methods + properties so that you can disable certain aspects of the game for manual testing + debugging.
-	*/
-	hitboxes: [],
-	timeOfLastCall: 0,
-	frameOfLastCall: 0,
-	fps: 0,
-
-	activateDebuggingSettings: function() {
-		game.onScreen = "play";
-		/* override randomizer for room generation */
-		var includedRooms = ["combat1", "reward2"];
-		var allRooms = game.rooms.getAllRooms();
-		allRooms.forEach((room) => {
-			if(!includedRooms.includes(room.name)) {
-				// delete game.rooms[room.name];
-			}
-		});
-		// game.items = [Sword];
-		game.enemies = [Dragonling];
-		/* load different rooms to override the first room */
-		function loadRoom(id) {
-			game.dungeon = [];
-			if(Object.typeof(game.rooms[id]) !== "object") {
-				throw new Error("Could not find room ID of '" + id + "'");
-			}
-			game.rooms[id].add();
-			if(Math.random() < 0.5) { game.dungeon.lastItem().reflect(); }
-			var room = game.dungeon[0];
-			var entranceDoor = room.content.filter((obj) => (obj instanceof Door))[0];
-			if(entranceDoor instanceof Door) {
-				p.x = entranceDoor.x;
-				p.y = entranceDoor.y - p.hitbox.bottom;
-			}
-			else {
-				p.x = 0, p.y = 0;
-			}
-			if(game.rooms[id].colorScheme === "all") {
-				room.colorScheme = ["red", "green", "blue"].randomItem();
-			}
-			else {
-				room.colorScheme = game.rooms[id].colorScheme;
-			}
-			game.dungeon[0].getInstancesOf(Door).forEach(function(obj) { obj.containingRoomID = 0; });
-		};
-		loadRoom("parkour1");
-		/* change doors in first room */
-		for(var i = 0; i < game.dungeon[0].content.length; i ++) {
-			if(game.dungeon[0].content[i] instanceof Door) {
-				// game.dungeon[0].content[i].dest = ["reward"];
-			}
-		}
-		/* give player items */
-		p.class = "archer";
-		for(var i = 0; i < game.items.length; i ++) {
-			// p.addItem(new game.items[i]());
-		}
-		p.addItem(new WoodBow());
-		p.addItem(new MechBow());
-		p.addItem(new EnergyStaff());
-		p.addItem(new Arrow(Infinity));
-	},
-	drawPoint: function() {
-		/* Puts a point at the location. (Used for visualizing graphic functions) */
-		c.save(); {
-			c.fillStyle = "rgb(255, 0, 0)";
-			var size = Math.sin(utils.frameCount / 10) * 5 + 5;
-			if(typeof arguments[0] === "number") {
-				c.fillCircle(arguments[0], arguments[1], size);
-			}
-			else {
-				c.fillCircle(arguments[0].x, arguments[0].y, size);
-			}
-		} c.restore();
-	},
-
-	calculateFPS: function() {
-		var timeNow = new Date().getTime();
-		var timePassed = timeNow - this.timeOfLastCall;
-		var framesNow = utils.frameCount;
-		var framesPassed = framesNow - this.frameOfLastCall;
-		this.fps = Math.round(framesPassed / timePassed * 1000);
-
-		this.timeOfLastCall = timeNow;
-		this.frameOfLastCall = framesNow;
-	},
-	displayFPS: function() {
-		c.fillStyle = "rgb(255, 255, 255)";
-		c.textAlign = "left";
-		c.fillText(this.fps + " fps", 0, 10);
-	},
-
-	displayHitboxes: function() {
-		var colorIntensity = Math.map(
-			Math.sin(utils.frameCount / 30),
-			-1, 1,
-			225, 255
-		);
-		const COLORS = {
-			"light blue": "rgb(0, " + colorIntensity + ", " + colorIntensity + ")",
-			"dark blue": "rgb(0, 0, " + colorIntensity + ")",
-			"green": "rgb(0, " + colorIntensity + ", 0)"
-		};
-		for(var i = 0; i < debugging.hitboxes.length; i ++) {
-			var hitbox = debugging.hitboxes[i];
-			c.strokeStyle = COLORS[hitbox.color];
-			c.lineWidth = 5;
-			if(hitbox.hasOwnProperties("x", "y", "r")) {
-				c.strokeCircle(hitbox.x + game.camera.getOffsetX(), hitbox.y + game.camera.getOffsetY(), hitbox.r);
-			}
-			else if(hitbox.hasOwnProperties("x", "y", "w", "h")) {
-				c.strokeRect(hitbox.x + game.camera.getOffsetX(), hitbox.y + game.camera.getOffsetY(), hitbox.w, hitbox.h);
-			}
-		}
-	},
-
-	clearSlot: function(id) {
-		/* Clears the specified slot of the player's inventory */
-		if(Object.typeof(id) !== "number") {
-			p.invSlots.forEach((slot) => { slot.content = "empty"; });
-		}
-		else {
-			p.invSlots[id].content = "empty";
-		}
-	},
-
-	keyAbilities: {
-		/*
-		This object is used for special abilities given while testing. (You have to enable TESTING_MODE to turn these on)
-		 - Ability to cycle through all the doors in a room, teleporting the player to the next / previous door
-		 - Ability to enter a door and skip the fading screen animation
-		 - Ability to kill all enemies in the room
-		 - Ability to kill all enemies in all rooms
-		To add a new key ability, define a method on the `keyBinds` object below to return whether or not to activate the key ability for a given keyset. Then define a function on this object (with the same name) that should be run when the keys are pressed.
-		*/
-		keyBinds: {
-			goToNextDoor: (keySet) => keySet.Tab && !(keySet.ShiftLeft || keySet.ShiftRight),
-			goToPreviousDoor: (keySet) => keySet.Tab && (keySet.ShiftLeft || keySet.ShiftRight),
-			enterDoorWithoutTransition: (keySet) => keySet.KeyQ,
-			killEnemiesInRoom: (keySet) => keySet.KeyW && !(keySet.ShiftLeft || keySet.ShiftRight),
-			killAllEnemies: (keySet) => keySet.KeyW && (keySet.ShiftLeft || keySet.ShiftRight)
-		},
-
-		checkForKeyAbilities: function() {
-			for(var i in this.keyBinds) {
-				if(this.keyBinds.hasOwnProperty(i) && this.keyBinds[i](io.keys) && !this.keyBinds[i](utils.pastInputs.keys)) {
-					this[i](); // call method with same name on this object
-				}
-			}
-		},
-
-		getNearestDoorIndex: function() {
-			var nearestDoor = game.dungeon[game.inRoom].getInstancesOf(Door).min((door) => Math.dist(door.x, door.y, p.x, p.y));
-			var nearestDoorIndex = game.dungeon[game.inRoom].content.indexOf(nearestDoor);
-			return nearestDoorIndex;
-		},
-		movePlayerToDoor: function(door) {
-			p.x = door.x;
-			p.y = door.y - p.hitbox.bottom;
-		},
-		goToNextDoor: function() {
-			var nearestDoorIndex = this.getNearestDoorIndex();
-			var nearestDoor = game.dungeon[game.inRoom].content[nearestDoorIndex];
-			var doors = game.dungeon[game.inRoom].getInstancesOf(Door);
-			nearestDoorIndex = doors.indexOf(nearestDoor);
-			var nextDoorIndex = nearestDoorIndex + 1;
-			if(nextDoorIndex >= doors.length) { nextDoorIndex = 0; }
-			this.movePlayerToDoor(doors[nextDoorIndex]);
-		},
-		goToPreviousDoor: function() {
-			var nearestDoorIndex = this.getNearestDoorIndex();
-			var nearestDoor = game.dungeon[game.inRoom].content[nearestDoorIndex];
-			var doors = game.dungeon[game.inRoom].getInstancesOf(Door);
-			nearestDoorIndex = doors.indexOf(nearestDoor);
-			var nearestDoorIndex = nearestDoorIndex - 1;
-			if(nearestDoorIndex < 0) { nearestDoorIndex = doors.length - 1; }
-			this.movePlayerToDoor(doors[nearestDoorIndex]);
-		},
-
-		enterDoorWithoutTransition: function() {
-			var nearestDoorIndex = this.getNearestDoorIndex();
-			var nearestDoor = game.dungeon[game.inRoom].content[nearestDoorIndex];
-			nearestDoor.enter(p);
-		},
-
-		killEnemiesInRoom: function() {
-			game.dungeon[game.inRoom].content.filter(obj => obj instanceof Enemy).forEach((enemy) => { enemy.hurt(10000); });
-		},
-		killAllEnemies: function() {
-			game.dungeon.forEach((room) => {
-				room.content.filter(obj => obj instanceof Enemy).forEach((enemy) => { enemy.hurt(10000); });
-			});
-		}
 	}
 };
 var game = {
@@ -1510,13 +1312,21 @@ var game = {
 		/* Add selected room */
 		var roomIndex = possibleRooms.randomIndex();
 		possibleRooms[roomIndex].add();
-		if(Math.random() < 0.5) { game.dungeon.lastItem().reflect(); }
+		if(
+			(debugging.settings.DEBUGGING_MODE && debugging.settings.REFLECT_ROOMS === true) ||
+			((debugging.settings.REFLECT_ROOMS === null || !debugging.settings.DEBUGGING_MODE) && Math.random() < 0.5)
+		) {
+			game.dungeon.lastItem().reflect();
+		}
 		game.dungeon[game.dungeon.length - 1].id = "?";
 		if(possibleRooms[roomIndex].colorScheme && !possibleRooms[roomIndex].colorScheme.includes("|")) {
 			game.dungeon[game.dungeon.length - 1].colorScheme = possibleRooms[roomIndex].colorScheme;
 			if(game.dungeon[game.dungeon.length - 1].colorScheme === "all") {
 				if(game.dungeon[previousRoom].colorScheme === null) {
 					game.dungeon[game.dungeon.length - 1].colorScheme = ["red", "green", "blue"].randomItem();
+					if(debugging.settings.DEBUGGING_MODE && debugging.settings.ROOM_COLOR !== null) {
+						game.dungeon[game.dungeon.length - 1].colorScheme = debugging.settings.ROOM_COLOR;
+					}
 				}
 				else {
 					game.dungeon[game.dungeon.length - 1].colorScheme = game.dungeon[previousRoom].colorScheme;
@@ -2572,16 +2382,16 @@ utils.initializer.initializeEverything();
 var p = new Player();
 p.loadScores();
 
-if(TESTING_MODE) {
-	debugging.activateDebuggingSettings();
-}
-
 /** FRAMES **/
 function timer() {
-	if(TESTING_MODE) {
-		p.health = p.maxHealth;
-		p.mana = p.maxMana;
-		debugging.keyAbilities.checkForKeyAbilities();
+	if(debugging.settings.DEBUGGING_MODE) {
+		if(debugging.settings.INFINITE_HEALTH) {
+			p.health = p.maxHealth;
+			p.mana = p.maxMana;
+		}
+		if(debugging.settings.ABILITY_KEYS) {
+			debugging.keyAbilities.checkForKeyAbilities();
+		}
 	}
 	c.globalAlpha = 1;
 	io.cursor = "auto";
@@ -2680,10 +2490,10 @@ function timer() {
 		(new Room()).displayShadowEffect();
 	}
 
-	if(TESTING_MODE) {
-		debugging.displayFPS();
+	if(debugging.settings.DEBUGGING_MODE && debugging.settings.SHOW_FPS) {
+		debugging.fps.display();
 		if(utils.frameCount % 10 === 0) {
-			debugging.calculateFPS();
+			debugging.fps.recalculate();
 		}
 	}
 	utils.pastInputs.update();
