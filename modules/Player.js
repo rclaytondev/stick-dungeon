@@ -581,7 +581,7 @@ Player.method("useItem", function() {
 						/* hurt enemy that was hit by the weapon */
 						var damage = Math.randomInRange(this.attackingWith.damLow, this.attackingWith.damHigh);
 						enemy.hurt(damage);
-						if(["fire", "water", "earth", "air"].includes(this.type)) {
+						if(["fire", "water", "earth", "air"].includes(this.attackingWith.element)) {
 							Weapon.applyElementalEffect(this.attackingWith.element, enemy, this.facing, weaponPos);
 						}
 						/* reset variables for weapon swinging */

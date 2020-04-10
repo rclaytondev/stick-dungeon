@@ -150,12 +150,19 @@ Enemy.method("display", function() {
 	}
 	if(!(this instanceof Wraith)) {
 		/* display fire particles for burning enemies. (This is done even if the enemy isn't burning because there could still be particles left over from when they were burning.) */
-		this.particles.forEach((particle) => {
-			c.save(); {
-				c.translate(this.x + this.hitbox.left, this.y + this.hitbox.top);
-				particle.display();
-			} c.restore();
-		});
+		var self = this;
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				self.particles.forEach((particle) => {
+					game.dungeon[game.theRoom].displayImmediately(function() {
+						particle.x += self.x, particle.y += self.y;
+						particle.display();
+						particle.x -= self.x, particle.y -= self.y;
+					});
+				});
+			},
+			1
+		))
 		this.particles = this.particles.filter((particle) => (!particle.toBeRemoved));
 	}
 });

@@ -49,7 +49,7 @@ Weapon.applyElementalEffect = function(element, enemy, direction, location, bonu
 	*/
 	if(element === "fire") {
 		enemy.timeBurning = (enemy.timeBurning <= 0) ? (FPS * (bonusEffects ? 3 : 2)) : enemy.timeBurning;
-		enemy.burnDmg = (bonusEffects ? 2 : 1);
+		enemy.burnDmg = (bonusEffects ? 20 : 10);
 	}
 	else if(element === "water") {
 		enemy.timeFrozen = (enemy.timeFrozen < 0) ? (FPS * (bonusEffects ? 4 : 2)) : enemy.timeFrozen;
