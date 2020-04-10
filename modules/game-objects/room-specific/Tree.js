@@ -40,5 +40,5 @@ Tree.method("display", function() {
 				0.95
 			)
 		);
-	graphics3D.cube(this.x - 100, this.y - 40, 200, 40, 0.9, 1);
+	graphics3D.cube(this.x - 100, this.y - 40, 200, 40, 0.91, 1);
 });

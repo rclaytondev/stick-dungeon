@@ -9,21 +9,30 @@ function Rock(x, y, velX, velY) {
 	this.hitbox = new utils.geom.Rectangle({ left: -20, right: 20, top: -20, bottom: 20 });
 };
 Rock.method("display", function() {
+	var self = this;
 	if(!this.hitSomething) {
 		c.save(); {
-			c.globalAlpha = this.opacity;
-			c.fillStyle = "rgb(140, 140, 140)";
-			c.fillCircle(this.x, this.y, 20);
+			game.dungeon[game.theRoom].render(new RenderingOrderObject(
+				function() {
+					c.globalAlpha = self.opacity;
+					c.fillStyle = "rgb(140, 140, 140)";
+					c.fillCircle(self.x, self.y, 20);
+				},
+				1
+			))
 		} c.restore();
 	}
 	else {
-		c.save(); {
-			c.fillStyle = "rgb(140, 140, 140)";
-			for(var i = 0; i < this.fragments.length; i ++) {
-				c.globalAlpha = this.fragments[i].opacity;
-				c.fillCircle(this.fragments[i].x, this.fragments[i].y, 5);
-			}
-		} c.restore();
+		game.dungeon[game.theRoom].render(new RenderingOrderObject(
+			function() {
+				c.fillStyle = "rgb(140, 140, 140)";
+				for(var i = 0; i < self.fragments.length; i ++) {
+					c.globalAlpha = self.fragments[i].opacity;
+					c.fillCircle(self.fragments[i].x, self.fragments[i].y, 5);
+				}
+			},
+			1
+		));
 	}
 });
 Rock.method("update", function() {
