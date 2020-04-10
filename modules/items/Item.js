@@ -37,7 +37,7 @@ Item.method("remove", function() {
 });
 Item.method("exist", function() {
 	this.update();
-	this._display();
+	Item.prototype.display.call(this);
 });
 Item.method("displayDesc", function(x, y, dir) {
 	dir = dir || "left";
@@ -128,11 +128,11 @@ Item.method("displayDesc", function(x, y, dir) {
 		}
 	}
 });
-Item.method("_display", function() {
+Item.method("display", function() {
 	/*
-	This function is used to display the items in-game (the ones in chests). It is used because the individual items already have a method `display`.
+	This function is used to display the items in-game (the ones in chests). It finds the nearest chest and clips the drawing so that it doesn't draw otuside the chest, then calls the child's method `display()`.
 	*/
-	var nearestChest = game.dungeon[game.theRoom].content[0];
+	var nearestChest = game.dungeon[game.theRoom].getInstancesOf(Chest)[0];
 	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
 		var obj = game.dungeon[game.theRoom].content[i];
 		if(obj instanceof Chest && Math.distSq(obj.x, obj.y, this.x, this.y) < Math.distSq(nearestChest.x, nearestChest.y, this.x, this.y)) {

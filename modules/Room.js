@@ -85,7 +85,7 @@ Room.method("display", function() {
 	this.content.forEach(
 		function(obj) {
 			if(obj instanceof Item) {
-				obj._display();
+				Item.prototype.display.call(obj);
 			}
 			else if(obj instanceof Enemy) {
 				Enemy.prototype.display.call(obj);
