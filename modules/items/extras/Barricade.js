@@ -57,8 +57,7 @@ Barricade.method("getDesc", function() {
 Barricade.method("use", function() {
 	var doorNearby = false;
 	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, 0.9);
-		if(game.dungeon[game.inRoom].content[i] instanceof Door && Math.dist(loc.x, loc.y, 400, 400) <= 100 && !game.dungeon[game.inRoom].content[i].barricaded) {
+		if(game.dungeon[game.inRoom].content[i] instanceof Door && Math.dist(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, p.x, p.y) <= 100 && !game.dungeon[game.inRoom].content[i].barricaded) {
 			doorNearby = true;
 			break;
 		}

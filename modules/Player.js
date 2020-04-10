@@ -547,7 +547,7 @@ Player.method("useItem", function() {
 				}
 			}
 		}
-		else if(this.invSlots[this.activeSlot].content.hasOwnProperty("use")) {
+		else if(typeof this.invSlots[this.activeSlot].content.use === "function") {
 			this.invSlots[this.activeSlot].content.use();
 		}
 	}
