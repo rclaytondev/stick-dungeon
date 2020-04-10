@@ -1035,6 +1035,7 @@ var game = {
 							new Border("floor-to-right", { x: 450, y: 0 }),
 
 							new Door(-550, 0, ["ambient"]),
+							new Door(0, 200, ["reward"]),
 							new Door(550, 0, ["ambient"]),
 
 							new Block(-100, 200, 200, Border.LARGE_NUMBER),
