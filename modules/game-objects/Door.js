@@ -111,6 +111,25 @@ Door.method("display", function() {
 						}
 					} c.restore();
 				}
+				if(p.invSlots[p.activeSlot].content instanceof Map) {
+					/* Symbols for maps */
+					var symbol = self.getInfo();
+					var mapSymbolLocation = graphics3D.point3D(self.x, self.y - 40, 0.9);
+					c.font = "15pt monospace";
+					c.fillStyle = "rgb(255, 255, 255)";
+					c.textAlign = "center";
+					if(symbol !== ">" || true) {
+						c.fillText(symbol, mapSymbolLocation.x, mapSymbolLocation.y);
+					}
+					else {
+						if(p.x > this.x) {
+							c.fillText("<", mapSymbolLocation.x, mapSymbolLocation.y);
+						}
+						else {
+							c.fillText(">", mapSymbolLocation.x, mapSymbolLocation.y);
+						}
+					}
+				}
 			},
 			0.9,
 			-1
@@ -118,23 +137,6 @@ Door.method("display", function() {
 	);
 	if(this.type === "lintel") {
 		graphics3D.cube(this.x - 45, this.y - 110, 90, 20, 0.9, 0.91, "rgb(110, 110, 110)", "rgb(150, 150, 150)");
-	}
-	/* Symbols for maps */
-	var symbol = this.getInfo();
-	var center = graphics3D.point3D(this.x, this.y - 40, 0.9);
-	c.font = "15pt monospace";
-	c.fillStyle = "rgb(255, 255, 255)";
-	c.textAlign = "center";
-	if(symbol !== ">" || true) {
-		c.fillText(symbol, center.x, center.y);
-	}
-	else {
-		if(p.x > this.x) {
-			c.fillText("<", center.x, center.y);
-		}
-		else {
-			c.fillText(">", center.x, center.y);
-		}
 	}
 });
 Door.method("update", function() {
