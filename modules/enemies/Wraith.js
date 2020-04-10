@@ -78,3 +78,6 @@ Wraith.method("translate", function(x, y) {
 		particle.y += y;
 	}
 });
+Wraith.method("remove", function() {
+	game.dungeon[game.theRoom].content = game.dungeon[game.theRoom].content.concat(this.particles);
+});

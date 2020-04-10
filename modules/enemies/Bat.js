@@ -25,6 +25,7 @@ Bat.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
+			c.globalAlpha = Math.constrain(self.opacity, 0, 1);
 			c.fillStyle = "rgb(0, 0, 0)";
 			c.fillCircle(self.x, self.y, 10);
 

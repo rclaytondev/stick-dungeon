@@ -35,6 +35,7 @@ Troll.method("display", function() {
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
 			c.save(); {
+				c.globalAlpha = Math.constrain(self.opacity, 0, 1);
 				c.translate(self.x, self.y);
 				c.scale(0.75, 0.75);
 				/* rounded shoulders */

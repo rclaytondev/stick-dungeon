@@ -31,6 +31,7 @@ SkeletonWarrior.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
+			c.globalAlpha = Math.constrain(self.opacity, 0, 1);
 			c.lineWidth = 2;
 			/* head */
 			c.fillStyle = "rgb(255, 255, 255)";
