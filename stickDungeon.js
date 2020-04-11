@@ -2320,7 +2320,7 @@ var ui = {
 				if((item instanceof RangedWeapon && !(item instanceof Arrow) && p.hasInInventory(Arrow))) {
 					this.actions.a = "shoot bow";
 				}
-				if(item instanceof MagicWeapon && p.mana > item.manaCost) {
+				if(item instanceof MagicWeapon && (p.mana > item.manaCost || p.health > item.hpCost)) {
 					this.actions.a = "use magic";
 				}
 				if(item instanceof MeleeWeapon) {
@@ -2340,8 +2340,7 @@ var ui = {
 				if(item instanceof Barricade) {
 					var doorNearby = false;
 					for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-						var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, 0.9);
-						if(game.dungeon[game.inRoom].content[i] instanceof Door && Math.dist(loc.x, loc.y, 400, 400) <= 100 && !game.dungeon[game.inRoom].content[i].barricaded) {
+						if(game.dungeon[game.inRoom].content[i] instanceof Door && Math.dist(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, p.x, p.y) <= 100 && !game.dungeon[game.inRoom].content[i].barricaded) {
 							doorNearby = true;
 							break;
 						}
