@@ -615,11 +615,9 @@ Math.findPointsLinear = function(x1, y1, x2, y2) {
 	}
 	/* Swap it again to cancel out previous swap and return */
 	if(inverted) {
-		for(var i = 0; i < linearPoints.length; i ++) {
-			var oldX = linearPoints[i].x;
-			linearPoints[i].x = linearPoints[i].y;
-			linearPoints[i].y = oldX;
-		}
+		linearPoints.forEach(point => {
+			[point.x, point.y] = [point.y, point.x];
+		});
 	}
 	return linearPoints;
 };
@@ -632,7 +630,7 @@ Math.calculateDegrees = function(x, y) {
 Math.randomInRange = function(min, max) {
 	return Math.random() * (max - min) + min;
 };
-Array.method("min", function(func) {
+Array.method("min", function(func, thisArg) {
 	/*
 	Returns the lowest item, or the item for which func() returns the lowest value.
 	*/
@@ -640,7 +638,7 @@ Array.method("min", function(func) {
 		var lowestIndex = 0;
 		var lowestValue = Infinity;
 		for(var i = 0; i < this.length; i ++) {
-			var value = func(this[i]);
+			var value = func.call(thisArg, this[i], i, this);
 			if(value < lowestValue) {
 				lowestIndex = i;
 				lowestValue = value;
@@ -668,7 +666,7 @@ Array.method("max", function(func) {
 		var highestIndex = 0;
 		var highestValue = -Infinity;
 		for(var i = 0; i < this.length; i ++) {
-			var value = func(this[i]);
+			var value = func.call(thisArg, this[i], i, this);
 			if(value < highestValue) {
 				highestIndex = i;
 				highestValue = value;
@@ -688,6 +686,21 @@ Array.method("max", function(func) {
 		return this[highestIndex];
 	}
 });
+Array.method("sum", function(func, thisArg) {
+	if(typeof func === "function") {
+		var sum = 0;
+		this.forEach((item, index, array) => {
+			var result = func.call(thisArg, item, index, array);
+			if(typeof result === "number" && !isNaN(result)) {
+				sum += result;
+			}
+		});
+		return sum;
+	}
+	else {
+		return this.reduce((sum, item) => sum + item);
+	}
+});
 Array.method("containsInstanceOf", function(constructor) {
 	for(var i = 0; i < this.length; i ++) {
 		if(this[i] instanceof constructor) {
@@ -699,11 +712,20 @@ Array.method("containsInstanceOf", function(constructor) {
 Array.method("lastItem", function() {
 	return this[this.length - 1];
 });
+Array.method("onlyItem", function() {
+	if(this.length !== 1) {
+		throw new Error("Expected the array to have only one item, but instead the length was '" + this.length + "'");
+	}
+	return this[0];
+});
 Array.method("randomItem", function() {
 	return this[this.randomIndex()];
 });
 Array.method("randomIndex", function() {
 	return Math.floor(Math.random() * this.length);
+});
+Array.method("removeAll", function(item) {
+	return this.filter(currentItem => currentItem !== item);
 });
 String.method("startsWith", function(substring) {
 	return this.substring(0, substring.length) === substring;

@@ -54,17 +54,17 @@ Fountain.method("display", function() {
 				};
 			}
 		};
-		for(var i = 0; i < this.waterAnimations.length; i ++) {
-			var topY = this.waterAnimations[i].y;
-			var bottomY = this.waterAnimations[i].y + 50;
+		this.waterAnimations.forEach(waterAnimation => {
+			var topY = waterAnimation.y;
+			var bottomY = waterAnimation.y + 50;
 			if(topY > 225) {
 				this.waterAnimations.splice(i, 1);
 				i --;
 				continue;
 			}
-			var p1 = calculatePosition(this.waterAnimations[i].x, this.waterAnimations[i].y);
-			var corner = calculatePosition(this.waterAnimations[i].x, HORIZONTAL_FOUNTAIN_HEIGHT);
-			var p2 = calculatePosition(this.waterAnimations[i].x, this.waterAnimations[i].y + 50);
+			var p1 = calculatePosition(waterAnimation.x, waterAnimation.y);
+			var corner = calculatePosition(waterAnimation.x, HORIZONTAL_FOUNTAIN_HEIGHT);
+			var p2 = calculatePosition(waterAnimation.x, waterAnimation.y + 50);
 			if(topY < HORIZONTAL_FOUNTAIN_HEIGHT && bottomY > HORIZONTAL_FOUNTAIN_HEIGHT) {
 				game.dungeon[game.theRoom].render(new RenderingOrderObject(
 					displayWaterGraphic(graphics3D.point3D(p1.x, p1.y, p1.z), graphics3D.point3D(corner.x, corner.y, corner.z)),
@@ -84,7 +84,7 @@ Fountain.method("display", function() {
 					1
 				));
 			}
-		}
+		});
 	} c.restore();
 	/* base */
 	game.dungeon[game.theRoom].clearRenderingStyle();
@@ -93,9 +93,7 @@ Fountain.method("display", function() {
 	graphics3D.cube(this.x - 100, this.y - 50, 200, 50, 0.98, 1);
 });
 Fountain.method("update", function() {
-	for(var i = 0; i < this.waterAnimations.length; i ++) {
-		this.waterAnimations[i].y += 2;
-	}
+	this.waterAnimations.forEach(waterAnimation => { waterAnimation.y += 2; });
 	if(utils.frameCount % 15 === 0) {
 		this.waterAnimations.push( {x: Math.randomInRange(-50, 50), y: -50} );
 	}

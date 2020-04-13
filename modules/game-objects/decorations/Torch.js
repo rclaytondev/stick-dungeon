@@ -12,9 +12,7 @@ Torch.method("display", function() {
 		new RenderingOrderObject(
 			function() {
 				game.dungeon[game.theRoom].displayImmediately(function() {
-					for(var i = 0; i < self.fireParticles.length; i ++) {
-						self.fireParticles[i].display();
-					}
+					self.fireParticles.forEach(particle => { particle.display(); });
 				});
 			},
 			0.97,
@@ -42,17 +40,13 @@ Torch.method("update", function() {
 		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.randomInRange(-3, 0), Math.randomInRange(5, 10)));
 		this.fireParticles.lastItem().z = Math.randomInRange(0.94, 0.96);
 	}
-	for(var i = 0; i < this.fireParticles.length; i ++) {
-		this.fireParticles[i].update();
-	}
-	this.fireParticles = this.fireParticles.filter(function(particle) { return !particle.toBeRemoved; });
+	this.fireParticles.forEach(particle => { particle.update(); });
+	this.fireParticles = this.fireParticles.filter(particle => !particle.toBeRemoved);
 });
 Torch.method("translate", function(x, y) {
 	this.x += x;
 	this.y += y;
-	for(var i = 0; i < this.fireParticles.length; i ++) {
-		var particle = this.fireParticles[i];
-		particle.x += x;
-		particle.y += y;
-	}
+	this.fireParticles.forEach(particle => {
+		particle.x += x, particle.y += y;
+	})
 });

@@ -24,12 +24,8 @@ function Wraith(x, y) {
 Wraith.extends(Enemy);
 Wraith.method("display", function() {
 	/* particle graphics */
-	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].display();
-		if(this.particles[i].opacity <= 0) {
-			this.particles.splice(i, 1);
-		}
-	}
+	this.particles.forEach((particle) => { particle.display(); });
+	this.particles = this.particles.filter((particle) => particle.opacity > 0);
 	for(var i = 0; i < 10; i ++) {
 		var pos = Math.randomInRange(0, 50);
 		this.particles.push(new Particle("rgb(0, 0, 0)", this.x + Math.randomInRange(-pos, pos), this.y + 50 - pos * 2, Math.randomInRange(-1, 1), Math.randomInRange(-1, 1), Math.randomInRange(6, 10)));
@@ -72,11 +68,9 @@ Wraith.method("handleCollision", function(direction, collision) {
 Wraith.method("translate", function(x, y) {
 	this.x += x;
 	this.y += y;
-	for(var i = 0; i < this.particles.length; i ++) {
-		var particle = this.particles[i];
-		particle.x += x;
-		particle.y += y;
-	}
+	this.particles.forEach((particle) => {
+		particle.x += x, particle.y += y;
+	})
 });
 Wraith.method("remove", function() {
 	game.dungeon[game.theRoom].content = game.dungeon[game.theRoom].content.concat(this.particles);

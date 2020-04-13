@@ -41,15 +41,12 @@ WindBurst.method("update", function() {
 	this.x += this.velocity.x;
 	this.velocity.x *= 0.98;
 	this.opacity -= 0.05;
-	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		if(game.dungeon[game.inRoom].content[i] instanceof Enemy && !(game.dungeon[game.inRoom].content[i] instanceof Wraith)) {
-			var enemy = game.dungeon[game.inRoom].content[i];
-			if(collisions.objectIntersectsObject(this, enemy)) {
-				enemy.velocity.x = (this.dir === "left") ? -3 : 3;
-				enemy.x += this.velocity.x;
-			}
+	game.dungeon[game.inRoom].getInstancesOf(Enemy).filter(enemy => !(enemy instanceof Wraith)).forEach(enemy => {
+		if(collisions.objectIntersectsObject(this, enemy)) {
+			enemy.velocity.x = (this.dir === "left") ? -3 : 3;
+			enemy.x += this.velocity.x;
 		}
-	}
+	});
 	if(this.opacity < 0) {
 		this.toBeRemoved = true;
 	}

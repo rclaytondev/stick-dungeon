@@ -54,35 +54,17 @@ Barricade.method("getDesc", function() {
 		}
 	];
 });
+Barricade.canBarricadeDoor = function() {
+	var doors = game.dungeon[game.inRoom].getInstancesOf(Door).filter(door => !door.barricaded).filter(door => Math.dist(door.x, door.y, p.x, p.y) <= 100);
+	return doors.length > 0;
+};
 Barricade.method("use", function() {
-	var doorNearby = false;
-	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		if(game.dungeon[game.inRoom].content[i] instanceof Door && Math.dist(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, p.x, p.y) <= 100 && !game.dungeon[game.inRoom].content[i].barricaded) {
-			doorNearby = true;
-			break;
+	if(Barricade.canBarricadeDoor()) {
+		var closestDoor = game.dungeon[game.inRoom].getInstancesOf(Door).filter(door => !door.barricaded).min(door => Math.dist(door.x, door.y, p.x, p.y));
+		closestDoor.barricaded = true;
+		if(typeof closestDoor.dest !== "object") {
+			closestDoor.getDestinationDoor().barricaded = true;
 		}
+		this.consumed = true;
 	}
-	if(!doorNearby) {
-		return;
-	}
-	var closestDist = null;
-	var closestIndex = 0;
-	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		var loc = graphics3D.point3D(game.dungeon[game.inRoom].content[i].x, game.dungeon[game.inRoom].content[i].y, 0.9);
-		var theDist = Math.dist(loc.x, loc.y, 400, 400);
-		if((game.dungeon[game.inRoom].content[i] instanceof Door && theDist <= closestDist) || !(game.dungeon[game.inRoom].content[closestIndex] instanceof Door)) {
-			closestIndex = i;
-			closestDist = theDist;
-		}
-	}
-	var theDoor = game.dungeon[game.inRoom].content[closestIndex];
-	theDoor.barricaded = true;
-	if(typeof theDoor.dest !== "object") {
-		for(var i = 0; i < game.dungeon[theDoor.dest].content.length; i ++) {
-			if(game.dungeon[theDoor.dest].content[i] instanceof Door && game.dungeon[theDoor.dest].content[i].dest === game.inRoom) {
-				game.dungeon[theDoor.dest].content[i].barricaded = true;
-			}
-		}
-	}
-	this.consumed = true;
 });

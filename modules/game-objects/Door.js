@@ -23,48 +23,35 @@ Door.method("getInfo", function() {
 	if(typeof this.dest === "object") {
 		return "?"; //unexplored -> "?"
 	}
-	var isDeadEnd = true;
-	for(var i = 0; i < game.dungeon[this.dest].content.length; i ++) {
-		if(game.dungeon[this.dest].content[i] instanceof Door) {
-			isDeadEnd = false;
-			break;
-		}
-	}
+	var isDeadEnd = (game.dungeon[this.dest].getInstancesOf(Door).length > 0);
 	if(isDeadEnd) {
 		return "x"; // "x" if no doors in the room
 	}
 	var indices = [game.theRoom];
 	function isUnknown(index) {
-		for(var i = 0; i < indices.length; i ++) {
-			if(index === indices[i]) {
-				return false;
-			}
+		if(indices.includes(index)) {
+			return false;
 		}
 		indices.push(index);
 		var containsUnknown = false;
-		for(var i = 0; i < game.dungeon[index].content.length; i ++) {
-			if(!(game.dungeon[index].content[i] instanceof Door)) {
-				continue;
-			}
-			if(typeof game.dungeon[index].content[i].dest === "object") {
+		game.dungeon[index].getInstancesOf(Door).forEach(door => {
+			if(typeof door.dest === "object") {
 				return true;
 			}
 			else {
-				var leadsToUnknown = isUnknown(game.dungeon[index].content[i].dest);
+				var leadsToUnknown = isUnknown(door.dest);
 				if(leadsToUnknown) {
 					return true;
 				}
 			}
-		}
+		})
 		return false;
 	};
 	var leadsToUnexplored = isUnknown(this.dest);
 	if(leadsToUnexplored) {
 		return "^";
 	}
-	for(var i = 0; i < game.dungeon.length; i ++) {
-		delete game.dungeon[i].doorPathScore;
-	}
+	game.dungeon.forEach(room => { delete room.pathScore; });
 	return "x";
 });
 Door.method("display", function() {
@@ -203,10 +190,5 @@ Door.method("getDestinationRoom", function() {
 });
 Door.method("getDestinationDoor", function() {
 	var destinationRoom = this.getDestinationRoom();
-	for(var i = 0; i < destinationRoom.content.length; i ++) {
-		var obj = destinationRoom.content[i];
-		if(obj instanceof Door && obj.dest === this.containingRoomID) {
-			return obj;
-		}
-	}
+	return destinationRoom.content.filter(obj => obj instanceof Door && obj.dest === this.containingRoomID).onlyItem();
 });

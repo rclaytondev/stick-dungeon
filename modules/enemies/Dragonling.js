@@ -127,7 +127,7 @@ Dragonling.method("update", function() {
 	var idealAngle = Math.calculateDegrees(this.x - p.x, this.y - p.y) - 90;
 	if(this.reload > 120 && Math.dist(this.rot, idealAngle) <= 2 && Math.distSq(this.x, this.y, p.x, p.y) >= 10000) {
 		game.dungeon[game.theRoom].content.push(new MagicCharge(this.x, this.y, theVel.x, theVel.y, "fire", Math.randomInRange(40, 50)));
-		game.dungeon[game.theRoom].content[game.dungeon[game.theRoom].content.length - 1].shotBy = "enemy";
+		game.dungeon[game.theRoom].lastItem().shotBy = "enemy";
 		this.currentAction = "bite";
 		this.reload = 0;
 	}
@@ -142,9 +142,10 @@ Dragonling.method("handleCollision", function() {
 Dragonling.method("translate", function(x, y) {
 	this.x += x;
 	this.y += y;
-	for(var i = 0; i < this.pos.length; i ++) {
-		var position = this.pos[i];
-		position.x += x;
-		position.y += y;
-	}
+	this.pos.forEach((point) => {
+		point.x += x, point.y += y;
+	});
 });
+Dragonling.generationCriteria = function() {
+	return game.dungeon[game.theRoom].getInstancesOf(Torch).length === 0;
+};

@@ -25,18 +25,15 @@ Weapon.method("displayParticles", function() {
 			color = "rgb(255, 255, 255)";
 		}
 		this.particles.push(new Particle(color, Math.randomInRange(10, 60), Math.randomInRange(10, 60), Math.randomInRange(-2, 2), Math.randomInRange(-2, 2), Math.randomInRange(5, 6)));
-		this.particles[this.particles.length - 1].opacity = 0.25;
+		this.particles.lastItem().opacity = 0.25;
 	}
-	for(var i = 0; i < this.particles.length; i ++) {
-		game.dungeon[game.theRoom].displayImmediately(function() {
-			this.particles[i].display();
-		}, this);
-		this.particles[i].update();
-		if(this.particles[i].toBeRemoved) {
-			this.particles.splice(i, 1);
-			continue;
-		}
-	}
+	game.dungeon[game.theRoom].displayImmediately(function() {
+		this.particles.forEach(particle => {
+			particle.display();
+		})
+	}, this);
+	this.particles.forEach(particle => { particle.update(); });
+	this.particles = this.particles.filter(particle => !particle.toBeRemoved);
 });
 Weapon.applyElementalEffect = function(element, enemy, direction, location, bonusEffects) {
 	/*

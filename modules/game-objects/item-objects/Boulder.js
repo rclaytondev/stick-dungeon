@@ -29,20 +29,19 @@ Boulder.method("exist", function() {
 	if(!this.hitSomething) {
 		this.velocity.y += 0.1;
 		this.y += this.velocity.y;
-		for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-			var thing = game.dungeon[game.inRoom].content[i];
-			if(thing instanceof Block && this.x + 40 > thing.x && this.x - 40 < thing.x + thing.w && this.y > thing.y && this.y < thing.y + 10) {
-				this.hitSomething = true;
+		game.dungeon[game.inRoom].content.forEach(obj => {
+			if(obj instanceof Block && this.x + 40 > obj.x && this.x - 40 < obj.x + obj.w && this.y > obj.y && this.y < obj.y + 10) {
+				this.hitSomeobj = true;
 			}
-			else if(thing instanceof Enemy && collisions.objectIntersectsObject(this, enemy) && !this.hitAnEnemy) {
-				thing.hurt(this.damage, true);
+			else if(obj instanceof Enemy && collisions.objectIntersectsObject(this, obj) && !this.hitAnEnemy) {
+				obj.hurt(this.damage, true);
 				this.hitAnEnemy = true;
 			}
 			if(collisions.objectIntersectsObject(this, p) && !this.hitAPlayer) {
 				p.hurt(this.damage, "a chunk of rock");
 				this.hitAPlayer = true;
 			}
-		}
+		});
 	}
 	else {
 		this.opacity -= 0.05;

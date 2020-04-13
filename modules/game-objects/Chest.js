@@ -11,15 +11,10 @@ function Chest(x, y) {
 Chest.method("update", function() {
 	/* Initialize */
 	if(!this.initialized) {
-		for(var i = 0; i < this.lidArray.length; i ++) {
-			this.lidArray[i].x /= 2;
-			this.lidArray[i].y /= 2;
-			if(this.lidArray[i].y > 0) {
-				this.lidArray.splice(i, 1);
-				i --;
-				continue;
-			}
-		}
+		this.lidArray = this.lidArray.filter((point => point.y <= 0));
+		this.lidArray.forEach((point) => {
+			point.x /= 2, point.y /= 2;
+		});
 		this.initialized = true;
 	}
 	/* Decide which direction to open from */

@@ -16,12 +16,8 @@ function MagicCharge(x, y, velX, velY, type, damage) {
 };
 MagicCharge.method("display", function() {
 	/* graphics */
-	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].display();
-		if(this.particles[i].opacity <= 0) {
-			this.particles.splice(i, 1);
-		}
-	}
+	this.particles.forEach(particle => { particle.display(); });
+	this.particles = this.particles.filter(particle => particle.opacity > 0);
 });
 MagicCharge.method("update", function() {
 	this.particles.forEach((particle) => { particle.update(); });
@@ -45,9 +41,8 @@ MagicCharge.method("update", function() {
 	this.x += this.velocity.x;
 	this.y += this.velocity.y;
 	/* collision with enemies + objects */
-	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		if(game.dungeon[game.inRoom].content[i] instanceof Enemy && this.type !== "shadow" && this.shotBy !== "enemy") {
-			var enemy = game.dungeon[game.theRoom].content[i];
+	if(this.shotBy !== "enemy") {
+		game.dungeon[game.theRoom].getInstancesOf(Enemy).forEach(enemy => {
 			if(collisions.objectIntersectsObject(this, enemy)) {
 				this.toBeRemoved = true;
 				enemy.hurt(this.damage);
@@ -66,7 +61,7 @@ MagicCharge.method("update", function() {
 					return;
 				}
 			}
-		}
+		});
 	}
 });
 MagicCharge.method("remove", function() {
@@ -97,9 +92,7 @@ MagicCharge.method("handleCollision", function(direction, collision) {
 MagicCharge.method("translate", function(x, y) {
 	this.x += x;
 	this.y += y;
-	for(var i = 0; i < this.particles.length; i ++) {
-		var particle = this.particles[i];
-		particle.x += x;
-		particle.y += y;
-	}
+	this.particles.forEach(particle => {
+		particle.x += x, particle.y += y;
+	});
 });

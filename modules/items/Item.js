@@ -1,4 +1,3 @@
-
 function Item() {
 	this.location = null;
 	this.initialized = false;
@@ -6,13 +5,11 @@ function Item() {
 	this.velocity = { x: 0, y: 0 };
 };
 Item.method("init", function() {
-	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		if(game.dungeon[game.inRoom].content[i].requestingItem && game.dungeon[game.inRoom].content[i] instanceof Chest) {
-			this.x = game.dungeon[game.inRoom].content[i].x;
-			this.y = game.dungeon[game.inRoom].content[i].y - 10;
-			game.dungeon[game.inRoom].content[i].requestingItem = false;
-			break;
-		}
+	var chest = game.dungeon[game.inRoom].getInstancesOf(Chest).filter(chest => chest.requestingItem).onlyItem();
+	if(chest !== undefined) {
+		this.x = chest.x;
+		this.y = chest.y;
+		chest.requestingItem = false;
 	}
 	this.initialized = true;
 	this.velocity.y = -4;
@@ -89,10 +86,10 @@ Item.method("displayDesc", function(x, y, dir) {
 	/* calculate text height for description */
 	var textY = 0;
 	c.globalAlpha = 0;
-	for(var i = 0; i < this.desc.length; i ++) {
-		c.font = this.desc[i].font;
-		textY = c.displayTextOverLines(this.desc[i].content, x + 15, textY + 12, 190, 12);
-	}
+	this.desc.forEach(text => {
+		c.font = text.font;
+		textY = c.displayTextOverLines(text.content, x + 15, textY + 12, 190, 12);
+	});
 	c.globalAlpha = 1;
 	var descHeight = textY + 10;
 	var idealY = y - (descHeight / 2);
@@ -107,11 +104,11 @@ Item.method("displayDesc", function(x, y, dir) {
 
 		textY = textBoxY + 4;
 		/* display the text */
-		for(var i = 0; i < this.desc.length; i ++) {
-			c.font = this.desc[i].font;
-			c.fillStyle = this.desc[i].color;
-			textY = c.displayTextOverLines(this.desc[i].content, x + 15, textY + 12, 190, 12);
-		}
+		this.desc.forEach(text => {
+			c.font = text.font;
+			c.fillStyle = text.color;
+			textY = c.displayTextOverLines(text.content, x + 15, textY + 12, 190, 12);
+		})
 	}
 	else {
 		/* text box */
@@ -121,24 +118,18 @@ Item.method("displayDesc", function(x, y, dir) {
 		/* text */
 		c.textAlign = "left";
 		textY = textBoxY + 4;
-		for(var i = 0; i < this.desc.length; i ++) {
-			c.font = this.desc[i].font;
-			c.fillStyle = this.desc[i].color;
-			textY = c.displayTextOverLines(this.desc[i].content, x - 205, textY + 12, 190, 12);
-		}
+		this.desc.forEach(text => {
+			c.font = text.font;
+			c.fillStyle = text.color;
+			textY = c.displayTextOverLines(text.content, x - 205, textY + 12, 190, 12);
+		})
 	}
 });
 Item.method("display", function() {
 	/*
 	This function is used to display the items in-game (the ones in chests). It finds the nearest chest and clips the drawing so that it doesn't draw otuside the chest, then calls the child's method `display()`.
 	*/
-	var nearestChest = game.dungeon[game.theRoom].getInstancesOf(Chest)[0];
-	for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-		var obj = game.dungeon[game.theRoom].content[i];
-		if(obj instanceof Chest && Math.distSq(obj.x, obj.y, this.x, this.y) < Math.distSq(nearestChest.x, nearestChest.y, this.x, this.y)) {
-			nearestChest = obj;
-		}
-	}
+	var nearestChest = game.dungeon[game.theRoom].getInstancesOf(Chest).min(chest => Math.distSq(chest.x, chest.y, this.x, this.y));
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
 		function() {
@@ -158,4 +149,19 @@ Item.method("display", function() {
 });
 Item.method("update", function() {
 	this.animate();
+});
+Item.method("canBeInfused", function(element) {
+	/*
+	Returns whether the item can be infused with the element. Call with no arguments to find out whether the item is of a type that can be infused.
+	*/
+	if(!(this instanceof Weapon)) { return false; }
+	if(this instanceof Arrow) { return false; }
+	if(this instanceof MagicWeapon && !(this instanceof ElementalStaff)) { return false; }
+	if(element !== undefined && this.element === element) { return false; }
+	return true;
+});
+Item.method("canBeReforged", function() {
+	if(!(this instanceof Weapon || this instanceof Equipable)) { return false; }
+	if(this instanceof Arrow) { return false; }
+	return true;
 });

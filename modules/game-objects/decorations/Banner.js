@@ -59,13 +59,11 @@ Banner.method("display", function() {
 });
 Banner.method("update", function() {
 	if(this.graphic === null) {
-		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			if(game.dungeon[game.theRoom].content[i] instanceof Banner && game.dungeon[game.theRoom].content[i].graphic !== null) {
-				this.graphic = game.dungeon[game.theRoom].content[i].graphic;
-				break;
-			}
+		var resolvedBanners = game.dungeon[game.theRoom].content.filter((obj) => obj instanceof Banner && obj.graphic !== null);
+		if(resolvedBanners.length !== 0) {
+			this.graphic = resolvedBanners[0].graphic;
 		}
-		if(this.graphic === null) {
+		else {
 			this.graphic = ["gradient", "border"].randomItem();
 		}
 		if(debugging.settings.DEBUGGING_MODE && debugging.settings.BANNER_TYPE !== null) {

@@ -26,10 +26,10 @@ Rock.method("display", function() {
 		game.dungeon[game.theRoom].render(new RenderingOrderObject(
 			function() {
 				c.fillStyle = "rgb(140, 140, 140)";
-				for(var i = 0; i < self.fragments.length; i ++) {
-					c.globalAlpha = self.fragments[i].opacity;
-					c.fillCircle(self.fragments[i].x, self.fragments[i].y, 5);
-				}
+				self.fragments.forEach(fragment => {
+					c.globalAlpha = fragment.opacity;
+					c.fillCircle(fragment.x, fragment.y, 5);
+				});
 			},
 			1
 		));
@@ -44,15 +44,15 @@ Rock.method("update", function() {
 	else {
 		c.save(); {
 			c.fillStyle = "rgb(140, 140, 140)";
-			for(var i = 0; i < this.fragments.length; i ++) {
-				this.fragments[i].x += this.fragments[i].velocity.x;
-				this.fragments[i].y += this.fragments[i].velocity.y;
-				this.fragments[i].velocity.y += 0.1;
-				this.fragments[i].opacity -= 0.05;
-				if(this.fragments[i].opacity <= 0) {
+			this.fragments.forEach(fragment => {
+				fragment.x += fragment.velocity.x;
+				fragment.y += fragment.velocity.y;
+				fragment.velocity.y += 0.1;
+				fragment.opacity -= 0.05;
+				if(fragment.opacity <= 0) {
 					this.toBeRemoved = true;
 				}
-			}
+			});
 		} c.restore();
 	}
 	if(!this.hitPlayer && collisions.objectIntersectsObject(this, p)) {
@@ -78,9 +78,7 @@ Rock.method("handleCollision", function(direction, collision) {
 Rock.method("translate", function(x, y) {
 	this.x += x;
 	this.y += y;
-	for(var i = 0; i < this.fragments.length; i ++) {
-		var particle = this.fragments[i];
-		particle.x += x;
-		particle.y += y;
-	}
+	this.fragments.forEach(fragment => {
+		fragment.x += x, fragment.y += y;
+	})
 });

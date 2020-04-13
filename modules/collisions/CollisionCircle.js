@@ -39,12 +39,11 @@ CollisionCircle.method("collide", function(obj) {
 			debugging.hitboxes.push({x: this.x, y: this.y, r: this.r, color: "dark blue"});
 		}
 		/* collide with objects */
-		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			var obj = game.dungeon[game.theRoom].content[i];
+		game.dungeon[game.theRoom].content.forEach((obj) => {
 			if(obj.hitbox instanceof utils.geom.Rectangle && Object.typeof(obj.handleCollision) === "function") {
 				this.collide(obj);
 			}
-		}
+		});
 		this.collide(p);
 	}
 });

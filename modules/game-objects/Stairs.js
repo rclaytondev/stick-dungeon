@@ -18,24 +18,18 @@ function Stairs(x, y, numSteps, dir) {
 };
 Stairs.method("display", function() {
 	utils.tempVars.partOfAStair = true;
-	for(var i = 0; i < this.steps.length; i ++) {
-		this.steps[i].display();
-	}
+	this.steps.forEach(step => { step.display(); });
 	utils.tempVars.partOfAStair = false;
 });
 Stairs.method("update", function() {
 	utils.tempVars.partOfAStair = true;
-	for(var i = 0; i < this.steps.length; i ++) {
-		this.steps[i].update();
-	}
+	this.steps.forEach(step => { step.update(); });
 	utils.tempVars.partOfAStair = false;
 });
 Stairs.method("translate", function(x, y) {
-	for(var i = 0; i < this.steps.length; i ++) {
-		var step = this.steps[i];
-		step.x += x;
-		step.y += y;
-	}
+	this.steps.forEach(step => {
+		step.x += x, step.y += y;
+	})
 });
 Stairs.method("reflect", function() {
 	return new Stairs(-this.x, this.y, this.numSteps, (this.dir === "right" ? "left" : "right"));

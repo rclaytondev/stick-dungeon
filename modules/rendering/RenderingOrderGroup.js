@@ -6,7 +6,5 @@ function RenderingOrderGroup(objects, zOrder) {
 	this.zOrder = zOrder || 0;
 };
 RenderingOrderGroup.method("display", function() {
-	for(var i = 0; i < this.objects.length; i ++) {
-		this.objects[i].display();
-	}
+	this.objects.forEach(obj => { obj.display(); });
 });

@@ -21,7 +21,7 @@ EarthCrystal.method("getDesc", function() {
 			color: "rgb(255, 255, 255)"
 		},
 		{
-			content: "When a weapon is infused with power from this crystal, attackis will crush enemies with a chunk of rock.",
+			content: "When a weapon is infused with power from this crystal, attacks will crush enemies with a chunk of rock.",
 			font: "10pt Cursive",
 			color: "rgb(150, 150, 150)"
 		},
@@ -29,36 +29,33 @@ EarthCrystal.method("getDesc", function() {
 });
 EarthCrystal.addBoulderAbove = function(x, y) {
 	/*
-	This function can be used to drop a boulder from the ceiling above the specified location (the earth crystal's special ability). The method exits with no effect if there is no roof directly above the given x-value.
+	This function can be used to drop a boulder from the ceiling above the specified location (the earth crystal's special ability).
 	*/
-	var lowestIndex = null;
-	for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-		var block = game.dungeon[game.inRoom].content[i];
-		if(block instanceof Block) {
-			if(lowestIndex === null) {
-				if(x > game.dungeon[game.inRoom].content[i].x && x < game.dungeon[game.inRoom].content[i].x + game.dungeon[game.inRoom].content[i].w) {
-					if(game.dungeon[game.inRoom].content[i].y <= y) {
-						lowestIndex = i;
-					}
-				}
-			}
-			else {
-				if(x > block.x && x < block.x + block.w && block.y + block.h > game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h) {
-					if(block.y + game.dungeon[game.inRoom].content[i].h <= y) {
-						lowestIndex = i;
-					}
-				}
-			}
+	var ceilings = game.dungeon[game.theRoom].getInstancesOf(Block);
+	ceilings = ceilings.concat(game.dungeon[game.theRoom].getInstancesOf(Border).filter(border => border.type.startsWith("ceiling")));
+	ceilings = ceilings.filter(ceiling => ceiling.y < y);
+	ceilings = ceilings.filter(ceiling => (
+		(ceiling instanceof Block && x > ceiling.x && x < ceiling.x + ceiling.w) ||
+		(ceiling instanceof Border && (
+			ceiling.type === "ceiling" ||
+			(ceiling.type === "ceiling-to-left" && x < ceiling.x) ||
+			(ceiling.type === "ceiling-to-right" && x > ceiling.x)
+		))
+	));
+	var boulderDamage = Math.randomInRange(20, 40);
+	if(ceilings.length === 0) {
+		/* add a boulder just above the top of the screen */
+		game.dungeon[game.inRoom].content.push(new Boulder(x, -game.camera.getOffsetY(), boulderDamage));
+	}
+	else {
+		var lowestCeiling = ceilings.max(ceiling => ceiling.y);
+		if(lowestCeiling instanceof Block) {
+			game.dungeon[game.inRoom].content.push(new Boulder(x, lowestCeiling.y + lowestCeiling.h, boulderDamage));
+			game.dungeon[game.inRoom].content.push(new BoulderVoid(x, lowestCeiling.y + lowestCeiling.h));
 		}
-		if(lowestIndex !== null) {
-			if(block instanceof Block) {
-			}
-		}
-		else if(game.dungeon[game.inRoom].content[i] instanceof Block) {
-			if(lowestIndex === null) {
-			}
+		else {
+			game.dungeon[game.inRoom].content.push(new Boulder(x, lowestCeiling.y, boulderDamage));
+			game.dungeon[game.inRoom].content.push(new BoulderVoid(x, lowestCeiling.y));
 		}
 	}
-	game.dungeon[game.inRoom].content.push(new BoulderVoid(x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h));
-	game.dungeon[game.inRoom].content.push(new Boulder(x, game.dungeon[game.inRoom].content[lowestIndex].y + game.dungeon[game.inRoom].content[lowestIndex].h, Math.randomInRange(2, 4)));
 };

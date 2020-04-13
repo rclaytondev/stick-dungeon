@@ -45,7 +45,7 @@ Decoration.method("update", function() {
 			};
 			var decoration = [torch, banner, window].randomItem();
 			if(debugging.settings.DEBUGGING_MODE && debugging.settings.DECORATION_TYPE !== null) {
-				decoration = [torch, banner, window].filter(func => func.name === debugging.settings.DECORATION_TYPE)[0];
+				decoration = [torch, banner, window].filter(func => func.name === debugging.settings.DECORATION_TYPE).onlyItem();
 			}
 			decoration(this.x, this.y);
 		}

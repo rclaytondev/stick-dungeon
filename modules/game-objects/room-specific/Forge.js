@@ -9,9 +9,7 @@ function Forge(x, y) {
 };
 Forge.method("display", function() {
 	/* fire */
-	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].display();
-	}
+	this.particles.forEach(particle => { particle.display(); });
 
 	var self = this;
 	function displayForge() {
@@ -77,13 +75,8 @@ Forge.method("update", function() {
 			p.guiOpen = "reforge-item";
 		}
 	}
-	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].update();
-		if(this.particles[i].toBeRemoved) {
-			this.particles.splice(i, 1);
-			continue;
-		}
-	}
+	this.particles.forEach(particle => { particle.update(); });
+	this.particles = this.particles.filter(particle => !particle.toBeRemoved);
 	if(!this.used) {
 		for(var i = 0; i < 5; i ++) {
 			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.randomInRange(-50, 50), this.y - 10, Math.randomInRange(-1, 1), Math.randomInRange(-2, 0), 10));
@@ -98,9 +91,7 @@ Forge.method("update", function() {
 Forge.method("translate", function(x, y) {
 	this.x += x;
 	this.y += y;
-	for(var i = 0; i < this.particles.length; i ++) {
-		var particle = this.particles[i];
-		particle.x += x;
-		particle.y += y;
-	}
+	this.particles.forEach(particle => {
+		particle.x += x, particle.y += y;
+	});
 });

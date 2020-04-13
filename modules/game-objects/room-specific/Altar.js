@@ -17,21 +17,14 @@ Altar.method("update", function() {
 		}
 		this.toBeRemoved = true;
 	}
-	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].update();
-		if(this.particles[i].opacity <= 0) {
-			this.particles.splice(i, 1);
-			continue;
-		}
-	}
+	this.particles.forEach(particle => { particle.update(); });
+	this.particles = this.particles.filter(particle => particle.opacity > 0);
 });
 Altar.method("display", function() {
 	for(var i = 0; i < 5; i ++) {
 		this.particles.push(new Particle(this.type === "health" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)", this.x + Math.randomInRange(-20, 20), this.y + Math.randomInRange(-20, 20), Math.randomInRange(-1, 1), Math.randomInRange(-1, 1), 10));
 	}
-	for(var i = 0; i < this.particles.length; i ++) {
-		this.particles[i].display();
-	}
+	this.particles.forEach(particle => { particle.display(); });
 });
 Altar.method("remove", function() {
 	game.dungeon[game.theRoom].content = game.dungeon[game.theRoom].content.concat(this.particles);
@@ -39,9 +32,7 @@ Altar.method("remove", function() {
 Altar.method("translate", function(x, y) {
 	this.x += x;
 	this.y += y;
-	for(var i = 0; i < this.particles.length; i ++) {
-		var particle = this.particles[i];
-		particle.x += x;
-		particle.y += y;
-	}
+	this.particles.forEach(particle => {
+		particle.x += x, particle.y += y;
+	})
 });

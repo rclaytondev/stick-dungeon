@@ -24,9 +24,6 @@ function Player() {
 	this.gold = 0;
 	this.maxGold = 1;
 	this.visualGold = 0;
-	this.damOp = 0;
-	this.manaRegen = 18; //1 mana / 18 frames
-	this.healthRegen = 18; // health / 18 frames
 	/* Movement */
 	this.canJump = false;
 	this.velocity = { x: 0, y: 0 };
@@ -416,24 +413,19 @@ Player.method("update", function() {
 	if(this.health >= this.maxHealth) {
 		this.numHeals = 0;
 	}
-	this.healthRegen = 1;
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].type === "equip" && this.invSlots[i].content instanceof Helmet) {
-			this.healthRegen -= (this.invSlots[i].content.healthRegen * 0.01);
-		}
-	}
-	if(this.numHeals > 0 && utils.frameCount % Math.floor(18 * this.healthRegen) === 0) {
+	var healthRegen = this.calculateStat("healthRegen") / 100; // `healthRegen` variable is a decimal representing the increase (e.g. 0.15 for 115%)
+	if(this.numHeals > 0 && utils.frameCount % Math.floor(18 * (1 - healthRegen)) === 0) {
 		this.health ++;
-		this.numHeals -= 0.1 * this.healthRegen;
+		this.numHeals -= 0.1 * (1 - healthRegen);
 	}
-	this.manaRegen = 1;
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].type === "equip" && this.invSlots[i].content instanceof WizardHat) {
-			this.manaRegen -= (this.invSlots[i].content.manaRegen * 0.01);
+	this.invSlots.forEach(invSlot => {
+		if(invSlot.type === "equip" && invSlot.content instanceof WizardHat) {
+			this.manaRegen -= invSlot.content.manaRegen * 0.01;
 		}
-	}
-	if(utils.frameCount % Math.floor(18 * this.manaRegen) === 0 && this.mana < this.maxMana) {
-		this.mana += 1;
+	});
+	var manaRegen = this.calculateStat("manaRegen") / 100; // `manaRegen` variable is a decimal representing the increase (e.g. 0.15 for 115%)
+	if(utils.frameCount % Math.floor(18 * (1 - this.manaRegen)) === 0 && this.mana < this.maxMana) {
+		this.mana ++;
 	}
 	for(var i = 0; i < this.invSlots.length; i ++) {
 		if(this.invSlots[i].content instanceof Coin) {
@@ -458,7 +450,6 @@ Player.method("update", function() {
 		}
 	}
 	this.health = Math.constrain(this.health, 0, this.maxHealth);
-	this.damOp -= 0.05;
 
 	this.sideScroll();
 	/* Arm Movement */
@@ -466,14 +457,12 @@ Player.method("update", function() {
 	if(!this.attacking) {
 		this.attackArm = null;
 	}
-	/* Arms when aiming a Ranged Weapon */
+
 	if(this.aiming && this.attackingWith instanceof MagicWeapon) {
-		for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-			var obj = game.dungeon[game.inRoom].content[i];
-			if(obj instanceof MagicCharge && obj.beingAimed) {
-				obj.x = this.x + this.chargeLoc.x;
-				obj.y = this.y + this.chargeLoc.y;
-			}
+		var charge = game.dungeon[game.inRoom].getInstancesOf(MagicCharge).find(charge => charge.beingAimed);
+		if(charge !== undefined) {
+			charge.x = this.x + this.chargeLoc.x;
+			charge.y = this.y + this.chargeLoc.y;
 		}
 	}
 });
@@ -520,11 +509,11 @@ Player.method("useItem", function() {
 					var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
 					if(this.facing === "right") {
 						game.dungeon[game.inRoom].content.push(new MagicCharge(this.x + 50, this.y, 0, 0, this.attackingWith.chargeType, damage));
-						game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].beingAimed = true;
+						game.dungeon[game.inRoom].content.lastItem().beingAimed = true;
 					}
 					else {
 						game.dungeon[game.inRoom].content.push(new MagicCharge(this.x - 50, this.y, 0, 0, this.attackingWith.chargeType, damage));
-						game.dungeon[game.inRoom].content[game.dungeon[game.inRoom].content.length - 1].beingAimed = true;
+						game.dungeon[game.inRoom].content.lastItem().beingAimed = true;
 					}
 					if(this.attackingWith instanceof ChaosStaff) {
 						this.hurt(this.attackingWith.hpCost, "meddling with arcane magic", true);
@@ -539,9 +528,9 @@ Player.method("useItem", function() {
 		}
 		else if(this.invSlots[this.activeSlot].content instanceof Equipable) {
 			for(var i = 0; i < this.invSlots.length; i ++) {
-				if(this.invSlots[i].type === "equip" && this.invSlots[i].content === "empty") {
-					this.invSlots[i].content = new this.invSlots[this.activeSlot].content.constructor();
-					this.invSlots[i].content.modifier = this.invSlots[this.activeSlot].content.modifier;
+				var slot = this.invSlots[i];
+				if(slot.type === "equip" && slot.content === "empty") {
+					slot.content = this.invSlots[this.activeSlot].content.clone();
 					this.invSlots[this.activeSlot].content = "empty";
 					break;
 				}
@@ -574,23 +563,20 @@ Player.method("useItem", function() {
 				c.fillRect(weaponPos.x - 3, weaponPos.y - 3, 6, 6);
 			}
 			/* check enemies to see if weapon hits any */
-			for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-				if(game.dungeon[game.inRoom].content[i] instanceof Enemy) {
-					var enemy = game.dungeon[game.inRoom].content[i];
-					if(collisions.objectIntersectsPoint(enemy, weaponPos) && this.canHit) {
-						/* hurt enemy that was hit by the weapon */
-						var damage = Math.randomInRange(this.attackingWith.damLow, this.attackingWith.damHigh);
-						enemy.hurt(damage);
-						if(["fire", "water", "earth", "air"].includes(this.attackingWith.element)) {
-							Weapon.applyElementalEffect(this.attackingWith.element, enemy, this.facing, weaponPos);
-						}
-						/* reset variables for weapon swinging */
-						this.canHit = false;
-						this.attackArmDir = -this.attackArmDir;
-						this.timeSinceAttack = 0;
+			game.dungeon[game.inRoom].getInstancesOf(Enemy).forEach(enemy => {
+				if(collisions.objectIntersectsPoint(enemy, weaponPos) && this.canHit) {
+					/* hurt enemy that was hit by the weapon */
+					var damage = Math.randomInRange(this.attackingWith.damLow, this.attackingWith.damHigh);
+					enemy.hurt(damage);
+					if(["fire", "water", "earth", "air"].includes(this.attackingWith.element)) {
+						Weapon.applyElementalEffect(this.attackingWith.element, enemy, this.facing, weaponPos);
 					}
+					/* reset variables for weapon swinging */
+					this.canHit = false;
+					this.attackArmDir = -this.attackArmDir;
+					this.timeSinceAttack = 0;
 				}
-			}
+			});
 		}
 	}
 	if(!this.attacking && this.timeSinceAttack > (10 - this.attackSpeed) * 3) {
@@ -645,15 +631,14 @@ Player.method("useItem", function() {
 			this.removeArrow();
 		}
 		else {
-			for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-				var obj = game.dungeon[game.inRoom].content[i];
-				if(obj instanceof MagicCharge && obj.beingAimed) {
-					obj.beingAimed = false;
-					obj.velocity = {
-						x: this.chargeLoc.x / 10,
-						y: this.chargeLoc.y / 10
-					};
-				}
+			var aimedCharges = game.dungeon[game.inRoom].getInstancesOf(MagicCharge).filter(charge => charge.beingAimed);
+			if(aimedCharges.length !== 0) {
+				var aimedCharge = aimedCharges.onlyItem();
+				aimedCharge.beingAimed = false;
+				aimedCharge.velocity = {
+					x: this.chargeLoc.x / 10,
+					y: this.chargeLoc.y / 10
+				};
 			}
 		}
 	}
@@ -695,22 +680,17 @@ Player.method("removeArrow", function() {
 	/*
 	Removes an arrow from the player's inventory (or does nothing randomly, if the player has an item that lets them sometimes keep arrows)
 	*/
-	var arrowEfficiency = 0;
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].type === "equip" && this.invSlots[i].content.arrowEfficiency !== undefined) {
-			arrowEfficiency += this.invSlots[i].content.arrowEfficiency * 0.01;
+	var arrowEfficiency = this.calculateStat("arrowEfficiency");
+	if(Math.random() < (1 - (arrowEfficiency / 100))) {
+		var slot = this.invSlots.find((slot) => slot.content instanceof Arrow);
+		if(Object.typeof(slot) !== "object") {
+			throw new Error("removeArrow() expects the player to already have arrows in inventory");
 		}
-	}
-	if(Math.random() < (1 - arrowEfficiency)) {
-		for(var i = 0; i < this.invSlots.length; i ++) {
-			if(this.invSlots[i].content instanceof Arrow) {
-				if(this.invSlots[i].content.quantity > 1) {
-					this.invSlots[i].content.quantity --;
-				}
-				else {
-					this.invSlots[i].content = "empty";
-				}
-			}
+		if(slot.content.quantity > 1) {
+			slot.content.quantity --;
+		}
+		else {
+			slot.content = "empty";
 		}
 	}
 });
@@ -736,11 +716,9 @@ Player.method("handleCollision", function(direction, collision) {
 });
 Player.method("gui", function() {
 	/* Delete Consumed Items */
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].content.consumed) {
-			this.invSlots[i].content = "empty";
-		}
-	}
+	this.invSlots.forEach(slot => {
+		if(slot.content.consumed) { slot.content = "empty"; }
+	})
 	/* Change GUI Open */
 	if(io.keys.KeyD && !this.openingBefore) {
 		if(this.guiOpen === "none") {
@@ -806,109 +784,94 @@ Player.method("gui", function() {
 		c.fillCanvas();
 		/* Display Items */
 		var hoverIndex = null;
-		for(var i = 0; i < this.invSlots.length; i ++) {
+		this.invSlots.forEach((slot, index) => {
 			/* Item Slot */
 			c.fillStyle = "rgb(150, 150, 150)";
-			c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
-			c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
+			c.fillRect(slot.x, slot.y, 70, 70);
+			c.strokeRect(slot.x, slot.y, 70, 70);
 			/* Item */
-			if(this.invSlots[i].content !== "empty") {
-				if(!this.invSlots[i].content.initialized) {
-					this.invSlots[i].content.init();
+			if(slot.content !== "empty") {
+				if(!slot.content.initialized) {
+					slot.content.init();
 				}
 				/* Display Items */
-				display(this.invSlots[i]);
+				display(slot);
 			}
 			/* Selection Graphic (4 triangles) */
-			if(i === this.activeSlot) {
-				selectionGraphic(this.invSlots[i]);
+			if(index === this.activeSlot) {
+				selectionGraphic(slot);
 			}
-		}
+		});
 		/* Find which item is being hovered over */
-		for(var i = 0; i < this.invSlots.length; i ++) {
-			if(io.mouse.x > this.invSlots[i].x && io.mouse.x < this.invSlots[i].x + 70 && io.mouse.y > this.invSlots[i].y && io.mouse.y < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
-				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
-				hoverIndex = i;
-				if(this.invSlots[i].type === "holding") {
-					ui.infoBar.actions.click = "unequip " + this.invSlots[i].content.name;
+		var hoveredSlot = this.invSlots.find(slot => utils.mouseInRect(slot.x, slot.y, 70, 70));
+		if(hoveredSlot !== undefined && hoveredSlot.content !== "empty") {
+			if(hoveredSlot.type === "holding") {
+				ui.infoBar.actions.click = "unequip " + hoveredSlot.content.name;
+			}
+			else if(hoveredSlot.type === "equip") {
+				ui.infoBar.actions.click = "take off " + hoveredSlot.content.name;
+			}
+			else if(!(hoveredSlot.content instanceof Arrow)) {
+				if(hoveredSlot.content instanceof Equipable) {
+					ui.infoBar.actions.click = "put on " + hoveredSlot.content.name;
 				}
-				else if(this.invSlots[i].type === "equip") {
-					ui.infoBar.actions.click = "take off " + this.invSlots[i].content.name;
+				else {
+					ui.infoBar.actions.click = "equip " + hoveredSlot.content.name;
 				}
-				else if(!(this.invSlots[i].content instanceof Arrow)) {
-					if(this.invSlots[i].content instanceof Equipable) {
-						ui.infoBar.actions.click = "put on " + this.invSlots[i].content.name;
-					}
-					else {
-						ui.infoBar.actions.click = "equip " + this.invSlots[i].content.name;
-					}
-				}
-				break;
 			}
 		}
 		/* Item hovering */
-		if(hoverIndex !== null) {
+		if(hoveredSlot !== undefined && hoveredSlot.content !== "empty") {
 			/* Display descriptions */
-			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + ((this.invSlots[hoverIndex].type === "equip") ? 0 : 70), this.invSlots[hoverIndex].y + 35, (this.invSlots[hoverIndex].type === "equip") ? "left" : "right");
+			hoveredSlot.content.desc = hoveredSlot.content.getDesc();
+			hoveredSlot.content.displayDesc(hoveredSlot.x + ((hoveredSlot.type === "equip") ? 0 : 70), hoveredSlot.y + 35, (hoveredSlot.type === "equip") ? "left" : "right");
 			/* Move Item if clicked */
 			if(io.mouse.pressed) {
-				if(this.invSlots[hoverIndex].type === "storage") {
-					if(!(this.invSlots[hoverIndex].content instanceof Equipable)) {
+				if(hoveredSlot.type === "storage") {
+					if(!(hoveredSlot.content instanceof Equipable)) {
 						/* Move from a storage slot to a "wearing" slot */
 						for(var i = 0; i < 3; i ++) {
 							if(this.invSlots[i].content === "empty") {
-								this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
-								for(var j in this.invSlots[hoverIndex].content) {
-									this.invSlots[i].content[j] = this.invSlots[hoverIndex].content[j];
-								}
-								this.invSlots[hoverIndex].content = "empty";
+								this.invSlots[i].content = hoveredSlot.content.clone();
+								hoveredSlot.content = "empty";
 								break;
 							}
 						}
 					}
 					else {
-						/* Move from a storage slot to a "held" slot */
+						/* Move from a storage slot to a "equipable" slot */
 						for(var i = 0; i < this.invSlots.length; i ++) {
 							if(this.invSlots[i].type === "equip" && this.invSlots[i].content === "empty") {
-								this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
-								for(var j in this.invSlots[hoverIndex].content) {
-									this.invSlots[i].content[j] = this.invSlots[hoverIndex].content[j];
-								}
-								this.invSlots[hoverIndex].content = "empty";
+								this.invSlots[i].content = hoveredSlot.content.clone();
+								hoveredSlot.content = "empty";
 								break;
 							}
 						}
 					}
 				}
-				else if(this.invSlots[hoverIndex].type === "holding") {
+				else if(hoveredSlot.type === "holding") {
 					/* Move from a "held" slot to a storage slot */
 					for(var i = 0; i < this.invSlots.length; i ++) {
 						if(this.invSlots[i].type === "storage" && this.invSlots[i].content === "empty") {
-							this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
-							for(var j in this.invSlots[hoverIndex].content) {
-								this.invSlots[i].content[j] = this.invSlots[hoverIndex].content[j];
-							}
-							this.invSlots[hoverIndex].content = "empty";
+							this.invSlots[i].content = hoveredSlot.content.clone();
+							hoveredSlot.content = "empty";
 							break;
 						}
 					}
 				}
-				else if(this.invSlots[hoverIndex].type === "equip") {
+				else if(hoveredSlot.type === "equip") {
 					/* Move from a "wearing" slot to a storage slot */
 					for(var i = 0; i < this.invSlots.length; i ++) {
 						if(this.invSlots[i].type === "storage" && this.invSlots[i].content === "empty") {
-							this.invSlots[i].content = new this.invSlots[hoverIndex].content.constructor();
-							for(var j in this.invSlots[hoverIndex].content) {
-								this.invSlots[i].content[j] = this.invSlots[hoverIndex].content[j];
-							}
-							this.invSlots[hoverIndex].content = "empty";
+							this.invSlots[i].content = new hoveredSlot.content.clone();
+							hoveredSlot.content = "empty";
 							break;
 						}
 					}
 				}
 			}
 		}
-		/* Guiding lines for tutorial */
+		/* Guiding lines for tutorial (WIP) */
 		if(game.onScreen === "how") {
 			c.fillStyle = "rgb(255, 255, 255)";
 			c.strokeStyle = "rgb(255, 255, 255)";
@@ -931,46 +894,37 @@ Player.method("gui", function() {
 		c.fillStyle = "rgb(59, 67, 70)";
 		c.fillText("Select a weapon to infuse", 400, 165);
 		var hoverIndex = null;
-		for(var i = 0; i < this.invSlots.length; i ++) {
+		this.invSlots.forEach((slot, index) => {
 			c.fillStyle = "rgb(150, 150, 150)";
-			c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
-			c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
-			if(this.invSlots[i].content !== "empty") {
-				display(this.invSlots[i]);
+			c.fillRect(slot.x, slot.y, 70, 70);
+			c.strokeRect(slot.x, slot.y, 70, 70);
+			if(slot.content !== "empty") {
+				display(slot);
 				/* Gray out invalid choices */
-				var item = this.invSlots[i].content;
-				if(
-					!(item instanceof Weapon) || // not a weapon
-					item instanceof Arrow || // arrows are technically weapons, so exclude them
-					(item instanceof MagicWeapon && !(item instanceof ElementalStaff)) // don't allow magic weapons unless it's elemental
-				) {
+				var item = slot.content;
+				if(!item.canBeInfused(this.infusedGui)) {
 					c.globalAlpha = 0.75;
 					c.fillStyle = "rgb(150, 150, 150)";
-					c.fillRect(this.invSlots[i].x + 2, this.invSlots[i].y + 2, 66, 66);
+					c.fillRect(slot.x + 2, slot.y + 2, 66, 66);
 					c.globalAlpha = 1;
 				}
 			}
 			/* Selection graphic */
-			if(i === this.activeSlot) {
-				selectionGraphic(this.invSlots[i]);
+			if(index === this.activeSlot) {
+				selectionGraphic(slot);
 			}
-		}
+		});
 		/* Find which is hovered */
-		for(var i = 0; i < this.invSlots.length; i ++) {
-			if(io.mouse.x > this.invSlots[i].x && io.mouse.x < this.invSlots[i].x + 70 && io.mouse.y > this.invSlots[i].y && io.mouse.y < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
-				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
-				hoverIndex = i;
-				break;
-			}
-		}
-		if(hoverIndex !== null) {
+		var hoveredSlot = this.invSlots.find(slot => utils.mouseInRect(slot.x, slot.y, 70, 70));
+		if(hoveredSlot !== undefined && hoveredSlot.content !== "empty") {
 			/* Display desc of hovered item */
-			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + (this.invSlots[hoverIndex].type === "equip" ? 0 : 70), this.invSlots[hoverIndex].y + 35, this.invSlots[hoverIndex].type === "equip" ? "left" : "right");
+			hoveredSlot.content.desc = hoveredSlot.content.getDesc();
+			hoveredSlot.content.displayDesc(hoveredSlot.x + (hoveredSlot.type === "equip" ? 0 : 70), hoveredSlot.y + 35, hoveredSlot.type === "equip" ? "left" : "right");
 			/* Detect clicks */
-			if(this.invSlots[hoverIndex].content instanceof Weapon && !(this.invSlots[hoverIndex].content instanceof Arrow) && this.invSlots[hoverIndex].content.element !== this.infusedGui && (this.invSlots[hoverIndex].content instanceof ElementalStaff || !(this.invSlots[hoverIndex].content instanceof MagicWeapon))) {
-				ui.infoBar.actions.click = "infuse " + this.invSlots[hoverIndex].content.name;
+			if(hoveredSlot.content.canBeInfused(this.infusedGui)) {
+				ui.infoBar.actions.click = "infuse " + hoveredSlot.content.name;
 				if(io.mouse.pressed) {
-					this.invSlots[hoverIndex].content.element = this.infusedGui;
+					hoveredSlot.content.element = this.infusedGui;
 					this.guiOpen = "none";
 					this.invSlots[this.activeSlot].content = "empty";
 					return;
@@ -990,62 +944,57 @@ Player.method("gui", function() {
 		c.fillStyle = "rgb(59, 67, 70)";
 		c.fillText("Select a weapon to reforge", 400, 165);
 		var hoverIndex = null;
-		for(var i = 0; i < this.invSlots.length; i ++) {
+		this.invSlots.forEach((slot, index) => {
 			c.fillStyle = "rgb(150, 150, 150)";
-			c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
-			c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
-			if(this.invSlots[i].content !== "empty") {
-				display(this.invSlots[i]);
+			c.fillRect(slot.x, slot.y, 70, 70);
+			c.strokeRect(slot.x, slot.y, 70, 70);
+			if(slot.content !== "empty") {
+				display(slot);
 				/* Gray out invalid choices */
-				if(!(this.invSlots[i].content instanceof Weapon || this.invSlots[i].content instanceof Equipable) || this.invSlots[i].content instanceof Arrow) {
+				if(!slot.content.canBeReforged()) {
 					c.globalAlpha = 0.75;
 					c.fillStyle = "rgb(150, 150, 150)";
-					c.fillRect(this.invSlots[i].x + 2, this.invSlots[i].y + 2, 66, 66);
+					c.fillRect(slot.x + 2, slot.y + 2, 66, 66);
 					c.globalAlpha = 1;
 				}
 			}
 			/* Selection graphic */
-			if(i === this.activeSlot) {
-				selectionGraphic(this.invSlots[i]);
+			if(index === this.activeSlot) {
+				selectionGraphic(slot);
 			}
-		}
+		});
 		/* Find which is hovered */
-		for(var i = 0; i < this.invSlots.length; i ++) {
-			if(io.mouse.x > this.invSlots[i].x && io.mouse.x < this.invSlots[i].x + 70 && io.mouse.y > this.invSlots[i].y && io.mouse.y < this.invSlots[i].y + 70 && this.invSlots[i].content !== "empty") {
-				this.invSlots[i].content.desc = this.invSlots[i].content.getDesc();
-				hoverIndex = i;
-				break;
-			}
-		}
-		if(hoverIndex !== null) {
+		var hoveredSlot = this.invSlots.find(slot => utils.mouseInRect(slot.x, slot.y, 70, 70));
+		if(hoveredSlot !== undefined && hoveredSlot.content !== "empty") {
 			/* Display desc of hovered item */
-			this.invSlots[hoverIndex].content.displayDesc(this.invSlots[hoverIndex].x + (this.invSlots[hoverIndex].type === "equip" ? 0 : 70), this.invSlots[hoverIndex].y + 35, this.invSlots[hoverIndex].type === "equip" ? "left" : "right");
+			hoveredSlot.content.desc = hoveredSlot.content.getDesc();
+			hoveredSlot.content.displayDesc(hoveredSlot.x + (hoveredSlot.type === "equip" ? 0 : 70), hoveredSlot.y + 35, hoveredSlot.type === "equip" ? "left" : "right");
 			/* Detect clicks */
-			if((this.invSlots[hoverIndex].content instanceof Weapon || this.invSlots[hoverIndex].content instanceof Equipable) && !(this.invSlots[hoverIndex].content instanceof Arrow)) {
-				ui.infoBar.actions.click = "reforge " + this.invSlots[hoverIndex].content.name;
+			if(hoveredSlot.content.canBeReforged()) {
+				ui.infoBar.actions.click = "reforge " + hoveredSlot.content.name;
 				if(io.mouse.pressed) {
 					/* Find current reforge status of item */
-					this.reforgeIndex = hoverIndex;
-					if(this.invSlots[hoverIndex].content.modifier === "none") {
+					this.reforgeIndex = this.invSlots.indexOf(hoveredSlot);
+					if(hoveredSlot.content.modifier === "none") {
 						this.guiOpen = "reforge-trait-none";
 					}
-					else if(this.invSlots[hoverIndex].content.modifier === "light" || this.invSlots[hoverIndex].content.modifier === "distant" || this.invSlots[hoverIndex].content.modifier === "efficient" || this.invSlots[hoverIndex].content.modifier === "empowering") {
+					else if(hoveredSlot.content.modifier === "light" || hoveredSlot.content.modifier === "distant" || hoveredSlot.content.modifier === "efficient" || hoveredSlot.content.modifier === "empowering") {
 						this.guiOpen = "reforge-trait-light";
 					}
-					else if(this.invSlots[hoverIndex].content.modifier === "heavy" || this.invSlots[hoverIndex].content.modifier === "forceful" || this.invSlots[hoverIndex].content.modifier === "arcane" || this.invSlots[hoverIndex].content.modifier === "sturdy") {
+					else if(hoveredSlot.content.modifier === "heavy" || hoveredSlot.content.modifier === "forceful" || hoveredSlot.content.modifier === "arcane" || hoveredSlot.content.modifier === "sturdy") {
 						this.guiOpen = "reforge-trait-heavy";
 					}
 					/* Find type of item */
-					if(this.invSlots[hoverIndex].content instanceof MeleeWeapon) {
+					if(hoveredSlot.content instanceof MeleeWeapon) {
 						this.reforgeType = "melee";
 					}
-					else if(this.invSlots[hoverIndex].content instanceof RangedWeapon) {
+					else if(hoveredSlot.content instanceof RangedWeapon) {
 						this.reforgeType = "ranged";
 					}
-					else if(this.invSlots[hoverIndex].content instanceof MagicWeapon) {
+					else if(hoveredSlot.content instanceof MagicWeapon) {
 						this.reforgeType = "magic";
 					}
-					else if(this.invSlots[hoverIndex].content instanceof Equipable) {
+					else if(hoveredSlot.content instanceof Equipable) {
 						this.reforgeType = "equipable";
 					}
 					return;
@@ -1145,12 +1094,8 @@ Player.method("gui", function() {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
 				}
 				/* Exit GUI and mark forge as used */
-				for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-					if(game.dungeon[game.inRoom].content[i] instanceof Forge) {
-						game.dungeon[game.inRoom].content[i].used = true;
-						break;
-					}
-				}
+				var nearestForge = game.dungeon[game.inRoom].getInstancesOf(Forge).min(forge => Math.dist(forge.x, forge.y, this.x, this.y));
+				nearestForge.used = true;
 				this.guiOpen = "none";
 			}
 		}
@@ -1177,12 +1122,8 @@ Player.method("gui", function() {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
 				/* Exit GUI and mark forge as used */
-				for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-					if(game.dungeon[game.inRoom].content[i] instanceof Forge) {
-						game.dungeon[game.inRoom].content[i].used = true;
-						break;
-					}
-				}
+				var nearestForge = game.dungeon[game.inRoom].getInstancesOf(Forge).min(forge => Math.dist(forge.x, forge.y, this.x, this.y));
+				nearestForge.used = true;
 				this.guiOpen = "none";
 			}
 		}
@@ -1261,12 +1202,8 @@ Player.method("gui", function() {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
 				}
 				/* Exit GUI and mark forge as used */
-				for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-					if(game.dungeon[game.inRoom].content[i] instanceof Forge) {
-						game.dungeon[game.inRoom].content[i].used = true;
-						break;
-					}
-				}
+				var nearestForge = game.dungeon[game.inRoom].getInstancesOf(Forge).min(forge => Math.dist(forge.x, forge.y, this.x, this.y));
+				nearestForge.used = true;
 				this.guiOpen = "none";
 			}
 		}
@@ -1293,12 +1230,8 @@ Player.method("gui", function() {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
 				/* Close GUI and mark forge as used */
-				for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-					if(game.dungeon[game.inRoom].content[i] instanceof Forge) {
-						game.dungeon[game.inRoom].content[i].used = true;
-						break;
-					}
-				}
+				var nearestForge = game.dungeon[game.inRoom].getInstancesOf(Forge).min(forge => Math.dist(forge.x, forge.y, this.x, this.y));
+				nearestForge.used = true;
 				this.guiOpen = "none";
 			}
 		}
@@ -1378,12 +1311,8 @@ Player.method("gui", function() {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice1.modifier);
 				}
 				/* Close GUI and mark forge as used */
-				for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-					if(game.dungeon[game.inRoom].content[i] instanceof Forge) {
-						game.dungeon[game.inRoom].content[i].used = true;
-						break;
-					}
-				}
+				var nearestForge = game.dungeon[game.inRoom].getInstancesOf(Forge).min(forge => Math.dist(forge.x, forge.y, this.x, this.y));
+				nearestForge.used = true;
 				this.guiOpen = "none";
 			}
 		}
@@ -1410,33 +1339,29 @@ Player.method("gui", function() {
 					this.invSlots[this.reforgeIndex].content = new this.invSlots[this.reforgeIndex].content.constructor(choice2.modifier);
 				}
 				/* Close GUI and mark forge as used */
-				for(var i = 0; i < game.dungeon[game.inRoom].content.length; i ++) {
-					if(game.dungeon[game.inRoom].content[i] instanceof Forge) {
-						game.dungeon[game.inRoom].content[i].used = true;
-						break;
-					}
-				}
+				var nearestForge = game.dungeon[game.inRoom].getInstancesOf(Forge).min(forge => Math.dist(forge.x, forge.y, this.x, this.y));
+				nearestForge.used = true;
 				this.guiOpen = "none";
 			}
 		}
 	}
 	else {
 		/* Display held items */
-		for(var i = 0; i < this.invSlots.length; i ++) {
-			this.invSlots[i].content.opacity += 0.05;
-			if(this.invSlots[i].type === "holding") {
+		this.invSlots.forEach((slot, index) => {
+			slot.content.opacity += 0.05;
+			if(slot.type === "holding") {
 				c.strokeStyle = "rgb(59, 67, 70)";
 				c.fillStyle = "rgb(150, 150, 150)";
-				c.fillRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
-				c.strokeRect(this.invSlots[i].x, this.invSlots[i].y, 70, 70);
-				if(this.invSlots[i].content !== "empty") {
-					display(this.invSlots[i]);
+				c.fillRect(slot.x, slot.y, 70, 70);
+				c.strokeRect(slot.x, slot.y, 70, 70);
+				if(slot.content !== "empty") {
+					display(slot);
+				}
+				if(index === this.activeSlot) {
+					selectionGraphic(slot);
 				}
 			}
-			if(i === this.activeSlot) {
-				selectionGraphic(this.invSlots[i]);
-			}
-		}
+		});
 	}
 	this.openingBefore = io.keys.KeyD;
 });
@@ -1446,20 +1371,17 @@ Player.method("addItem", function(item) {
 	*/
 	/* Check for matching items if it's stackable */
 	if(item.stackable) {
-		for(var i = 0; i < this.invSlots.length; i ++) {
-			if(this.invSlots[i].content instanceof item.constructor) {
-				this.invSlots[i].content.quantity += item.quantity;
-				return;
-			}
+		var firstMatchingSlot = this.invSlots.find(slot => slot.content.constructor === item.constructor);
+		if(firstMatchingSlot !== undefined) {
+			firstMatchingSlot.content.quantity += item.quantity;
+			return;
 		}
 	}
 	/* Check for empty slots if it's not */
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].content === "empty") {
-			this.invSlots[i].content = item.clone();
-			this.invSlots[i].content.opacity = 0;
-			return;
-		}
+	var firstEmptySlot = this.invSlots.find(slot => slot.content === "empty");
+	if(firstEmptySlot !== undefined) {
+		firstEmptySlot.content = item.clone();
+		firstEmptySlot.content.opacity = 0;
 	}
 });
 Player.method("hurt", function(amount, killer, ignoreDef) {
@@ -1476,15 +1398,9 @@ Player.method("hurt", function(amount, killer, ignoreDef) {
 		game.transitions.dir = "fade-in";
 	}
 	/* Calculate defense */
-	this.defLow = 0;
-	this.defHigh = 0;
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].type === "equip" && this.invSlots[i].content.defLow !== undefined && this.invSlots[i].content.defHigh !== undefined) {
-			this.defLow += this.invSlots[i].content.defLow;
-			this.defHigh += this.invSlots[i].content.defHigh;
-		}
-	}
-	var defense = Math.randomInRange(this.defLow, this.defHigh);
+	var defLow = this.calculateStat("defLow");
+	var defHigh = this.calculateStat("defHigh");
+	var defense = Math.randomInRange(defLow, defHigh);
 	/* Subtract defense from damage dealt*/
 	if(ignoreDef) {
 		var damage = amount;
@@ -1544,24 +1460,13 @@ Player.method("updatePower", function() {
 	this.power = 0;
 	this.power += (this.maxHealth - 100);
 	this.power += (this.maxMana - 100);
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].content !== "empty" && this.invSlots[i].content.power !== undefined) {
-			this.power += this.invSlots[i].content.power;
-		}
-	}
+	this.power += this.invSlots.filter(slot => slot.content !== "empty").sum(slot => slot.content.power);
 });
 Player.method("hasInInventory", function(constructor) {
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		if(this.invSlots[i].content instanceof constructor) {
-			return true;
-		}
-	}
-	return false;
+	return this.invSlots.find(slot => slot.content instanceof constructor) !== undefined;
 });
 Player.method("clearInventory", function() {
-	for(var i = 0; i < this.invSlots.length; i ++) {
-		this.invSlots[i].content = "empty";
-	}
+	this.invSlots.forEach(slot => { slot.content = "empty"; });
 });
 Player.method("loadScores", function() {
 	if(localStorage.getItem("scores") !== null) {
@@ -1571,4 +1476,18 @@ Player.method("loadScores", function() {
 Player.method("saveScores", function() {
 	var scores = JSON.stringify(this.scores);
 	localStorage.setItem("scores", scores);
+});
+Player.method("calculateStat", function(statName) {
+	const STAT_NAMES = ["damLow", "damHigh", "defLow", "defHigh", "arrowEfficiency", "healthRegen", "manaRegen"];
+	if(!STAT_NAMES.includes(statName)) {
+		throw new Error("Invalid stat name of '" + statName + "'");
+	}
+
+	var result = 0;
+	if(this.invSlots[this.activeSlot].content instanceof Weapon) {
+		result = this.invSlots[this.activeSlot].content[statName];
+		result = (typeof result === "number") ? result : 0;
+	}
+	result += this.invSlots.filter(slot => slot.type === "equip").sum(slot => slot.content[statName]);
+	return result;
 });

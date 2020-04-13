@@ -77,12 +77,11 @@ CollisionRect.method("collide", function(obj) {
 			debugging.hitboxes.push({x: this.x, y: this.y, w: this.w, h: this.h, color: this.settings.illegalHandling === "teleport" ? "dark blue" : "light blue"});
 		}
 		/* collide with objects */
-		for(var i = 0; i < game.dungeon[game.theRoom].content.length; i ++) {
-			var obj = game.dungeon[game.theRoom].content[i];
+		game.dungeon[game.theRoom].content.forEach((obj) => {
 			if(obj.hitbox instanceof utils.geom.Rectangle && Object.typeof(obj.handleCollision) === "function") {
 				this.collide(obj);
 			}
-		}
+		});
 		this.collide(p);
 	}
 });

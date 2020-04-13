@@ -94,10 +94,8 @@ Roof.method("translate", function(x, y) {
 	this.x += x;
 	this.y += y;
 	if(this.type === "curved" && Object.typeof(this.points) === "array") {
-		for(var i = 0; i < this.points.length; i ++) {
-			var point = this.points[i];
-			point.x += x;
-			point.y += y;
-		}
+		this.points.forEach(point => {
+			point.x += x, point.y += y;
+		});
 	}
 });

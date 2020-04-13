@@ -252,3 +252,6 @@ Troll.method("update", function() {
 Troll.method("handleCollision", function(direction, collision) {
 
 });
+Troll.generationCriteria = function() {
+	return game.dungeon[game.theRoom].getInstancesOf(Banner).length === 0;
+};
