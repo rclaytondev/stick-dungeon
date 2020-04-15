@@ -1365,86 +1365,174 @@ var game = {
 	},
 
 	tutorial: {
+		stages: [
+			/*
+			Tutorial stage properties:
+			- `id`: a string. all lowercase, words separated by dashes.
+			- `text`: the text to display to the user (or a function to return the text to display to the user)
+			- `nextStageID`: the ID of the next stage
+			- `completionCriteria`: a function that determines whether the tutorial can move on to the next stage
+			Optional tutorial stage properties:
+			- `onCompletion`: a function to be run when the user moves on from this stage
+			- `regressionCriteria`: a function that determines whether the tutorial should move the user back to this stage
+			*/
+			{
+				type: "progression",
+				id: "basic-movement",
+				text: "arrow keys to move, up to jump",
+				nextStageID: "interact-with-objects",
+				completionCriteria: function() { return p.x > 725; },
+				onCompletion: function() {
+					game.dungeon.onlyItem().getInstancesOf(MovingWall).min(wall => wall.x).zDir = 0.01;
+				}
+			},
+			{
+				type: "progression",
+				id: "interact-with-objects",
+				text: "press S to interact with objects \n (for example: opening a chest)",
+				nextStageID: "open-inventory",
+				completionCriteria: function() { return p.hasInInventory(WoodBow); }
+			},
+			{
+				type: "progression",
+				id: "open-inventory",
+				text: "press D to view your items",
+				nextStageID: "equip-items",
+				completionCriteria: function() { return p.guiOpen === "inventory"; },
+				regressionCriteria: function() {
+					return game.tutorial.currentStageID === "equip-items" && p.guiOpen === "none";
+				}
+			},
+			{
+				type: "user-correction",
+				id: "dont-equip-arrows",
+				text: "equipping arrows is useless \n (you don't need them equipped in order to shoot)",
+				activationCriteria: function() {
+					return p.invSlots.filter(slot => slot.type === "holding").filter(slot => slot.content instanceof Arrow).length !== 0 && game.tutorial.getStageByID("open-inventory").completed && !game.tutorial.getStageByID("close-inventory").completed;
+				}
+			},
+			{
+				type: "progression",
+				id: "equip-items",
+				text: "click an item to equip / unequip it \n (try equipping this staff)",
+				nextStageID: "close-inventory",
+				completionCriteria: function() {
+					var heldItemSlots = p.invSlots.filter(slot => slot.type === "holding");
+					return (
+						heldItemSlots.some(slot => slot.content instanceof MeleeWeapon) &&
+						heldItemSlots.some(slot => slot.content instanceof RangedWeapon) &&
+						heldItemSlots.some(slot => slot.content instanceof MagicWeapon)
+					);
+					debugger;
+				}
+			},
+			{
+				type: "progression",
+				id: "close-inventory",
+				text: "now press D again to exit",
+				nextStageID: "use-items",
+				completionCriteria: function() { return p.guiOpen === "none"; }
+			},
+			{
+				type: "progression",
+				id: "use-items",
+				text: function() {
+					var text = "press A to use the item you're holding";
+					if(p.invSlots[p.activeSlot].content instanceof MeleeWeapon) {
+						text += "\n (like swinging a sword)";
+					}
+					else if(p.invSlots[p.activeSlot].content instanceof RangedWeapon) {
+						text += "\n (like shooting a bow)";
+					}
+					else if(p.invSlots[p.activeSlot].content instanceof MagicWeapon) {
+						text += "\n (like using a staff)";
+					}
+					return text;
+				},
+				nextStageID: "switch-items",
+				completionCriteria: function() {
+					return io.keys.KeyA;
+				}
+			},
+			{
+				type: "progression",
+				id: "switch-items",
+				text: "press the number keys (1, 2, 3) to switch between items",
+				nextStageID: "aim-weapons-1",
+				completionCriteria: function() {
+					return io.keys.Digit1 || io.keys.Digit2 || io.keys.Digit3;
+				},
+			},
+			{
+				type: "progression",
+				id: "aim-weapons-1",
+				text: "you can aim ranged weapons",
+				nextStageID: "aim-weapons-2",
+				completionCriteria: function() {
+					var itemHeld = p.invSlots[p.activeSlot].content;
+					return (itemHeld instanceof RangedWeapon || itemHeld instanceof MagicWeapon) && game.tutorial.timeInCurrentStage > FPS;
+				},
+				regressionCriteria: function() {
+					return !(p.invSlots[p.activeSlot].content instanceof RangedWeapon || p.invSlots[p.activeSlot].content instanceof MagicWeapon) && game.tutorial.currentStageID.startsWith("aim-weapons");
+				}
+			},
+			{
+				type: "progression",
+				id: "aim-weapons-2",
+				text: "hold down the A key",
+				nextStageID: "aim-weapons-3",
+				completionCriteria: function() { return io.keys.KeyA && game.tutorial.timeInCurrentStage > FPS; },
+				regressionCriteria: function() {
+					return game.tutorial.currentStageID.startsWith("aim-weapons") && !p.aiming && (p.invSlots[p.activeSlot].content instanceof RangedWeapon || p.invSlots[p.activeSlot].content instanceof MagicWeapon);
+				}
+			},
+			{
+				type: "progression",
+				id: "aim-weapons-3",
+				text: "and then press up or down to aim",
+				nextStageID: "aim-weapons-4",
+				completionCriteria: function() {
+					return Math.dist(p.aimRot, 0) > 20;
+				}
+			},
+			{
+				type: "progression",
+				id: "aim-weapons-4",
+				text: "then you can release A to shoot",
+				nextStageID: "combat",
+				completionCriteria: function() { return !io.keys.KeyA && game.tutorial.timeInCurrentStage > FPS; },
+				onCompletion: function() {
+					game.dungeon.onlyItem().getInstancesOf(MovingWall).max(wall => wall.x).zDir = -0.01;
+				}
+			},
+			{
+				type: "progression",
+				id: "combat",
+				text: "almost done. try fighting this monster for practice.",
+				nextStageID: "tutorial-complete",
+				completionCriteria: function() { return game.dungeon[game.inRoom].getInstancesOf(Enemy).length === 0; },
+			},
+			{
+				type: "progression",
+				id: "tutorial-complete",
+				text: "that's all you need to know. good luck!",
+				nextStageID: null,
+				completionCriteria: function() {
+					if(game.tutorial.timeInCurrentStage > FPS) {
+						game.transitions.dir = "fade-out";
+						game.transitions.color = "rgb(0, 0, 0)";
+						game.transitions.nextScreen = "home";
+					}
+					return false;
+				},
+			}
+		],
 		exist: function() {
-			game.inRoom = 0;
-			game.theRoom = 0;
+			game.inRoom = 0, game.theRoom = 0;
 			p.update();
-			game.dungeon[0].renderingObjects = [];
-			game.dungeon[0].exist(0);
-			game.dungeon[0].display();
-
-			c.fillStyle = "rgb(255, 255, 255)";
-			c.font = "100 20px Germania One";
-			c.textAlign = "center";
-			c.globalAlpha = 1;
-			if(typeof game.tutorial.infoText === "string") {
-				var linesOfText = game.tutorial.infoText.split("\n");
-				linesOfText.forEach((text, index) => {
-					c.fillText(text, canvas.width / 2, 600 + (index * 40));
-				});
-			}
-			if(game.tutorial.infoText === "press A to use the item you are holding") {
-				if(p.invSlots[p.activeSlot].content instanceof Sword) {
-					c.fillText("(like swinging a sword)", 400, 640);
-				}
-				else if(p.invSlots[p.activeSlot].content instanceof WoodBow) {
-					c.fillText("(like shooting a bow)", 400, 640);
-				}
-				else  if(p.invSlots[p.activeSlot].content instanceof EnergyStaff) {
-					c.fillText("(like using a staff)", 400, 640);
-				}
-			}
-
-			if(p.x > 350 && game.tutorial.infoText === "arrow keys to move, up to jump") {
-				game.dungeon[0].getInstancesOf(MovingWall).min(wall => wall.x).zDir = 0.01;
-				game.tutorial.infoText = "press S to interact with objects\n(for example: opening a chest)";
-			}
-			if(game.dungeon[0].content[5].r <= -84 && game.tutorial.infoText === "press S to interact with objects\n(for example: opening a chest)") {
-				game.tutorial.infoText = "press D to view your items";
-			}
-			if(io.keys.KeyA && p.invSlots[p.activeSlot].content !== "empty" && game.tutorial.infoText === "press A to use the item you are holding") {
-				game.tutorial.infoText = "press the number keys (1, 2, 3) to switch between items";
-			}
-			if((io.keys.Digit1 || io.Digit2 || io.Digit3) && game.tutorial.infoText === "press the number keys (1, 2, 3) to switch between items") {
-				game.tutorial.infoText = "you can aim ranged weapons";
-				game.tutorial.infoTextTime = 0;
-			}
-			game.tutorial.infoTextTime ++;
-			if(game.tutorial.infoTextTime > 60) {
-				if(game.tutorial.infoText === "you can aim ranged weapons" && (p.invSlots[p.activeSlot].content instanceof RangedWeapon || p.invSlots[p.activeSlot].content instanceof MagicWeapon)) {
-					game.tutorial.infoText = "hold down the A key";
-				}
-				else if(game.tutorial.infoText === "and then press up or down to aim" && (io.keys.ArrowUp || io.keys.ArrowDown)) {
-					game.tutorial.infoText = "then you can release A to shoot";
-				}
-				else if(game.tutorial.infoText === "that's all you need to know. good luck!") {
-					game.tutorial.infoText = "that's all you need to know. good luck!";
-					game.transitions.dir = "fade-out";
-					game.transitions.color = "rgb(0, 0, 0)";
-					game.transitions.nextScreen = "home";
-				}
-			}
-			if(io.keys.KeyA && game.tutorial.infoText === "hold down the A key") {
-				game.tutorial.infoText = "and then press up or down to aim";
-				game.tutorial.infoTextTime = 0;
-			}
-			if(!io.keys.KeyA && game.tutorial.infoText === "then you can release A to shoot") {
-				game.tutorial.infoText = "almost done. try fighting this monster for practice";
-				game.dungeon[0].content[3].zDir = -0.01;
-			}
-			if(game.tutorial.infoText !== "almost done. try fighting this monster for practice") {
-				var spider = game.dungeon[0].getInstancesOf(Spider)[0];
-				if(spider !== undefined) {
-					spider.x = 1600;
-				}
-			}
-			else {
-				var noEnemy = (game.dungeon[0].getInstancesOf(Spider).length === 0);
-				if(noEnemy) {
-					game.tutorial.infoText = "that's all you need to know. good luck!";
-					game.tutorial.infoTextTime = 0;
-				}
-			}
+			game.dungeon.onlyItem().renderingObjects = [];
+			game.dungeon.onlyItem().exist(0);
+			game.dungeon.onlyItem().display();
 
 			game.dungeon[game.inRoom].displayShadowEffect();
 			p.x += game.camera.getOffsetX();
@@ -1453,25 +1541,138 @@ var game = {
 			p.x -= game.camera.getOffsetX();
 			p.y -= game.camera.getOffsetY();
 			p.gui();
-
-			c.fillStyle = "rgb(255, 255, 255)";
-			c.font = "100 20px Germania One";
-			c.textAlign = "center";
-			if(p.guiOpen === "inventory" && game.tutorial.infoText === "press D to view your items") {
-				if(p.invSlots[2].content === "empty") {
-					c.fillText("click an item to equip / unequip it", 400, 600);
-					c.fillText("(try equipping this staff)", 400, 640);
-				}
-				else {
-					c.fillText("now press D again to exit", 400, 600);
-				}
+			if(p.guiOpen === "inventory") {
+				this.displayInventoryOverlay();
 			}
-			if(p.guiOpen === "none" && p.invSlots[2].content !== "empty" && game.tutorial.infoText === "press D to view your items") {
-				game.tutorial.infoText = "press A to use the item you are holding";
+
+			this.displayInfoText();
+			this.updateTutorialStage();
+		},
+		reset: function() {
+			this.stages.forEach(stage => {
+				stage.completed = false;
+			});
+			this.timeInCurrentStage = 0;
+			this.currentStageID = "basic-movement";
+			this.currentProgressionStageID = "basic-movement";
+
+			p.reset();
+			p.clearInventory();
+			game.dungeon = [new Room(
+				"tutorial",
+				[
+					new Border("floor", { y: 400 }),
+					new Border("wall-to-left", { x: 400 }),
+					new Border("wall-to-right", { x: 1700 }),
+					new Border("floor-to-right", { x: 700, y: 300 }),
+
+					new MovingWall(400, -4000, 300, 4400),
+					new MovingWall(1100, -4000, 300, 4300, 1.1),
+					new Chest(900, 300),
+					new Spider(1600, 200),
+				],
+				"?"
+			)];
+			game.inRoom = 0, game.theRoom = 0;
+			p.addItem(new Sword());
+			p.invSlots[3].content = new EnergyStaff();
+			p.invSlots[17].content = new Arrow(Infinity);
+		},
+
+		currentStageID: "basic-movement",
+		getStageByID: function(id) {
+			return this.stages.find(stage => stage.id === id);
+		},
+		getCurrentStage: function() {
+			var stage = this.getStageByID(this.currentStageID);
+			if(Object.typeof(stage) === "object") {
+				return stage;
+			}
+			else {
+				throw new Error("Unknown tutorial stage ID of '" + this.currentStageID + "'");
 			}
 		},
 
-		infoText: ""
+		updateTutorialStage: function() {
+			this.timeInCurrentStage ++;
+			var currentStage = this.getCurrentStage();
+			if(currentStage.type === "progression") {
+				this.currentProgressionStageID = currentStage.id;
+				if(currentStage.completionCriteria()) {
+					currentStage.completed = true;
+					this.currentStageID = currentStage.nextStageID;
+					this.timeInCurrentStage = 0;
+					if(typeof currentStage.onCompletion === "function") {
+						currentStage.onCompletion();
+					}
+				}
+			}
+			else if(currentStage.type === "user-correction") {
+				if(!currentStage.activationCriteria()) {
+					this.currentStageID = this.currentProgressionStageID;
+				}
+			}
+			/* check for old (already completed) stages to go back to if the user messed up */
+			this.stages.filter(stage => stage.completed).forEach(stage => {
+				if(typeof stage.regressionCriteria === "function" && stage.regressionCriteria()) {
+					this.currentStageID = stage.id;
+				}
+			});
+			/* check for other stages (branching off the main linear path) activated to warn the user under special conditions */
+			this.stages.filter(stage => stage.type === "user-correction").forEach(stage => {
+				if(stage.activationCriteria()) {
+					this.currentStageID = stage.id;
+				}
+			});
+		},
+		timeInCurrentStage: 0,
+
+		displayInfoText: function() {
+			c.fillStyle = "rgb(255, 255, 255)";
+			c.font = "100 20px Germania One";
+			c.textAlign = "center";
+			c.globalAlpha = 1;
+			var currentStage = this.getCurrentStage();
+			if(typeof currentStage.text === "string") {
+				var linesOfText = currentStage.text;
+			}
+			else if(typeof currentStage.text === "function") {
+				var linesOfText = currentStage.text();
+			}
+			else {
+				throw new Error("Tutorial stage with ID of '" + currentStage.id + "'is missing informational text value. Value of '" + currentStage.text + "' is unsupported.");
+			}
+			linesOfText.split("\n").forEach((text, index) => {
+				text = text.trim();
+				c.fillText(text, canvas.width / 2, 600 + (index * 40));
+			});
+		},
+		displayInventoryOverlay: function() {
+			this.displayInventorySlotsLabel("holding", "items you're holding");
+			this.displayInventorySlotsLabel("equip", "items you're wearing");
+			this.displayInventorySlotsLabel("storage", "items you have");
+		},
+		displayInventorySlotsLabel: function(slotType, text) {
+			var slots = p.invSlots.filter(slot => slot.type === slotType);
+
+			var left = slots.min(slot => slot.x).x;
+			var right = slots.max(slot => slot.x).x + 70;
+			var middle = (left + right) / 2;
+			var y = slots.max(slot => slot.y).y + 70 + 10;
+
+			const HEIGHT = 20;
+			const TEXT_SIZE = 20;
+			c.fillStyle = "rgb(255, 255, 255)";
+			c.strokeStyle = "rgb(255, 255, 255)";
+			c.lineWidth = 5;
+			c.font = TEXT_SIZE + "px Arial";
+			c.textAlign = "center";
+			c.strokeLine(left, y, left, y + HEIGHT);
+			c.strokeLine(right, y, right, y + HEIGHT);
+			c.strokeLine(left, y + HEIGHT, right, y + HEIGHT);
+			c.strokeLine(middle, y + HEIGHT, middle, y + (HEIGHT * 2));
+			c.fillText(text, middle, y + (HEIGHT * 2) + TEXT_SIZE);
+		}
 	},
 	transitions: {
 		dir: null, // can be "fade-in" or "fade-out"
@@ -1753,28 +1954,7 @@ var ui = {
 				"H o w",
 				function() {
 					game.transitions.onScreenChange = function() {
-						p.reset();
-						p.clearInventory();
-						game.dungeon = [new Room(
-							"tutorial",
-							[
-								new Border("floor", { y: 400 }),
-								new Border("wall-to-left", { x: 400 }),
-								new Border("wall-to-right", { x: 1700 }),
-								new Border("floor-to-right", { x: 700, y: 300 }),
-
-								new MovingWall(400, -4000, 300, 4400),
-								new MovingWall(1100, -4000, 300, 4300, 1.1),
-								new Chest(900, 300),
-								new Spider(1600, 200),
-							],
-							"?"
-						)];
-						game.tutorial.infoText = "arrow keys to move, up to jump";
-						game.inRoom = 0, game.theRoom = 0;
-						p.addItem(new Sword());
-						p.invSlots[3].content = new EnergyStaff();
-						p.invSlots[17].content = new Arrow(Infinity);
+						game.tutorial.reset();
 					};
 					game.transitions.dir = "fade-out";
 					game.transitions.color = "rgb(0, 0, 0)";

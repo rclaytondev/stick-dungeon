@@ -634,6 +634,7 @@ Array.method("min", function(func, thisArg) {
 	/*
 	Returns the lowest item, or the item for which func() returns the lowest value.
 	*/
+	thisArg = thisArg || this;
 	if(typeof func === "function") {
 		var lowestIndex = 0;
 		var lowestValue = Infinity;
@@ -658,7 +659,8 @@ Array.method("min", function(func, thisArg) {
 		return this[lowestIndex];
 	}
 });
-Array.method("max", function(func) {
+Array.method("max", function(func, thisArg) {
+	thisArg = thisArg || this;
 	/*
 	Returns the highest item, or the item for which func() returns the highest value.
 	*/
@@ -667,7 +669,7 @@ Array.method("max", function(func) {
 		var highestValue = -Infinity;
 		for(var i = 0; i < this.length; i ++) {
 			var value = func.call(thisArg, this[i], i, this);
-			if(value < highestValue) {
+			if(value > highestValue) {
 				highestIndex = i;
 				highestValue = value;
 			}

@@ -791,9 +791,6 @@ Player.method("gui", function() {
 			c.strokeRect(slot.x, slot.y, 70, 70);
 			/* Item */
 			if(slot.content !== "empty") {
-				if(!slot.content.initialized) {
-					slot.content.init();
-				}
 				/* Display Items */
 				display(slot);
 			}
@@ -870,13 +867,6 @@ Player.method("gui", function() {
 					}
 				}
 			}
-		}
-		/* Guiding lines for tutorial (WIP) */
-		if(game.onScreen === "how") {
-			c.fillStyle = "rgb(255, 255, 255)";
-			c.strokeStyle = "rgb(255, 255, 255)";
-			c.lineWidth = 5;
-			c.strokeLine(20, 110, 20, 150);
 		}
 	}
 	else if(this.guiOpen === "crystal-infusion") {
