@@ -12,17 +12,20 @@ Roof.method("update", function() {
 		}
 	}
 	if(this.type === "flat") {
-		collisions.solids.rect(-100, this.y - 1100, 1000, 1000);
+		collisions.solids.rect(-Border.LARGE_NUMBER, this.y - 100 - Border.LARGE_NUMBER, Border.LARGE_NUMBER * 2, Border.LARGE_NUMBER);
 	}
 	else if(this.type === "sloped") {
-		collisions.solids.line(this.x - this.w, this.y, this.x - (this.w / 3), this.y - 100);
-		collisions.solids.line(this.x + this.w, this.y, this.x + (this.w / 3), this.y - 100);
-		collisions.solids.rect(this.x - this.w, this.y - 200, 2 * this.w, 100);
+		collisions.solids.line(this.x - this.w, this.y, this.x - (this.w / 3), this.y - 100, { illegalHandling: "collide" });
+		collisions.solids.line(this.x + this.w, this.y, this.x + (this.w / 3), this.y - 100, { illegalHandling: "collide" });
+		collisions.solids.rect(this.x - this.w, this.y - 200, 2 * this.w, 100, { illegalHandling: "collide" });
 	}
 	else if(this.type === "curved") {
 		if(game.inRoom === game.theRoom) {
-			while(Math.distSq(p.x, this.y - (this.y - (p.y + p.hitbox.top)) / 2, this.x, this.y) > (this.w / 2) * (this.w / 2) && p.y + p.hitbox.top < this.y) {
+			var playerPosScaled = Math.scaleAboutPoint(p.x, p.y + p.hitbox.top, this.x, this.y, 1, 2); // scale player vertically by 2 to scale from the oval-shaped roof onto the circle-shaped roof
+			while(Math.distSq(playerPosScaled.x, playerPosScaled.y, this.x, this.y) > (this.w * this.w) && p.y + p.hitbox.top < this.y) {
+				p.velocity.y = Math.max(p.velocity.y, 2);
 				p.y ++;
+				playerPosScaled = Math.scaleAboutPoint(p.x, p.y + p.hitbox.top, this.x, this.y, 1, 2);
 			}
 		}
 	}

@@ -971,6 +971,7 @@ var game = {
 							new FallBlock(200, -75),
 							new FallBlock(300, -50),
 							new FallBlock(400, -25),
+							new Roof(0, -300, 700)
 						],
 						"?",
 						-200
@@ -1026,6 +1027,7 @@ var game = {
 
 							new TiltPlatform(400, -200),
 							new TiltPlatform(600, -100),
+							new Roof(500, -500, 500)
 						],
 						"?",
 						420
