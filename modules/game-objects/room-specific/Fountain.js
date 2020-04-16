@@ -54,14 +54,10 @@ Fountain.method("display", function() {
 				};
 			}
 		};
+		this.waterAnimations = this.waterAnimations.filter(waterAnimation => waterAnimation.y <= 225);
 		this.waterAnimations.forEach(waterAnimation => {
 			var topY = waterAnimation.y;
 			var bottomY = waterAnimation.y + 50;
-			if(topY > 225) {
-				this.waterAnimations.splice(i, 1);
-				i --;
-				continue;
-			}
 			var p1 = calculatePosition(waterAnimation.x, waterAnimation.y);
 			var corner = calculatePosition(waterAnimation.x, HORIZONTAL_FOUNTAIN_HEIGHT);
 			var p2 = calculatePosition(waterAnimation.x, waterAnimation.y + 50);

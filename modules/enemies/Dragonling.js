@@ -127,7 +127,7 @@ Dragonling.method("update", function() {
 	var idealAngle = Math.calculateDegrees(this.x - p.x, this.y - p.y) - 90;
 	if(this.reload > 120 && Math.dist(this.rot, idealAngle) <= 2 && Math.distSq(this.x, this.y, p.x, p.y) >= 10000) {
 		game.dungeon[game.theRoom].content.push(new MagicCharge(this.x, this.y, theVel.x, theVel.y, "fire", Math.randomInRange(40, 50)));
-		game.dungeon[game.theRoom].lastItem().shotBy = "enemy";
+		game.dungeon[game.theRoom].content.lastItem().shotBy = "enemy";
 		this.currentAction = "bite";
 		this.reload = 0;
 	}

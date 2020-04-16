@@ -2523,7 +2523,7 @@ function timer() {
 				game.rooms.ambient1.add();
 				var addedRoom = game.dungeon.lastItem();
 				addedRoom.content = addedRoom.content.filter((obj) => !(obj instanceof Border && obj.type === "ceiling"));
-				addedRoom.content.getInstancesOf(Pillar).forEach((pillar) => { pillar.h = Math.randomInRange(200, 300); });
+				addedRoom.getInstancesOf(Pillar).forEach((pillar) => { pillar.h = Math.randomInRange(200, 300); });
 			};
 		}
 
