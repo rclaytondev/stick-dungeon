@@ -1,6 +1,7 @@
 function Barricade() {
 	Extra.call(this);
 	this.consumed = false;
+	this.name = "barricade";
 };
 Barricade.extend(Extra);
 Barricade.method("display", function(type) {

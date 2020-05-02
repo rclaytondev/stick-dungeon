@@ -1,6 +1,7 @@
 function Crystal() {
 	Extra.call(this);
 	this.consumed = false;
+	this.name = "crystal";
 };
 Crystal.extend(Extra);
 Crystal.method("graphics", function(type) {

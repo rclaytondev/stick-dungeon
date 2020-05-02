@@ -1,5 +1,6 @@
 function Map() {
 	Extra.call(this);
+	this.name = "map";
 };
 Map.extend(Extra);
 Map.method("display", function() {
