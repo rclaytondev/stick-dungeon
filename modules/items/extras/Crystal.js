@@ -2,7 +2,7 @@ function Crystal() {
 	Extra.call(this);
 	this.consumed = false;
 };
-Crystal.extends(Extra);
+Crystal.extend(Extra);
 Crystal.method("graphics", function(type) {
 	/* called in the subclass's method 'display' */
 	if(type === "holding") {

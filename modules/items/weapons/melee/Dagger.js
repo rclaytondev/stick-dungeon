@@ -6,7 +6,7 @@ function Dagger(modifier) {
 	this.range = 30;
 	this.power = 2;
 };
-Dagger.extends(MeleeWeapon);
+Dagger.extend(MeleeWeapon);
 Dagger.method("getDesc", function() {
 	var desc = [
 		{

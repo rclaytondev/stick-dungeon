@@ -3,7 +3,7 @@ function Coin(quantity) {
 	this.quantity = quantity;
 	this.stackable = true;
 };
-Coin.extends(Extra);
+Coin.extend(Extra);
 Coin.method("getDesc", function() {
 	var desc = [
 		{

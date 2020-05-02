@@ -191,11 +191,16 @@ var utils = {
 			};
 
 			for(var i in dimensions) {
-				this[i] = dimensions[i];
+				if(dimensions.hasOwnProperty(i)) {
+					this[i] = dimensions[i];
+				}
 			}
 		}
 		.method("translate", function(x, y) {
 			return new utils.geom.Rectangle({ x: this.x + x, y: this.y + y, w: this.w, h: this.h });
+		})
+		.method("clone", function() {
+			return new utils.geom.Rectangle({ x: this.x, y: this.y, w: this.w, h: this.h });
 		})
 	}
 };
@@ -594,6 +599,20 @@ var collisions = {
 	}
 };
 var game = {
+	initializedTests: function() {
+		testing.addTest({
+			run: function() {
+				testing.resetter.resetGameState();
+				game.onScreen = "nonexistent-screen-id"; // this is so it runs as little code as possible. NOT meant to throw an error.
+				timer();
+			},
+			unit: "game",
+			name: "timer() function runs without errors"
+		});
+
+		return true;
+	} (),
+
 	onScreen: "home",
 
 	items: [
@@ -604,11 +623,147 @@ var game = {
 		Barricade, Map, //extras / bonuses
 		FireCrystal, WaterCrystal, EarthCrystal, AirCrystal //crystals
 	],
+	initializedItemTests: utils.initializer.request(function() {
+		game.items.forEach(itemConstructor => {
+			/* verify that either `use` or `attack` is called when the user presses the 'use item' key */
+			if(typeof itemConstructor.prototype.use === "function") {
+				testing.addTest({
+					run: function() {
+						testing.resetter.resetGameState();
+
+						var functionWasRun = false;
+						var item = new itemConstructor();
+						item.use = item.use.insertCodeBefore(function() {
+							functionWasRun = true;
+						});
+
+						p.invSlots[0].content = item;
+						p.activeSlot = 0;
+						io.keys.KeyA = true;
+						testing.runFrames(2);
+						testing.assert(functionWasRun);
+					},
+					unit: itemConstructor.name,
+					name: "use() method is run on correct user input"
+				});
+			}
+			else if(typeof itemConstructor.prototype.attack === "function") {
+				testing.addTest({
+					run: function() {
+						testing.resetter.resetGameState();
+
+						var functionWasRun = false;
+						var item = new itemConstructor();
+						item.attack = item.attack.insertCodeBefore(function() {
+							functionWasRun = true;
+						});
+
+						p.invSlots[0].content = item;
+						p.activeSlot = 0;
+						io.keys.KeyA = true;
+						testing.runFrames(2);
+						testing.assert(functionWasRun);
+					},
+					unit: itemConstructor.name,
+					name: "attack() method is run on correct user input"
+				});
+			}
+
+			/*
+			For equipables (items that can be put into "equipable" slots):
+			- Test that they can be put on
+			- Test that they can be taken off
+			- Test that they can be unequipped
+			For non-equipables:
+			- Test that they can be equipped
+			- Test that they can be unequipped
+			*/
+			function testItemMovement(itemConstructor, initialSlot, destinationSlot) {
+				p.guiOpen = "inventory";
+
+				initialSlot.content = new itemConstructor();
+				io.mouse.x = initialSlot.x + 5;
+				io.mouse.y = initialSlot.y + 5;
+				io.mouse.pressed = true;
+				testing.runFrames(2);
+
+				testing.assert(destinationSlot.content instanceof itemConstructor);
+				testing.assert(initialSlot.content === "empty");
+			};
+			if(itemConstructor.extends(Equipable)) {
+				testing.addTest({
+					run: function() {
+						testing.resetter.resetGameState();
+						testItemMovement(
+							itemConstructor,
+							p.invSlots.find(slot => slot.type === "storage"),
+							p.invSlots.find(slot => slot.type === "equip")
+						);
+					},
+					unit: itemConstructor.name,
+					name: "itemConstructor can be put on"
+				});
+				testing.addTest({
+					run: function() {
+						testing.resetter.resetGameState();
+						testItemMovement(
+							itemConstructor,
+							p.invSlots.find(slot => slot.type === "equip"),
+							p.invSlots.find(slot => slot.type === "storage")
+						);
+					},
+					unit: itemConstructor.name,
+					name: "item can be taken off"
+				});
+			}
+			else {
+				testing.addTest({
+					run: function() {
+						testing.resetter.resetGameState();
+						testItemMovement(
+							itemConstructor,
+							p.invSlots.find(slot => slot.type === "storage"),
+							p.invSlots.find(slot => slot.type === "holding")
+						);
+					},
+					unit: itemConstructor.name,
+					name: "item can be equipped"
+				});
+			}
+			testing.addTest({
+				run: function() {
+					testing.resetter.resetGameState();
+					testItemMovement(
+						itemConstructor,
+						p.invSlots.find(slot => slot.type === "holding"),
+						p.invSlots.find(slot => slot.type === "storage")
+					);
+				},
+				unit: itemConstructor.name,
+				name: "item can be unequipped"
+			});
+		});
+		game.initializedItemTests = true;
+	}),
 	enemies: [
 		Spider, Bat,
 		SkeletonWarrior, SkeletonArcher,
 		Wraith, Dragonling, Troll
 	],
+	initializedEnemyTests: utils.initializer.request(function() {
+		game.enemies.forEach(enemyConstructor => {
+			testing.addTest({
+				run: function() {
+					testing.resetter.resetGameState();
+					game.dungeon = [testing.utils.emptyRoom()];
+					game.dungeon.onlyItem().content.push(new enemyConstructor(0, 0));
+					testing.runFrames(2);
+				},
+				unit: enemyConstructor.name,
+				name: "enemy can exist"
+			});
+		});
+	}),
 	rooms: {
 		ambient1: {
 			name: "ambient1",
@@ -616,7 +771,7 @@ var game = {
 			difficulty: 0,
 			extraDoors: 2,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"ambient1",
 						[
@@ -633,8 +788,7 @@ var game = {
 							new Pillar(-100, 0, 200),
 							new Pillar(100, 0, 200),
 							new Pillar(300, 0, 200)
-						],
-						"?"
+						]
 					)
 				);
 			}
@@ -645,7 +799,7 @@ var game = {
 			difficulty: 0,
 			extraDoors: 1,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"ambient2",
 						[
@@ -661,8 +815,7 @@ var game = {
 							new Torch(-50, -60),
 							new Torch(50, -60),
 							new Torch(150, -60),
-						],
-						"?"
+						]
 					)
 				);
 			}
@@ -673,7 +826,7 @@ var game = {
 			difficulty: 0,
 			extraDoors: 1,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"ambient3",
 						[
@@ -687,8 +840,7 @@ var game = {
 
 							new Border("floor-to-left", { x: 200, y: -200 }),
 							new Stairs(200, 0, 10, "right"),
-						],
-						"?"
+						]
 					)
 				);
 			}
@@ -698,7 +850,7 @@ var game = {
 			colorScheme: null,
 			difficulty: 1,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"ambient4",
 						[
@@ -719,8 +871,6 @@ var game = {
 							new FallBlock(80, 0),
 							new FallBlock(120, 0),
 						],
-						"?",
-						-200
 					)
 				);
 			}
@@ -730,7 +880,7 @@ var game = {
 			colorScheme: "blue",
 			difficulty: 0,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"ambient5",
 						[
@@ -744,8 +894,6 @@ var game = {
 
 							new Fountain(0, 0)
 						],
-						"?",
-						undefined,
 						"plain"
 					)
 				);
@@ -757,7 +905,7 @@ var game = {
 			difficulty: 0,
 			extraDoors: 1,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"ambient6",
 						[
@@ -772,8 +920,7 @@ var game = {
 
 							new LightRay(-250, 500, 0),
 							new Tree(0, 0)
-						],
-						"?"
+						]
 					)
 				);
 			}
@@ -795,7 +942,7 @@ var game = {
 						throw new Error("Player has all items in game and default room was not available");
 					}
 				}
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"secret1",
 						[
@@ -810,8 +957,7 @@ var game = {
 							new Statue(0, -130),
 							new Decoration(-100, -50),
 							new Decoration(100, -50)
-						],
-						"?"
+						]
 					)
 				);
 			},
@@ -830,7 +976,7 @@ var game = {
 			difficulty: 3,
 			extraDoors: 1.5,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"combat1",
 						[
@@ -846,8 +992,7 @@ var game = {
 							new RandomEnemy(0, 0),
 							new Decoration(300, -50), new Decoration(-300, -50),
 							new Decoration(150, -50), new Decoration(-150, -50)
-						],
-						"?"
+						]
 					)
 				);
 			}
@@ -858,7 +1003,7 @@ var game = {
 			difficulty: 5,
 			extraDoors: 1,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"combat2",
 						[
@@ -876,8 +1021,7 @@ var game = {
 							new Stairs(100, 0, 10, "right"),
 							new RandomEnemy(-400, 0),
 							new RandomEnemy(400, 0)
-						],
-						"?"
+						]
 					)
 				);
 			}
@@ -888,7 +1032,7 @@ var game = {
 			difficulty: 4,
 			extraDoors: 0.5,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"combat3",
 						[
@@ -903,8 +1047,6 @@ var game = {
 							new Bridge(0, -200),
 							new RandomEnemy(0, -200)
 						],
-						"?",
-						undefined,
 						"plain"
 					)
 				)
@@ -916,7 +1058,7 @@ var game = {
 			difficulty: 3,
 			extraDoors: 1.5,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"combat4",
 						[
@@ -936,9 +1078,7 @@ var game = {
 							new Pillar(-150, 0, 200),
 							new Pillar(150, 0, 200),
 							new Pillar(400, Border.LARGE_NUMBER, Border.LARGE_NUMBER - 50)
-						],
-						"?",
-						200
+						]
 					)
 				);
 			}
@@ -949,7 +1089,7 @@ var game = {
 			difficulty: 3,
 			extraDoors: 1.5,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"parkour1",
 						[
@@ -972,9 +1112,7 @@ var game = {
 							new FallBlock(300, -50),
 							new FallBlock(400, -25),
 							new Roof(0, -300, 700)
-						],
-						"?",
-						-200
+						]
 					)
 				);
 			}
@@ -985,7 +1123,7 @@ var game = {
 			difficulty: 2,
 			extraDoors: 1.5,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"parkour2",
 						[
@@ -1000,9 +1138,7 @@ var game = {
 
 							new Block(-100, 200, 200, Border.LARGE_NUMBER),
 							new Pulley(-350, 150, 200, 150, 200, 150),
-						],
-						"?",
-						0
+						]
 					)
 				);
 			}
@@ -1013,7 +1149,7 @@ var game = {
 			difficulty: 4,
 			extraDoors: 0.5,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"parkour3",
 						[
@@ -1028,9 +1164,7 @@ var game = {
 							new TiltPlatform(400, -200),
 							new TiltPlatform(600, -100),
 							new Roof(500, -500, 500)
-						],
-						"?",
-						420
+						]
 					)
 				);
 			}
@@ -1041,7 +1175,7 @@ var game = {
 			difficulty: 5,
 			extraDoors: 2,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"parkour4",
 						[
@@ -1059,9 +1193,7 @@ var game = {
 							new Block(500, -400, 200, 100),
 							new Pulley(-400, 200, 200, 200, -150, 150),
 							new TiltPlatform(0, -100)
-						],
-						"?",
-						300
+						]
 					)
 				);
 			}
@@ -1072,7 +1204,7 @@ var game = {
 			difficulty: 0,
 			extraDoors: 0,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"reward1",
 						[
@@ -1083,8 +1215,7 @@ var game = {
 							new Chest(-100, 0),
 							new Chest(100, 0),
 							new Door(0, 0, "")
-						],
-						"?"
+						]
 					)
 				)
 			}
@@ -1110,7 +1241,7 @@ var game = {
 				}
 				p.healthAltarsFound += (chooser < 0.5) ? 1 : 0;
 				p.manaAltarsFound += (chooser > 0.5) ? 1 : 0;
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"reward2",
 						[
@@ -1130,8 +1261,7 @@ var game = {
 							new Block(-80, -200, 160, 20),
 
 							new Altar(0, -100, chooser < 0.5 ? "health" : "mana")
-						],
-						"?"
+						]
 					)
 				);
 				game.dungeon.lastItem().colorScheme = (chooser < 0.5) ? "red" : "blue";
@@ -1143,7 +1273,7 @@ var game = {
 			difficulty: 0,
 			extraDoors: 1,
 			add: function() {
-				game.dungeon.push(new Room(
+				game.addRoom(new Room(
 					"reward3",
 					[
 						new Border("floor", { y: 0 }),
@@ -1155,8 +1285,7 @@ var game = {
 						new Door(200, 0, ["combat", "parkour"], false, true),
 
 						new Forge(0, 0)
-					],
-					"?"
+					]
 				));
 			}
 		},
@@ -1166,7 +1295,7 @@ var game = {
 			difficulty: 0,
 			extraDoors: 0,
 			add: function() {
-				game.dungeon.push(
+				game.addRoom(
 					new Room(
 						"reward4",
 						[
@@ -1181,8 +1310,7 @@ var game = {
 							new Stairs(200, 0, 10, "right"),
 							new Chest(500, 0),
 							new Decoration(500, -100),
-						],
-						"?"
+						]
 					)
 				);
 			}
@@ -1210,6 +1338,34 @@ var game = {
 			});
 		}
 	},
+	initializedRoomTests: utils.initializer.request(function() {
+		game.rooms.getAllRooms().forEach(room => {
+			testing.addTest({
+				run: function() {
+					testing.resetter.resetGameState();
+					var roomType = /[^\d]+/g.exec(room.name)[0];
+					debugging.setGeneratableRooms(room.name);
+					game.dungeon = [testing.utils.emptyRoom()];
+					var door = new Door(0, 0, [roomType]);
+					door.containingRoomID = 0;
+					game.dungeon.onlyItem().content.push(door);
+
+					game.transitions.opacity = 1;
+					game.transitions.dir = "fade-out";
+					io.keys.KeyS = true;
+					testing.runFrames(2);
+
+					testing.assert(game.dungeon.length === 2);
+					testing.assert(game.inRoom === 1);
+					testing.assert(game.dungeon[1].type === room.name);
+					testing.assert(game.dungeon[1].getInstancesOf(Door).min(door => Math.dist(door.x, door.y, p.x, p.y).dest === 0));
+					testing.assert(game.dungeon[0].getInstancesOf(Door).onlyItem().dest === 1);
+				},
+				unit: room.name,
+				name: "room can be generated"
+			});
+		});
+	}),
 	dungeon: [
 		/*
 		This array represents the rooms in the dungeon that have been generated so far in the game.
@@ -1225,12 +1381,94 @@ var game = {
 
 	inRoom: 0,
 	theRoom: 0,
-	numRooms: 0,
 
 	exist: function() {
+		if(game.onScreen === "play") {
+			game.dungeon[game.theRoom].renderingObjects = [];
+			/* load enemies in other rooms */
+			var unseenEnemy = game.dungeon.some((room, index) => room.content.containsInstanceOf(Enemy) && index !== game.inRoom);
+			p.update();
 
+			game.dungeon[game.inRoom].displayBackground();
+
+			for(var i = 0; i < game.dungeon.length; i ++) {
+				var room = game.dungeon[i];
+				if(game.inRoom === i && (!unseenEnemy || true)) {
+					game.theRoom = i;
+					room.exist(i);
+				}
+			};
+
+			/* move player into lower room when falling */
+			if(p.y + p.hitbox.bottom > 900 && !game.transitions.isTransitioning()) {
+				game.transitions.dir = "fade-out";
+				game.transitions.color = "rgb(0, 0, 0)";
+				game.transitions.onScreenChange = function() {
+					p.roomsExplored ++;
+					game.inRoom = game.dungeon.length;
+					game.camera.x = 0;
+					game.camera.y = 0;
+					p.x = 0;
+					p.y = -600;
+					p.velocity.y = 2;
+					p.fallDmg = Math.round(Math.randomInRange(40, 50));
+
+					/* load a room like ambient1 (three doors with pillars room), but without a roof and with randomized pillar sizes */
+					game.rooms.ambient1.add();
+					var addedRoom = game.dungeon.lastItem();
+					addedRoom.content = addedRoom.content.filter((obj) => !(obj instanceof Border && obj.type === "ceiling"));
+					addedRoom.getInstancesOf(Pillar).forEach((pillar) => { pillar.h = Math.randomInRange(200, 300); });
+				};
+			}
+
+			game.dungeon[game.inRoom].display();
+			game.dungeon[game.inRoom].displayShadowEffect();
+
+			var locationBeforeOffset = { x: p.x, y: p.y };
+			p.x += game.camera.getOffsetX();
+			p.y += game.camera.getOffsetY();
+			p.display();
+			p.x = locationBeforeOffset.x;
+			p.y = locationBeforeOffset.y;
+			debugging.displayHitboxes();
+
+			p.gui();
+			ui.infoBar.calculateActions();
+			ui.infoBar.display();
+			ui.infoBar.resetActions();
+		}
+		else if(game.onScreen === "home") {
+			ui.homeScreen.update();
+			ui.homeScreen.display();
+		}
+		else if(game.onScreen === "class-select") {
+			ui.classSelectScreen.update();
+			ui.classSelectScreen.display();
+		}
+		else if(game.onScreen === "dead") {
+			ui.deathScreen.update();
+			ui.deathScreen.display();
+		}
+		else if(game.onScreen === "how") {
+			game.tutorial.exist();
+		}
+		else if(game.onScreen === "scores") {
+			ui.highscoresScreen.update();
+			ui.highscoresScreen.display();
+		}
+
+		game.transitions.update();
+		game.transitions.display();
+
+		if(game.onScreen !== "play" && game.onScreen !== "how") {
+			(new Room()).displayShadowEffect();
+		}
 	},
 
+	addRoom: function(room) {
+		room.index = game.dungeon.length;
+		game.dungeon.push(room);
+	},
 	generateNewRoom: function(entranceDoor) {
 		var previousRoom = game.inRoom;
 		p.roomsExplored ++;
@@ -1275,18 +1513,18 @@ var game = {
 		) {
 			game.dungeon.lastItem().reflect();
 		}
-		game.dungeon.lastItem().id = "?";
+		var room = game.dungeon.lastItem();
 		if(possibleRooms[roomIndex].colorScheme && !possibleRooms[roomIndex].colorScheme.includes("|")) {
-			game.dungeon.lastItem().colorScheme = possibleRooms[roomIndex].colorScheme;
-			if(game.dungeon.lastItem().colorScheme === "all") {
+			room.colorScheme = possibleRooms[roomIndex].colorScheme;
+			if(room.colorScheme === "all") {
 				if(game.dungeon[previousRoom].colorScheme === null) {
-					game.dungeon.lastItem().colorScheme = ["red", "green", "blue"].randomItem();
+					room.colorScheme = ["red", "green", "blue"].randomItem();
 					if(debugging.settings.DEBUGGING_MODE && debugging.settings.ROOM_COLOR !== null) {
-						game.dungeon.lastItem().colorScheme = debugging.settings.ROOM_COLOR;
+						room.colorScheme = debugging.settings.ROOM_COLOR;
 					}
 				}
 				else {
-					game.dungeon.lastItem().colorScheme = game.dungeon[previousRoom].colorScheme;
+					room.colorScheme = game.dungeon[previousRoom].colorScheme;
 				}
 			}
 		}
@@ -1294,52 +1532,40 @@ var game = {
 			// rooms that can be multiple colors but not any color should implement their special logic in the add() function.
 		}
 		/* Reset transition variables */
-		game.inRoom = game.numRooms;
+		game.inRoom = game.dungeon.length - 1;
 		p.enteringDoor = false;
 		p.exitingDoor = true;
 		p.op = 1;
 		p.op = 95;
-		entranceDoor.dest = game.numRooms;
-		/* Give new room an ID */
-		game.dungeon.forEach(room => {
-			if(room.id === "?") {
-				room.id = game.numRooms;
-				game.numRooms ++;
-			}
-		});
-		/* Move player to exit door */
-		for(var i = 0; i < game.dungeon.length; i ++) {
-			if(game.dungeon[i].id === game.numRooms - 1) {
-				/* Select a door */
-				var doorIndexes = [];
-				for(var j = 0; j < game.dungeon[i].content.length; j ++) {
-					if(game.dungeon[i].content[j] instanceof Door && (!!game.dungeon[i].content[j].noEntry) === (!!entranceDoor.invertEntries) && game.dungeon[i].content[j].noEntry !== "no entries") {
-						doorIndexes.push(j);
-					}
-				}
-				if(doorIndexes.length === 0) {
-					for(var j = 0; j < game.dungeon[i].content.length; j ++) {
-						if(game.dungeon[i].content[j] instanceof Door) {
-							doorIndexes.push(j);
-						}
-					}
-				}
-				var theIndex = doorIndexes.randomItem();
-				/* update door graphic types inside room */
-				if(game.dungeon[i].content[theIndex].type === "toggle") {
-					for(var j = 0; j < game.dungeon[i].content.length; j ++) {
-						if(game.dungeon[i].content[j] instanceof Door && j !== theIndex) {
-							game.dungeon[i].content[j].type = (game.dungeon[i].content[j].type === "same") ? "toggle" : "same";
-						}
-					}
-				}
-				game.dungeon[i].content[theIndex].type = p.doorType;
-				/* Assign new door to lead to this room */
-				game.dungeon[i].content[theIndex].dest = previousRoom;
-				/* Assign this door to lead to new door */
-				entranceDoor.dest = game.inRoom;
+		entranceDoor.dest = game.dungeon.length;
+		/* Select a door */
+		var doorIndexes = [];
+		for(var j = 0; j < room.content.length; j ++) {
+			if(room.content[j] instanceof Door && (!!room.content[j].noEntry) === (!!entranceDoor.invertEntries)) {
+				doorIndexes.push(j);
 			}
 		}
+		if(doorIndexes.length === 0) {
+			for(var j = 0; j < room.content.length; j ++) {
+				if(room.content[j] instanceof Door) {
+					doorIndexes.push(j);
+				}
+			}
+		}
+		var theIndex = doorIndexes.randomItem();
+		/* update door graphic types inside room */
+		if(room.content[theIndex].type === "toggle") {
+			for(var j = 0; j < room.content.length; j ++) {
+				if(room.content[j] instanceof Door && j !== theIndex) {
+					room.content[j].type = (room.content[j].type === "same") ? "toggle" : "same";
+				}
+			}
+		}
+		room.content[theIndex].type = p.doorType;
+		/* Assign new door to lead to this room */
+		room.content[theIndex].dest = previousRoom;
+		/* Assign this door to lead to new door */
+		entranceDoor.dest = game.inRoom;
 	},
 	calculatePaths: function() {
 		/*
@@ -1572,8 +1798,7 @@ var game = {
 					new MovingWall(1100, -4000, 300, 4300, 1.1),
 					new Chest(900, 300),
 					new Spider(1600, 200),
-				],
-				"?"
+				]
 			)];
 			game.inRoom = 0, game.theRoom = 0;
 			p.addItem(new Sword());
@@ -2472,6 +2697,14 @@ p.loadScores();
 
 /** FRAMES **/
 function timer() {
+	c.globalAlpha = 1;
+	io.cursor = "auto";
+	utils.frameCount ++;
+	utils.resizeCanvas();
+	c.fillCanvas("rgb(100, 100, 100)");
+
+	game.exist();
+
 	if(debugging.settings.DEBUGGING_MODE) {
 		if(debugging.settings.INFINITE_HEALTH) {
 			p.health = p.maxHealth;
@@ -2480,106 +2713,15 @@ function timer() {
 		if(debugging.settings.ABILITY_KEYS) {
 			debugging.keyAbilities.checkForKeyAbilities();
 		}
-	}
-	c.globalAlpha = 1;
-	io.cursor = "auto";
-	utils.frameCount ++;
-	utils.resizeCanvas();
-	c.fillStyle = "rgb(100, 100, 100)";
-	c.fillCanvas();
-
-	if(game.onScreen === "play") {
-		game.dungeon[game.theRoom].renderingObjects = [];
-		/* load enemies in other rooms */
-		var unseenEnemy = game.dungeon.some((room, index) => room.content.containsInstanceOf(Enemy) && index !== game.inRoom);
-		p.update();
-
-		game.dungeon[game.inRoom].displayBackground();
-
-		game.dungeon.forEach((room, index) => {
-			if(room.id === "?") {
-				room.id = game.numRooms;
-				game.numRooms ++;
+		if(debugging.settings.SHOW_FPS) {
+			debugging.fps.display();
+			if(utils.frameCount % 10 === 0) {
+				debugging.fps.recalculate();
 			}
-			if(game.inRoom === room.id && (!unseenEnemy || true)) {
-				game.theRoom = index;
-				room.exist(index);
-			}
-		});
-
-		/* move player into lower room when falling */
-		if(p.y + p.hitbox.bottom > 900 && !game.transitions.isTransitioning()) {
-			game.transitions.dir = "fade-out";
-			game.transitions.color = "rgb(0, 0, 0)";
-			game.transitions.onScreenChange = function() {
-				p.roomsExplored ++;
-				game.inRoom = game.numRooms;
-				game.camera.x = 0;
-				game.camera.y = 0;
-				p.x = 0;
-				p.y = -600;
-				p.velocity.y = 2;
-				p.fallDmg = Math.round(Math.randomInRange(40, 50));
-
-				/* load a room like ambient1 (three doors with pillars room), but without a roof and with randomized pillar sizes */
-				game.rooms.ambient1.add();
-				var addedRoom = game.dungeon.lastItem();
-				addedRoom.content = addedRoom.content.filter((obj) => !(obj instanceof Border && obj.type === "ceiling"));
-				addedRoom.getInstancesOf(Pillar).forEach((pillar) => { pillar.h = Math.randomInRange(200, 300); });
-			};
-		}
-
-		game.dungeon[game.inRoom].display();
-		game.dungeon[game.inRoom].displayShadowEffect();
-
-		var locationBeforeOffset = { x: p.x, y: p.y };
-		p.x += game.camera.getOffsetX();
-		p.y += game.camera.getOffsetY();
-		p.display();
-		p.x = locationBeforeOffset.x;
-		p.y = locationBeforeOffset.y;
-		debugging.displayHitboxes();
-
-		p.gui();
-		ui.infoBar.calculateActions();
-		ui.infoBar.display();
-		ui.infoBar.resetActions();
-	}
-	else if(game.onScreen === "home") {
-		ui.homeScreen.update();
-		ui.homeScreen.display();
-	}
-	else if(game.onScreen === "class-select") {
-		ui.classSelectScreen.update();
-		ui.classSelectScreen.display();
-	}
-	else if(game.onScreen === "dead") {
-		ui.deathScreen.update();
-		ui.deathScreen.display();
-	}
-	else if(game.onScreen === "how") {
-		game.tutorial.exist();
-	}
-	else if(game.onScreen === "scores") {
-		ui.highscoresScreen.update();
-		ui.highscoresScreen.display();
-	}
-
-	game.transitions.update();
-	game.transitions.display();
-
-	if(game.onScreen !== "play" && game.onScreen !== "how") {
-		(new Room()).displayShadowEffect();
-	}
-
-	if(debugging.settings.DEBUGGING_MODE && debugging.settings.SHOW_FPS) {
-		debugging.fps.display();
-		if(utils.frameCount % 10 === 0) {
-			debugging.fps.recalculate();
 		}
 	}
 	utils.pastInputs.update();
 	document.body.style.cursor = io.cursor;
-	window.setTimeout(timer, 1000 / FPS);
 };
-window.setTimeout(timer, 1000 / FPS);
+
+window.setInterval(timer, 1000 / FPS);

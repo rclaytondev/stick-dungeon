@@ -6,7 +6,7 @@ function Arrow(quantity) {
 	this.damHigh = "depends on what bow you use";
 	this.stackable = true;
 };
-Arrow.extends(RangedWeapon);
+Arrow.extend(RangedWeapon);
 Arrow.method("display", function(type) {
 	type = type || "item";
 	if(type === "item" || type === "holding") {

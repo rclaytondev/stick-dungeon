@@ -7,7 +7,7 @@ function ChaosStaff(modifier) {
 	this.chargeType = "chaos";
 	this.power = 2;
 };
-ChaosStaff.extends(MagicWeapon);
+ChaosStaff.extend(MagicWeapon);
 ChaosStaff.method("display", function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";

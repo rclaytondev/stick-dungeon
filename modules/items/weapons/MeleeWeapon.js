@@ -3,7 +3,7 @@ function MeleeWeapon(modifier) {
 	this.attackSpeed = (this.modifier === "none") ? "normal" : (this.modifier === "light" ? "fast" : "slow");
 	this.attackSpeed = "normal";
 };
-MeleeWeapon.extends(Weapon);
+MeleeWeapon.extend(Weapon);
 MeleeWeapon.method("attack", function() {
 	p.attackingWith = this;
 });

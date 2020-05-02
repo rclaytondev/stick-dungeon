@@ -3,4 +3,4 @@ function Equipable(modifier) {
 	this.equipable = true;
 	this.modifier = modifier || "none";
 };
-Equipable.extends(Item);
+Equipable.extend(Item);

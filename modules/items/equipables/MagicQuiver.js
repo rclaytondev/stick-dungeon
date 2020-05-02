@@ -6,7 +6,7 @@ function MagicQuiver(modifier) {
 	this.arrowEfficiency = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
 	this.power = 2;
 };
-MagicQuiver.extends(Equipable);
+MagicQuiver.extend(Equipable);
 MagicQuiver.method("display", function() {
 	c.save(); {
 		c.fillStyle = "rgb(139, 69, 19)";

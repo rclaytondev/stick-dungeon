@@ -2,7 +2,7 @@ function Barricade() {
 	Extra.call(this);
 	this.consumed = false;
 };
-Barricade.extends(Extra);
+Barricade.extend(Extra);
 Barricade.method("display", function(type) {
 	type = type || "item";
 	var scaleFactor = (type === "item") ? 0.75 : 1;

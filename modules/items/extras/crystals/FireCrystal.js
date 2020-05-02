@@ -1,7 +1,7 @@
 function FireCrystal() {
 	Crystal.call(this);
 };
-FireCrystal.extends(Crystal);
+FireCrystal.extend(Crystal);
 FireCrystal.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(255, 100, 0)";

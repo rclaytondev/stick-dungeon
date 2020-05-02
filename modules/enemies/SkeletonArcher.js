@@ -28,7 +28,7 @@ function SkeletonArcher(x, y) {
 
 	this.ARROW_SPEED = 5.7;
 };
-SkeletonArcher.extends(Enemy);
+SkeletonArcher.extend(Enemy);
 SkeletonArcher.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(

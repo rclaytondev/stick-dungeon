@@ -7,7 +7,7 @@ function WoodBow(modifier) {
 	this.reload = 1;
 	this.power = 3;
 };
-WoodBow.extends(RangedWeapon);
+WoodBow.extend(RangedWeapon);
 WoodBow.method("display", function(type) {
 	type = type || "item";
 	if(type === "holding" || type === "item") {

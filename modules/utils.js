@@ -19,6 +19,27 @@ String.method("splitAtIndices", function() {
 	result = result.filter(function(item) { return item !== ""; });
 	return result;
 });
+testing.addTest({
+	run: function() {
+		var str = "the fat cat sat";
+		testing.assert(str.splitAtIndices(3).equals(["the", "fat cat sat"]));
+		testing.assert(str.splitAtIndices(3, 7).equals(["the", "fat", "cat sat"]));
+		testing.assert(str.splitAtIndices(3, 7, 11).equals(["the", "fat", "cat", "sat"]));
+	},
+	unit: "String.splitAtIndices()",
+	name: "basic functionality"
+});
+testing.addTest({
+	run: function() {
+		var str = "the fat cat sat";
+		testing.assert(str.splitAtIndices(0).equals(["he fat cat sat"]));
+		testing.assert(str.splitAtIndices(-10).equals(["the fat cat sat"]));
+		testing.assert(str.splitAtIndices(10000).equals(["the fat cat sat"]));
+		testing.assert(str.splitAtIndices().equals(["the fat cat sat"]));
+	},
+	unit: "String.splitAtIndices()",
+	name: "edge cases"
+});
 Function.overload = function(spec) {
 	/*
 	Usage examples:
@@ -171,11 +192,155 @@ Function.overload = function(spec) {
 		throw new Error("Arguments did not match parameters.");
 	};
 };
-Function.method("extends", function(superclass) {
+testing.addTest({
+	run: function() {
+		var foo = Function.overload({
+			"number, string": function(num, str) { return "one"; },
+			"string, number": function(str, num) { return "two"; },
+			"boolean, boolean": function(bool, bool) { return "three"; },
+			"object, object": function(obj1, obj2) { return "four"; }
+		});
+		testing.assert(foo(3.14, "zipow") === "one");
+		testing.assert(foo("blargh", 579) === "two");
+		testing.assert(foo(true, false) === "three");
+		testing.assert(foo({}, {}) === "four");
+		testing.assertThrows(function() { foo(123, 456); });
+	},
+	unit: "Function.overload()",
+	name: "basic functionality"
+});
+testing.addTest({
+	run: function() {
+		var foo = Function.overload({
+			"int, int": function(int, int) { return "one"; },
+			"number, number": function(num, num) { return "two"; }
+		});
+		testing.assert(foo(12, 34) === "one");
+		testing.assert(foo(1.2, 3.4) === "two");
+	},
+	unit: "Function.overload()",
+	name: "custom 'int' type"
+});
+testing.addTest({
+	run: function() {
+		var foo = Function.overload({
+			"Bar, Bar": function() { return "one"; },
+			"Qux, Qux": function() { return "two"; }
+		});
+		function Bar() {};
+		function Qux() {};
+		testing.assert(foo(new Bar(), new Bar()) === "one");
+		testing.assert(foo(new Qux(), new Qux()) === "two");
+	},
+	unit: "Function.overload()",
+	name: "instance type checking"
+});
+testing.addTest({
+	run: function() {
+		var foo = Function.overload({
+			"number...": function(numbers) { return "numbers"; },
+			"string...": function(strings) { return "strings"; },
+		});
+		testing.assert(foo(1) === "numbers");
+		testing.assert(foo(1, 2) === "numbers");
+		testing.assert(foo(1, 2, 3, 4, 5, 6, 7) === "numbers");
+		testing.assert(foo("a") === "strings");
+		testing.assert(foo("a", "b") === "strings");
+		testing.assert(foo("a", "b", "c", "d", "e", "f") === "strings");
+	},
+	unit: "Function.overload()",
+	name: "repeating arguments"
+});
+testing.addTest({
+	run: function() {
+		function Thing() {};
+		var foo = Function.overload({
+			"*": function() { return "wildcard"; }
+		});
+		testing.assert(foo(123) === "wildcard");
+		testing.assert(foo({}) === "wildcard");
+		testing.assert(foo(new Thing()) === "wildcard");
+		testing.assertThrows(function() { foo(1, 2, 3); });
+	},
+	unit: "Function.overload()",
+	name: "wildcard arguments"
+});
+testing.addTest({
+	run: function() {
+		var foo = Function.overload({
+			"object { a, b, c }": function() { return "one"; },
+			"object { d, e, f }": function() { return "two"; }
+		});
+		testing.assert(foo({ a: 1, b: 2, c: 3 }) === "one");
+		testing.assert(foo({ d: 4, e: 5, f: 6 }) === "two");
+		testing.assertThrows(function() { foo({ a: 1 }) });
+		testing.assertThrows(function() { foo({ x: 10, y: 11, z: 12 }) });
+	},
+	unit: "Function.overload()",
+	name: "property requirements"
+});
+testing.addTest({
+	run: function() {
+		var foo = Function.overload({
+			"Bar, Qux {something}, number...": function() { return "one"; },
+			"Bar {something}, *...": function() { return "two"; }
+		});
+
+		function Bar() {};
+		Bar.method("setProp", function() {
+			this.something = true;
+			return this;
+		});
+		function Qux() {};
+		Qux.method("setProp", function() {
+			this.something = false;
+			return this;
+		});
+
+		testing.assert(foo(new Bar(), new Qux().setProp(), 1, 2, 3) === "one");
+		testing.assert(foo(new Bar(), new Qux().setProp(), 1, 2, 3, 4, 5, 6, 7, 8, 9, 10) === "one");
+		testing.assert(foo(new Bar().setProp(), "abc", "def", "ghi") === "two");
+		testing.assertThrows(function() { foo(new Bar(), new Qux(), 1, 2, 3); });
+	},
+	unit: "Function.overload()",
+	name: "all features combined"
+});
+Function.method("extend", function(superclass) {
 	/* copy prototype to inherit methods */
 	this.prototype = Object.create(superclass.prototype);
 	this.prototype.constructor = this;
 	return this;
+});
+Function.method("extends", function(superclass) {
+	/* return whether or not this function is a subclass of the other */
+	var prototype = this.prototype;
+	while(prototype != null) {
+		if(prototype.constructor.name === superclass.name) {
+			return true;
+		}
+		prototype = prototype.__proto__;
+	}
+	return false;
+});
+Function.method("insertCodeBefore", function(codeToRunBefore) {
+	/*
+	Returns a new function that will first run `codeToRunBefore` and then do whatever this function used to do.
+	This is the equivalent of inserting the code in `codeToRunBefore` before the first lines of this function.
+	*/
+	var code = this;
+	return function() {
+		codeToRunBefore.apply(this, arguments);
+		code.apply(this, arguments);
+	};
+});
+HTMLElement.method("forEachDescendant", function(func) {
+	for(var i = 0; i < this.childNodes.length; i ++) {
+		var child = this.childNodes[i];
+		func(child);
+		if(child instanceof HTMLElement) {
+			child.forEachDescendant(func);
+		}
+	}
 });
 CanvasRenderingContext2D.method("line", Function.overload({
 	"array": function() {
@@ -386,17 +551,52 @@ Math.dist = function(x1, y1, x2, y2) {
 		throw new Error("Math.dist() must be called with 2 or 4 arguments.")
 	}
 };
+testing.addTest({
+	run: function() {
+		testing.assertEqual(Math.dist(3, 10), 7);
+		testing.assertEqual(Math.dist(-5, 10), 15);
+	},
+	unit: "Math.dist()",
+	name: "1D distance"
+});
+testing.addTest({
+	run: function() {
+		testing.assertEqual(Math.dist(0, 0, 3, 4), 5);
+		testing.assertEqual(Math.dist(0, 0, 5, 12), 13);
+		testing.assertEqual(Math.dist(0, 0, 5, 5), Math.sqrt(50));
+		testing.assertEqual(Math.dist(-5, 5, -7, 7), Math.sqrt(8));
+	},
+	unit: "Math.dist()",
+	name: "2D distance"
+});
 Math.distSq = function(x1, y1, x2, y2) {
 	/*
 	Returns the distance between ('x1', 'y1') and ('x2', 'y2') squared for better performance
 	*/
 	return (x1 - x2) * (x1 - x2) + (y1 - y2) * (y1 - y2);
 };
+testing.addTest({
+	run: function() {
+		testing.assertEqual(Math.distSq(0, 0, 5, 5), 50);
+		testing.assertEqual(Math.distSq(5, 5, 7, 7), 8);
+	},
+	unit: "Math.distSq()",
+	name: "all functionality"
+})
 Math.constrain = function(num, min, max) {
 	num = Math.min(num, max);
 	num = Math.max(num, min);
 	return num;
 };
+testing.addTest({
+	run: function() {
+		testing.assertEqual(Math.constrain(-100, -5, 5), -5);
+		testing.assertEqual(Math.constrain(2, -5, 5), 2);
+		testing.assertEqual(Math.constrain(100, -5, 5), 5);
+	},
+	unit: "Math.constrain()",
+	name: "all functionality"
+})
 Math.modulateIntoRange = function(num, min, max) {
 	/*
 	Adds or subtracts the range repeatedly until the number is within the range.
@@ -410,6 +610,14 @@ Math.modulateIntoRange = function(num, min, max) {
 	}
 	return num;
 };
+testing.addTest({
+	run: function() {
+		testing.assertEqual(Math.modulateIntoRange(375, 0, 100), 75);
+		testing.assertEqual(Math.modulateIntoRange(-610, 0, 100), 90);
+	},
+	unit: "Math.modulateIntoRange()",
+	name: "all functionality"
+});
 Math.normalize = function(x, y) {
 	/*
 	Scales the point ('x', 'y') so that it is 1 pixel away from the origin.
@@ -420,6 +628,19 @@ Math.normalize = function(x, y) {
 		y: y / dist
 	};
 };
+testing.addTest({
+	run: function() {
+		for(var i = 0; i < 10; i ++) {
+			var x = Math.randomInRange(-100, 100);
+			var y = Math.randomInRange(-100, 100);
+			var normalized = Math.normalize(x, y);
+			testing.assertEqualApprox(Math.dist(0, 0, normalized.x, normalized.y), 1);
+			testing.assertEqualApprox(x / y, normalized.x / normalized.y);
+		}
+	},
+	unit: "Math.normalize()",
+	name: "all functionality"
+});
 Math.rad = function(deg) {
 	/*
 	Convert 'deg' degrees to radians.
@@ -435,6 +656,16 @@ Math.map = function(value, min1, max1, min2, max2) {
 	*/
 	return (value - min1) / (max1 - min1) * (max2 - min2) + min2;
 };
+testing.addTest({
+	run: function() {
+		testing.assertEqual(Math.map(5, 0, 10, 0, 100), 50);
+		testing.assertEqual(Math.map(-5, 0, 10, 0, 100), -50);
+		testing.assertEqual(Math.map(Math.PI, 0, Math.TWO_PI, 0, 360), 180);
+		testing.assertEqual(Math.map(500, 32, 212, 0, 100), 260);
+	},
+	unit: "Math.map()",
+	name: "all functionality"
+})
 Math.translate = function(x, y, translateX, translateY) {
 	return {
 		x: x + translateX,
@@ -459,6 +690,36 @@ Math.rotate = function(x, y, deg, centerX, centerY) {
 		y: rotated.y + centerY
 	};
 };
+testing.addTest({
+	run: function() {
+		var rotated = Math.rotate(5, 0, -90);
+		testing.assertEqualApprox(rotated.x, 0);
+		testing.assertEqualApprox(rotated.y, -5);
+
+		rotated = Math.rotate(10, 10, 90);
+		testing.assertEqualApprox(rotated.x, -10);
+		testing.assertEqualApprox(rotated.y, 10);
+
+		rotated = Math.rotate(0, 1, 45);
+		testing.assertEqualApprox(rotated.x, -1 / Math.sqrt(2));
+		testing.assertEqualApprox(rotated.y, 1 / Math.sqrt(2));
+	},
+	unit: "Math.rotate()",
+	name: "rotation about origin"
+});
+testing.addTest({
+	run: function() {
+		var rotated = Math.rotate(0, 0, 180, 0, -10);
+		testing.assertEqualApprox(rotated.x, 0);
+		testing.assertEqualApprox(rotated.y, -20);
+
+		var rotated = Math.rotate(1, 1, 90, 2, 2);
+		testing.assertEqualApprox(rotated.x, 3);
+		testing.assertEqualApprox(rotated.y, 1);
+	},
+	unit: "Math.rotate()",
+	name: "rotation about arbitrary points"
+});
 Math.scale = function(x, y, scaleFactorX, scaleFactorY) {
 	/*
 	Returns ('x', 'y') scaled by 'scaleFactorX' and 'scaleFactorY' about the origin.
@@ -469,6 +730,15 @@ Math.scale = function(x, y, scaleFactorX, scaleFactorY) {
 		y: y * scaleFactorY
 	}
 };
+testing.addTest({
+	run: function() {
+		testing.assert(Math.scale(1, 2, 10).equals({ x: 10, y: 20 }));
+		testing.assert(Math.scale(-5, -7, 100, 1000).equals({ x: -500, y: -7000 }));
+		testing.assert(Math.scale(3, 9, 2).equals({ x: 6, y: 18 }));
+	},
+	unit: "Math.scale()",
+	name: "all functionality"
+})
 Math.scaleAboutPoint = function(x, y, pointX, pointY, scaleFactorX, scaleFactorY) {
 	scaleFactorY = scaleFactorY || scaleFactorX;
 	var scaledPoint = { x: x, y: y };
@@ -479,6 +749,14 @@ Math.scaleAboutPoint = function(x, y, pointX, pointY, scaleFactorX, scaleFactorY
 	scaledPoint.y += pointY;
 	return scaledPoint;
 };
+testing.addTest({
+	run: function() {
+		testing.assert(Math.scaleAboutPoint(5, 5, 10, 10, 2).equals({ x: 0, y: 0 }));
+		testing.assert(Math.scaleAboutPoint(0, 5, 20, 20, 0.5, 1).equals({ x: 10, y: 5 }));
+	},
+	unit: "Math.scaleAboutPoint()",
+	name: "all functionality"
+});
 Math.findPointsCircular = function(x, y, r, quadrants) {
 	/*
 	Returns an array containing all points (nearest integer) on a circle at ('x', 'y') with radius r in clockwise order.
@@ -545,6 +823,42 @@ Math.findPointsCircular = function(x, y, r, quadrants) {
 	}
 	return circularPoints;
 };
+testing.addTest({
+	run: function() {
+		var points = Math.findPointsCircular(0, 0, 100);
+		points.forEach(point => {
+			var distance = Math.dist(point.x, point.y, 0, 0);
+			testing.assert(Math.dist(distance, 100) <= 1);
+		});
+		var rightPoint = points[Math.round(points.length * 1/4)];
+		testing.assert(Math.dist(Math.atan2(rightPoint.y, rightPoint.x), Math.rad(0)) <= 1);
+		var bottomPoint = points[Math.round(points.length * 2/4)];
+		testing.assert(Math.dist(Math.atan2(bottomPoint.y, bottomPoint.x), Math.rad(90)) <= 1);
+		var leftPoint = points[Math.round(points.length * 3/4)];
+		testing.assert(Math.dist(Math.atan2(leftPoint.y, leftPoint.x), Math.rad(180)) <= 1);
+		var topPoint = points[0];
+		testing.assert(Math.dist(Math.atan2(topPoint.y, topPoint.x), Math.rad(-90)) <= 1);
+	},
+	unit: "Math.findPointsCircular()",
+	name: "basic functionality"
+});
+testing.addTest({
+	run: function() {
+		var points = Math.findPointsCircular(0, 0, 100, [4, 1]);
+		points.forEach(point => {
+			var distance = Math.dist(point.x, point.y, 0, 0);
+			testing.assert(Math.dist(distance, 100) <= 1);
+		});
+		var leftPoint = points[0];
+		testing.assert(Math.dist(Math.atan2(leftPoint.y, leftPoint.x), Math.rad(180)) <= 1);
+		var topPoint = points[Math.round(points.length / 2)];
+		testing.assert(Math.dist(Math.atan2(topPoint.y, topPoint.x), Math.rad(-90)) <= 1);
+		var rightPoint = points[points.length - 1];
+		testing.assert(Math.dist(Math.atan2(rightPoint.y, rightPoint.x), Math.rad(0)) <= 1);
+	},
+	unit: "Math.findPointsCircular()",
+	name: "limited to certain quadrants"
+});
 Math.findPointsLinear = function(x1, y1, x2, y2) {
 	/*
 	Returns all points on a line w/ endpoints ('x1', 'y1') and ('x2', 'y2') rounded to nearest integer.
@@ -621,12 +935,57 @@ Math.findPointsLinear = function(x1, y1, x2, y2) {
 	}
 	return linearPoints;
 };
+testing.addTest({
+	run: function() {
+		var points = Math.findPointsLinear(-5, 5, 10, -10); // bottom-left --> top-right
+		var previousPoint = null;
+		for(var i = 0; i < points.length; i ++) {
+			var point = points[i];
+			if(previousPoint !== null) {
+				testing.assert(point.x <= previousPoint.x);
+				testing.assert(point.y >= previousPoint.y);
+			}
+			previousPoint = point;
+		}
+	},
+	unit: "Math.findPointsLinear()",
+	name: "basic functionality"
+});
+testing.addTest({
+	run: function() {
+		/*
+		This test is here because vertical lines have a slope of undefined, so findPointsLinear() has a workaround to avoid them.
+		*/
+		var points = Math.findPointsLinear(0, -10, 0, 10);
+		var previousPoint = null;
+		for(var i = 0; i < points.length; i ++) {
+			var point = points[i];
+			testing.assert(point.x === 0);
+			if(previousPoint !== null) {
+				testing.assert(point.y > previousPoint.y);
+			}
+			previousPoint = point;
+		}
+		testing.assert(Math.dist(points.length, 20) <= 1);
+	},
+	unit: "Math.findPointsLinear()",
+	name: "vertical lines"
+});
 Math.calculateDegrees = function(x, y) {
 	/*
 	Returns the corrected arctangent of ('x', 'y').
 	*/
 	return Math.deg(Math.atan2(y, x));
 };
+testing.addTest({
+	run: function() {
+		testing.assertEqual(Math.calculateDegrees(100, 0), 0);
+		testing.assertEqual(Math.calculateDegrees(100, -100), -45);
+		testing.assertEqual(Math.calculateDegrees(-100, -100), -(90 + 45));
+	},
+	unit: "Math.calculateDegrees()",
+	name: "all functionality"
+});
 Math.randomInRange = function(min, max) {
 	return Math.random() * (max - min) + min;
 };
@@ -659,6 +1018,30 @@ Array.method("min", function(func, thisArg) {
 		return this[lowestIndex];
 	}
 });
+testing.addTest({
+	run: function() {
+		testing.assertEqual([1, 2.3, 10, 4, 8].min(), 1);
+		testing.assertEqual([1.23, 2, -10, 4, -8].min(), -10);
+	},
+	unit: "Array.min()",
+	name: "basic functionality"
+});
+testing.addTest({
+	run: function() {
+		var testArray = [
+			{ x: 4 },
+			{ x: 2 },
+			{ x: 300 },
+			{ x: -17 },
+			{ x: -5 }
+		];
+		testing.assert(testArray.min((obj) => obj.x).equals({ x: -17 }));
+		testing.assert(testArray.min((obj, index) => index).equals({ x: 4 }));
+		testing.assert(testArray.min((obj, index, array) => array[index].x).equals({ x: -17 }));
+	},
+	unit: "Array.min()",
+	name: "callback functions"
+});
 Array.method("max", function(func, thisArg) {
 	thisArg = thisArg || this;
 	/*
@@ -680,7 +1063,7 @@ Array.method("max", function(func, thisArg) {
 		var highestIndex = 0;
 		var highestValue = -Infinity;
 		for(var i = 0; i < this.length; i ++) {
-			if(this[i] < highestValue) {
+			if(this[i] > highestValue) {
 				highestIndex = i;
 				highestValue = this[i];
 			}
@@ -688,6 +1071,30 @@ Array.method("max", function(func, thisArg) {
 		return this[highestIndex];
 	}
 });
+testing.addTest({
+	run: function() {
+		testing.assertEqual([1, 2.3, 10, 4, 8].max(), 10);
+		testing.assertEqual([1.23, 2, -10, 4, -8].max(), 4);
+	},
+	unit: "Array.max()",
+	name: "basic functionality"
+});
+testing.addTest({
+	run: function() {
+		var testArray = [
+			{ x: 4 },
+			{ x: 2 },
+			{ x: 300 },
+			{ x: -17 },
+			{ x: -5 }
+		];
+		testing.assert(testArray.max((obj) => obj.x).equals({ x: 300 }));
+		testing.assert(testArray.max((obj, index) => index).equals({ x: -5 }));
+		testing.assert(testArray.max((obj, index, array) => array[index].x).equals({ x: 300 }));
+	},
+	unit: "Array.max()",
+	name: "callback functions"
+})
 Array.method("sum", function(func, thisArg) {
 	if(typeof func === "function") {
 		var sum = 0;
@@ -703,6 +1110,31 @@ Array.method("sum", function(func, thisArg) {
 		return this.reduce((sum, item) => sum + item);
 	}
 });
+testing.addTest({
+	run: function() {
+		testing.assertEqual([1, 2, 3, 4].sum(), 1 + 2 + 3 + 4);
+		testing.assertEqual([-3, 5].sum(), -3 + 5);
+	},
+	unit: "Array.sum()",
+	name: "basic functionality"
+});
+testing.addTest({
+	run: function() {
+		var testArray = [
+			{ x: 10 },
+			{ x: -10 },
+			{ x: 5 },
+			{ x: 15 },
+		];
+		var expectedSum = testArray[0].x + testArray[1].x + testArray[2].x + testArray[3].x;
+		var sumOfIndices = 0 + 1 + 2 + 3; // to test passing indices to callback function
+		testing.assertEqual(testArray.sum((obj) => obj.x), expectedSum);
+		testing.assertEqual(testArray.sum((obj, index) => index), sumOfIndices);
+		testing.assertEqual(testArray.sum((obj, index, array) => array[index].x), expectedSum);
+	},
+	unit: "Array.sum()",
+	name: "callback functions"
+});
 Array.method("containsInstanceOf", function(constructor) {
 	for(var i = 0; i < this.length; i ++) {
 		if(this[i] instanceof constructor) {
@@ -710,6 +1142,16 @@ Array.method("containsInstanceOf", function(constructor) {
 		}
 	}
 	return false;
+});
+testing.addTest({
+	run: function() {
+		testing.assert([{}, {}, {}].containsInstanceOf(Object));
+		testing.assert([[], [], []].containsInstanceOf(Array));
+		function ObjectFoo() {};
+		testing.assert([new ObjectFoo(), new ObjectFoo()].containsInstanceOf(ObjectFoo));
+	},
+	unit: "Array.containsInstanceOf()",
+	name: "all functionality"
 });
 Array.method("lastItem", function() {
 	return this[this.length - 1];
@@ -732,6 +1174,26 @@ Array.method("removeAll", function(item) {
 String.method("startsWith", function(substring) {
 	return this.substring(0, substring.length) === substring;
 });
+testing.addTest({
+	run: function() {
+		var testString = "the cat sat on the mat";
+		testing.assert(testString.startsWith("the cat"));
+		testing.assert(!testString.startsWith("the dog sat"));
+	},
+	unit: "String.startsWith()",
+	name: "all functionality"
+});
+String.method("replaceWith", function(search, replace) {
+	return this.split(search).join(replace);
+});
+testing.addTest({
+	run: function() {
+		testing.assert("the cat is a cat".replaceWith("cat", "dog") === "the dog is a dog")
+		testing.assert("hello, friends. say hello".replaceWith("hello", "goodbye") === "goodbye, friends. say goodbye");
+	},
+	unit: "String.replaceWith()",
+	name: "all functionality"
+})
 Object.method("clone", function() {
 	if(Array.isArray(this)) {
 		var clone = [];
@@ -751,6 +1213,53 @@ Object.method("clone", function() {
 	}
 	return clone;
 });
+testing.addTest({
+	run: function() {
+		var foo = { x: 5 };
+		var bar = foo.clone();
+		testing.assertEqual(foo.x, bar.x);
+		testing.assert(foo !== bar); // not references
+		testing.assertEqual(foo.__proto__,  bar.__proto__); // prototypes are references
+
+		/* deep clone (multiple nested objects) */
+		var foo = { x: { y: { z: 1 }}};
+		var bar = foo.clone();
+		testing.assertEqual(foo.x.y.z, bar.x.y.z);
+		testing.assert(foo.x.y !== bar.x.y); // nested objects are not references (deep clone)
+	},
+	unit: "Object.clone()",
+	name: "all functionality"
+});
+Object.method("equals", function(obj) {
+    for(var i in this) {
+        var prop1 = this[i];
+        var prop2 = obj[i];
+        var type1 = Object.typeof(prop1);
+        var type2 = Object.typeof(prop2);
+        if(type1 !== type2) {
+            return false;
+        }
+        else if(type1 === "object" || type1 === "array" || type1 === "instance") {
+            if(!prop1.equals(prop2)) {
+                return false;
+            }
+        }
+        else if(prop1 !== prop2) {
+            return false;
+        }
+    }
+    return true;
+});
+testing.addTest({
+	run: function() {
+		testing.assert({ x: 1 }.equals({ x: 1 }));
+		testing.assert({ x: { y: { z: 1 }}}.equals({ x: { y: { z: 1 }}}));
+		testing.assert(!{ x: 1 }.equals({ x: 2 }));
+		testing.assert(!{ x: { y: { z: 1 }}}.equals({ x: { y: { z: 2 }}}));
+	},
+	unit: "Object.equals()",
+	name: "all functionality"
+})
 Object.method("beginDebugging", function() {
 	this.isBeingDebugged = true;
 	return this;
@@ -786,4 +1295,23 @@ Object.typeof = function(value) {
 	else {
 		return typeof value;
 	}
+};
+testing.addTest({
+	run: function() {
+		testing.assertEqual(Object.typeof(NaN), "NaN");
+		testing.assertEqual(Object.typeof(null), "null");
+		testing.assertEqual(Object.typeof([]), "array");
+		function ObjectFoo() {};
+		testing.assertEqual(Object.typeof(new ObjectFoo()), "instance");
+	},
+	unit: "Object.typeof()",
+	name: "all functionality"
+})
+Object.watch = function(object, property) {
+	/* this function pauses the debugger when the property is changed. */
+	var value = object[property];
+	Object.defineProperty(object, property, {
+		get: function() { return value; },
+		set: function(newValue) { debugger; value = newValue; }
+	});
 };

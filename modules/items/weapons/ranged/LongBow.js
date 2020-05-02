@@ -7,7 +7,7 @@ function LongBow(modifier) {
 	this.damHigh = (p.class === "archer") ? 100 : 90;
 	this.power = 5;
 };
-LongBow.extends(RangedWeapon);
+LongBow.extend(RangedWeapon);
 LongBow.method("display", function(type) {
 	type = type || "item";
 	c.save(); {

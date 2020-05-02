@@ -8,7 +8,7 @@ function MechBow(modifier) {
 	this.damHigh = (p.class === "archer") ? 100 : 90;
 	this.power = 4;
 };
-MechBow.extends(RangedWeapon);
+MechBow.extend(RangedWeapon);
 MechBow.method("display", function(type) {
 	type = type || "item";
 	c.save(); {

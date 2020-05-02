@@ -1,4 +1,4 @@
 function Extra() {
 	Item.call(this);
 };
-Extra.extends(Item);
+Extra.extend(Item);

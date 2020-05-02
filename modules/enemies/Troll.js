@@ -29,7 +29,7 @@ function Troll(x, y) {
 	this.complexAttack = true;
 	this.name = "a troll";
 };
-Troll.extends(Enemy);
+Troll.extend(Enemy);
 Troll.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(

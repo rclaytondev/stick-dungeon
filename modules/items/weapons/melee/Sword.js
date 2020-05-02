@@ -6,7 +6,7 @@ function Sword(modifier) {
 	this.range = 60;
 	this.power = 3;
 };
-Sword.extends(MeleeWeapon);
+Sword.extend(MeleeWeapon);
 Sword.method("display", function(type) {
 	type = type || "item";
 	c.save(); {

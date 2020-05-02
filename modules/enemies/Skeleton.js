@@ -20,7 +20,7 @@ function Skeleton(x, y) {
 	});
 	this.name = "a skeleton";
 };
-Skeleton.extends(Enemy);
+Skeleton.extend(Enemy);
 Skeleton.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(

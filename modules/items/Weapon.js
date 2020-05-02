@@ -5,7 +5,7 @@ function Weapon(modifier) {
 	this.element = "none";
 	this.particles = [];
 };
-Weapon.extends(Item);
+Weapon.extend(Item);
 Weapon.method("displayParticles", function() {
 	if(this.element === null || this.element === "none") {
 		return;

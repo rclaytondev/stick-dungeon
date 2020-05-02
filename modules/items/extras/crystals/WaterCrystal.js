@@ -1,7 +1,7 @@
 function WaterCrystal() {
 	Crystal.call(this);
 };
-WaterCrystal.extends(Crystal);
+WaterCrystal.extend(Crystal);
 WaterCrystal.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(0, 255, 255)";

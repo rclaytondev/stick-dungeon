@@ -6,7 +6,7 @@ function Helmet(modifier) {
 	this.healthRegen = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
 	this.power = 3;
 };
-Helmet.extends(Equipable);
+Helmet.extend(Equipable);
 Helmet.method("display", function() {
 	c.save(); {
 		c.translate(0, -7);

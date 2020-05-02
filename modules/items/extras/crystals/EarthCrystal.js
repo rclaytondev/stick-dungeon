@@ -1,7 +1,7 @@
 function EarthCrystal() {
 	Crystal.call(this);
 };
-EarthCrystal.extends(Crystal);
+EarthCrystal.extend(Crystal);
 EarthCrystal.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(0, 128, 128)";

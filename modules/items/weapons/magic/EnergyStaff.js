@@ -7,7 +7,7 @@ function EnergyStaff(modifier) {
 	this.damHigh = (p.class === "mage") ? 110 : 100;
 	this.power = 3;
 };
-EnergyStaff.extends(MagicWeapon);
+EnergyStaff.extend(MagicWeapon);
 EnergyStaff.method("display", function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";

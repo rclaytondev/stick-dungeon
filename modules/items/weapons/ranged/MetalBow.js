@@ -7,7 +7,7 @@ function MetalBow(modifier) {
 	this.reload = 1;
 	this.power = 4;
 };
-MetalBow.extends(RangedWeapon);
+MetalBow.extend(RangedWeapon);
 MetalBow.method("display", function(type) {
 	type = type || "item";
 	if(type === "holding" || type === "item") {

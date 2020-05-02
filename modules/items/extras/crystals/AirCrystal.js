@@ -1,7 +1,7 @@
 function AirCrystal() {
 	Crystal.call(this);
 };
-AirCrystal.extends(Crystal);
+AirCrystal.extend(Crystal);
 AirCrystal.method("display", function(type) {
 	type = type || "item";
 	c.fillStyle = "rgb(150, 150, 150)";

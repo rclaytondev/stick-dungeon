@@ -860,7 +860,7 @@ Player.method("gui", function() {
 					/* Move from a "wearing" slot to a storage slot */
 					for(var i = 0; i < this.invSlots.length; i ++) {
 						if(this.invSlots[i].type === "storage" && this.invSlots[i].content === "empty") {
-							this.invSlots[i].content = new hoveredSlot.content.clone();
+							this.invSlots[i].content = hoveredSlot.content.clone();
 							hoveredSlot.content = "empty";
 							break;
 						}
@@ -1416,7 +1416,6 @@ Player.method("reset", function() {
 	game.dungeon = [];
 	game.rooms.ambient1.add();
 	game.inRoom = 0;
-	game.numRooms = 0;
 	/* Reset player properties */
 	var permanentProperties = ["onScreen", "class", "maxGold", "scores"];
 	for(var i in this) {

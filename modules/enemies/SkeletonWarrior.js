@@ -26,7 +26,7 @@ function SkeletonWarrior(x, y) {
 	this.complexAttack = true;
 	this.name = "a skeletal warrior";
 };
-SkeletonWarrior.extends(Enemy);
+SkeletonWarrior.extend(Enemy);
 SkeletonWarrior.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(

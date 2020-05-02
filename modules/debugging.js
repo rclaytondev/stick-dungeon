@@ -75,7 +75,9 @@ var debugging = {
 
 	activateDebuggingSettings: function() {
 		game.onScreen = debugging.settings.START_SCREEN;
-		debugging.loadRoom(debugging.settings.START_ROOM_ID);
+		if(typeof debugging.settings.START_ROOM_ID === "string") {
+			debugging.loadRoom(debugging.settings.START_ROOM_ID);
+		}
 		debugging.setGeneratableRooms(debugging.settings.ROOMS);
 		if(debugging.settings.ITEMS !== null) {
 			game.items = debugging.settings.ITEMS;
@@ -109,8 +111,7 @@ var debugging = {
 			"dark blue": "rgb(0, 0, " + colorIntensity + ")",
 			"green": "rgb(0, " + colorIntensity + ", 0)"
 		};
-		for(var i = 0; i < debugging.hitboxes.length; i ++) {
-			var hitbox = debugging.hitboxes[i];
+		debugging.hitboxes.forEach((hitbox) => {
 			c.strokeStyle = COLORS[hitbox.color];
 			c.lineWidth = 5;
 			if(hitbox.hasOwnProperties("x", "y", "r")) {
@@ -119,7 +120,7 @@ var debugging = {
 			else if(hitbox.hasOwnProperties("x", "y", "w", "h")) {
 				c.strokeRect(hitbox.x + game.camera.getOffsetX(), hitbox.y + game.camera.getOffsetY(), hitbox.w, hitbox.h);
 			}
-		}
+		});
 	},
 
 	drawPoint: function() {
@@ -235,6 +236,7 @@ var debugging = {
 		}
 	}
 };
+testing.resetter.saveGameState();
 if(debugging.settings.DEBUGGING_MODE) {
 	debugging.activateDebuggingSettings();
 }

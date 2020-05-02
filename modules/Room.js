@@ -1,11 +1,10 @@
 /** ROOM DATA **/
-function Room(type, content, id, minWorldY, background) {
+function Room(type, content, background) {
 	this.type = type;
 	this.content = content || [];
-	this.id = id;
+	this.index = null;
 	this.pathScore = null;
 	this.background = background || null;
-	this.minWorldY = minWorldY;
 	this.colorScheme = null;
 	this.renderingObjects = [];
 };

@@ -20,7 +20,7 @@ function Spider(x, y) {
 	this.damHigh = 30;
 	this.name = "a giant spider";
 };
-Spider.extends(Enemy);
+Spider.extend(Enemy);
 Spider.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(

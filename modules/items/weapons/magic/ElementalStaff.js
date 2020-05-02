@@ -7,7 +7,7 @@ function ElementalStaff(modifier) {
 	this.damHigh = (p.class === "mage") ? 90 : 80;
 	this.power = 4;
 };
-ElementalStaff.extends(MagicWeapon);
+ElementalStaff.extend(MagicWeapon);
 ElementalStaff.method("display", function(type) {
 	type = type || "item";
 	c.strokeStyle = "rgb(139, 69, 19)";

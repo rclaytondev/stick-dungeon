@@ -1,7 +1,7 @@
 function Map() {
 	Extra.call(this);
 };
-Map.extends(Extra);
+Map.extend(Extra);
 Map.method("display", function() {
 	c.save(); {
 

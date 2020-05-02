@@ -6,7 +6,7 @@ function WizardHat(modifier) {
 	this.manaRegen = (this.modifier === "none") ? 15 : (this.modifier === "empowering" ? 20 : 10);
 	this.power = 3;
 };
-WizardHat.extends(Equipable);
+WizardHat.extend(Equipable);
 WizardHat.method("display", function() {
 	c.fillStyle = "rgb(109, 99, 79)";
 	c.fillPoly(

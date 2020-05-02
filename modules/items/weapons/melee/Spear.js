@@ -6,7 +6,7 @@ function Spear(modifier) {
 	this.range = 60;
 	this.power = 3;
 };
-Spear.extends(MeleeWeapon);
+Spear.extend(MeleeWeapon);
 Spear.method("display", function(type) {
 	type = type || "item";
 	c.save(); {

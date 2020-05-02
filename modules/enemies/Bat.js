@@ -20,7 +20,7 @@ function Bat(x, y) {
 	this.damHigh = 30;
 	this.name = "a bat";
 };
-Bat.extends(Enemy);
+Bat.extend(Enemy);
 Bat.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(

@@ -21,7 +21,7 @@ function Wraith(x, y) {
 	this.complexAttack = true;
 	this.name = "a wraith of shadow";
 };
-Wraith.extends(Enemy);
+Wraith.extend(Enemy);
 Wraith.method("display", function() {
 	/* particle graphics */
 	this.particles.forEach((particle) => { particle.display(); });

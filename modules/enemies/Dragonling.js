@@ -27,7 +27,7 @@ function Dragonling(x, y) {
 		bottom: 20
 	});
 };
-Dragonling.extends(Enemy);
+Dragonling.extend(Enemy);
 Dragonling.method("display", function() {
 	var self = this;
 	game.dungeon[game.theRoom].render(new RenderingOrderObject(
