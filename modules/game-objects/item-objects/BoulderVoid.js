@@ -4,6 +4,7 @@ function BoulderVoid(x, y) {
 	this.opacity = 1;
 };
 BoulderVoid.method("exist", function() {
+	p.canUseEarth = false;
 	var p1b = graphics3D.point3D(this.x - 40, this.y, 0.9);
 	var p2b = graphics3D.point3D(this.x + 40, this.y, 0.9);
 	var p3b = graphics3D.point3D(this.x, this.y - 100, 0.9);

@@ -22,7 +22,7 @@ MagicCharge.method("display", function() {
 MagicCharge.method("update", function() {
 	this.particles.forEach((particle) => { particle.update(); });
 	/* collision with player */
-	if(collisions.objectIntersectsObject(this, p) && (this.type === "shadow" || (this.type === "fire" && this.shotBy === "enemy"))) {
+	if(game.inRoom === game.theRoom && collisions.objectIntersectsObject(this, p) && (this.type === "shadow" || (this.type === "fire" && this.shotBy === "enemy"))) {
 		var damage = Math.round(Math.randomInRange(40, 50));
 		p.hurt(damage, (this.type === "shadow") ? "a wraith" : "a dragonling");
 		this.toBeRemoved = true;

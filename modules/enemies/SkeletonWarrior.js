@@ -156,7 +156,7 @@ SkeletonWarrior.method("attack", function() {
 		var swordEnd = Math.rotate(10, -60, -this.attackArm);
 		swordEnd.x += this.x + 8;
 		swordEnd.y += this.y + 15;
-		if(collisions.objectIntersectsPoint(p, swordEnd) && this.canHit) {
+		if(game.inRoom === game.theRoom && collisions.objectIntersectsPoint(p, swordEnd) && this.canHit) {
 			var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 			p.hurt(damage, this.name);
 			this.canHit = false;
@@ -168,7 +168,7 @@ SkeletonWarrior.method("attack", function() {
 		var swordEnd = Math.rotate(-10, -60, this.attackArm);
 		swordEnd.x += this.x - 8;
 		swordEnd.y += this.y + 15;
-		if(collisions.objectIntersectsPoint(p, swordEnd) && this.canHit) {
+		if(game.inRoom === game.theRoom && collisions.objectIntersectsPoint(p, swordEnd) && this.canHit) {
 			var damage = Math.floor(Math.randomInRange(this.damLow, this.damHigh));
 			p.hurt(damage, this.name);
 			this.canHit = false;

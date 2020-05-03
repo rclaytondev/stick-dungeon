@@ -8,21 +8,13 @@ function Room(type, content, background) {
 	this.colorScheme = null;
 	this.renderingObjects = [];
 };
-Room.method("exist", function(index) {
-	c.globalAlpha = 1;
-	c.fillStyle = "rgb(100, 100, 100)";
-	c.resetTransform();
-	c.fillCanvas();
+Room.method("update", function(index) {
 	if(this.background === null) {
 		this.background = ["plain", "bricks"].randomItem();
 	}
 	graphics3D.boxFronts = [];
-	graphics3D.extraGraphics = [];
 	debugging.hitboxes = [];
 	collisions.collisions = [];
-	var chestIndexes = [];
-	var boulders = [];
-	var chargeIndexes = [];
 	p.canUseEarth = true;
 	/* load all types of items */
 	for(var i = 0; i < this.content.length; i ++) {
@@ -36,13 +28,6 @@ Room.method("exist", function(index) {
 				debugging.hitboxes.push({x: obj.x + obj.hitbox.left, y: obj.y + obj.hitbox.top, w: Math.dist(obj.hitbox.left, obj.hitbox.right), h: Math.dist(obj.hitbox.top, obj.hitbox.bottom), color: "green"});
 			}
 		}
-		else if(obj instanceof Boulder) {
-			if(obj.toBeRemoved) {
-				this.content.splice(i, 1);
-				continue;
-			}
-			boulders.push(obj);
-		}
 		else if(typeof obj.update === "function") {
 			obj.update();
 		}
@@ -54,19 +39,16 @@ Room.method("exist", function(index) {
 			i --;
 			continue;
 		}
-		if(obj instanceof BoulderVoid) {
-			p.canUseEarth = false;
-		}
 	}
-	/* load boulders */
-	boulders.forEach(boulder => { boulder.exist(); });
 	/* Collisions */
 	if(game.inRoom === index) {
 		p.canJump = false;
-		collisions.collisions.forEach(collision => { collision.collide(); });
 	}
+	collisions.collisions.forEach(collision => { collision.collide(); });
 });
 Room.method("display", function() {
+	c.fillCanvas("rgb(100, 100, 100)");
+
 	this.content.forEach(obj => {
 		if(typeof obj.translate === "function") {
 			obj.translate(game.camera.getOffsetX(), game.camera.getOffsetY());

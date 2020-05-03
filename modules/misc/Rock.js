@@ -55,7 +55,7 @@ Rock.method("update", function() {
 			});
 		} c.restore();
 	}
-	if(!this.hitPlayer && collisions.objectIntersectsObject(this, p)) {
+	if(game.inRoom === game.theRoom && !this.hitPlayer && collisions.objectIntersectsObject(this, p)) {
 		p.hurt(Math.randomInRange(40, 50), "a troll");
 		this.hitPlayer = true;
 	}

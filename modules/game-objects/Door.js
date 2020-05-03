@@ -174,8 +174,16 @@ Door.method("enter", function(obj) {
 		var destinationRoom = this.getDestinationRoom();
 		var destinationDoor = this.getDestinationDoor();
 		var enemy = obj.clone();
+		obj.toBeRemoved = true;
 		enemy.x = destinationDoor.x;
-		enemy.y = destinationDoor.y;
+		enemy.y = destinationDoor.y - enemy.hitbox.bottom;
+		enemy.velocity = { x: 0, y: 0 };
+		enemy.seesPlayer = false;
+		enemy.opacity = 0;
+		enemy.fadingIn = true;
+		if(typeof enemy.onDoorEntry === "function") {
+			enemy.onDoorEntry();
+		}
 		destinationRoom.content.push(enemy);
 	}
 	else {

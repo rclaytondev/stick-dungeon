@@ -145,7 +145,7 @@ Troll.method("display", function() {
 		1
 	));
 });
-Troll.method("update", function() {
+Troll.method("update", function(dest) {
 	/* animations */
 	this.leg1 += this.leg1Dir;
 	this.leg2 += this.leg2Dir;
@@ -167,15 +167,22 @@ Troll.method("update", function() {
 	this.y += this.velocity.y;
 	this.velocity.y += 0.1;
 	this.attackArm += this.attackArmDir;
-	/* this.attackRecharge ++; */
+	if(dest !== "player") {
+		this.currentAction = "move";
+	}
 	if(this.currentAction === "move") {
-		if(this.x < p.x) {
-			this.velocity.x = (this.x < p.x - 100) ? 1 : this.velocity.x;
-			this.velocity.x = (this.x > p.x - 100) ? -1 : this.velocity.x;
+		if(dest === "player") {
+			if(this.x < p.x) {
+				this.velocity.x = (this.x < p.x - 100) ? 1 : this.velocity.x;
+				this.velocity.x = (this.x > p.x - 100) ? -1 : this.velocity.x;
+			}
+			else {
+				this.velocity.x = (this.x < p.x + 100) ? 1 : this.velocity.x;
+				this.velocity.x = (this.x > p.x + 100) ? -1 : this.velocity.x;
+			}
 		}
 		else {
-			this.velocity.x = (this.x < p.x + 100) ? 1 : this.velocity.x;
-			this.velocity.x = (this.x > p.x + 100) ? -1 : this.velocity.x;
+			this.velocity.x = (this.x < dest.x) ? 1 : -1;
 		}
 		this.timeDoingAction ++;
 		if(this.timeDoingAction > 90) {
@@ -241,7 +248,7 @@ Troll.method("update", function() {
 			}
 			weaponPos.x += this.x + (this.armAttacking === "right" ? 40 : -40);
 			weaponPos.y += this.y - 10;
-			if(collisions.objectIntersectsPoint(p, weaponPos) && this.attackRecharge < 0) {
+			if(game.inRoom === game.theRoom && collisions.objectIntersectsPoint(p, weaponPos) && this.attackRecharge < 0) {
 				p.hurt(Math.floor(Math.randomInRange(40, 50)), "a troll");
 				this.attackRecharge = 45;
 			}

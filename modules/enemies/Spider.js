@@ -81,7 +81,6 @@ Spider.method("update", function(dest) {
 			}
 		}
 		this.legs += this.legDir;
-		this.x += this.velocity.x;
 		if(this.canJump && Math.dist(this.x, p.x) <= 130 && Math.dist(this.x, p.x) >= 120) {
 			this.velocity.y = -4;
 		}
@@ -94,6 +93,7 @@ Spider.method("update", function(dest) {
 			this.velocity.x = -2;
 		}
 	}
+	this.x += this.velocity.x;
 	this.y += this.velocity.y;
 	this.velocity.y += 0.1;
 	this.canJump = false;

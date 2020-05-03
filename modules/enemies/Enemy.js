@@ -106,7 +106,7 @@ Enemy.method("update", function() {
 	}
 	/* basic enemy attack (dealing damage to the player on intersection) */
 	this.attackRecharge --;
-	if(collisions.objectIntersectsObject(this, p) && this.attackRecharge < 0 && !this.complexAttack) {
+	if(game.inRoom === game.theRoom && collisions.objectIntersectsObject(this, p) && this.attackRecharge < 0 && !this.complexAttack) {
 		this.attackRecharge = 45;
 		var damage = Math.randomInRange(this.damLow, this.damHigh);
 		p.hurt(damage, this.name);

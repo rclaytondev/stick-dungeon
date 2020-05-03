@@ -55,7 +55,7 @@ ShotArrow.method("update", function() {
 		this.y += this.velocity.y;
 		this.velocity.y += 0.1;
 		if(this.shotBy === "player") {
-			game.dungeon[game.inRoom].getInstancesOf(Enemy).forEach((enemy) => {
+			game.dungeon[game.theRoom].getInstancesOf(Enemy).forEach((enemy) => {
 				if(collisions.objectIntersectsObject(this, enemy)) {
 					if(this.ORIGINAL_X === undefined) {
 						enemy.hurt(this.damage);
@@ -70,7 +70,7 @@ ShotArrow.method("update", function() {
 				}
 			});
 		}
-		else if(this.shotBy === "enemy" && collisions.objectIntersectsObject(this, p)) {
+		else if(game.inRoom === game.theRoom && this.shotBy === "enemy" && collisions.objectIntersectsObject(this, p)) {
 			p.hurt(this.damage, this.name);
 			this.hitSomething = true;
 		}

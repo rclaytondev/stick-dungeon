@@ -37,7 +37,7 @@ Boulder.method("exist", function() {
 				obj.hurt(this.damage, true);
 				this.hitAnEnemy = true;
 			}
-			if(collisions.objectIntersectsObject(this, p) && !this.hitAPlayer) {
+			if(game.inRoom === game.theRoom && collisions.objectIntersectsObject(this, p) && !this.hitAPlayer) {
 				p.hurt(this.damage, "a chunk of rock");
 				this.hitAPlayer = true;
 			}

@@ -59,11 +59,6 @@ Dragonling.method("display", function() {
 			c.strokeStyle = "rgb(0, 255, 0)";
 			c.lineWidth = 5;
 			c.strokeLine.apply(c, self.pos);
-			/* update tail position */
-			self.pos.push({x: self.x, y: self.y});
-			if(self.pos.length > 30) {
-				self.pos.splice(0, 1);
-			}
 			/* front wing */
 			c.fillStyle = "rgb(20, 255, 20)";
 			var p2 = graphics3D.point3D((slope.x * 15) + self.pos[25].x, (slope.y * 15) + self.pos[25].y, 1.1);
@@ -74,7 +69,11 @@ Dragonling.method("display", function() {
 		1
 	));
 });
-Dragonling.method("update", function() {
+Dragonling.method("update", function(dest) {
+	if(dest !== "player") {
+		this.destX = dest.x;
+		this.destY = dest.y;
+	}
 	/* move according to rotation */
 	var theVel = Math.rotate(0, -10, this.rot);
 	this.velocity.x += theVel.x / 100;
@@ -135,6 +134,11 @@ Dragonling.method("update", function() {
 	/* update hitbox */
 	this.rot = Math.modulateIntoRange(this.rot, 0, 360);
 	this.hitbox = new utils.geom.Rectangle({ left: -20, right: 20, top: -20, bottom: 20 });
+	/* update tail position */
+	this.pos.push({x: this.x, y: this.y});
+	if(this.pos.length > 30) {
+		this.pos.splice(0, 1);
+	}
 });
 Dragonling.method("handleCollision", function() {
 
@@ -145,6 +149,13 @@ Dragonling.method("translate", function(x, y) {
 	this.pos.forEach((point) => {
 		point.x += x, point.y += y;
 	});
+});
+Dragonling.method("onDoorEntry", function() {
+	this.pos = [];
+	for(var i = 0; i < 30; i ++) {
+		this.pos.push({ x: this.x, y: this.y });
+	}
+	this.rot = Math.deg(Math.atan2(this.y - p.y, this.x - p.x)) - 90;
 });
 Dragonling.generationCriteria = function() {
 	return game.dungeon[game.theRoom].getInstancesOf(Torch).length === 0;

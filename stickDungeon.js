@@ -438,17 +438,8 @@ var graphics3D = {
 				c.strokeArc(boxFront.loc[0], boxFront.loc[1], boxFront.loc[2], boxFront.loc[3], boxFront.loc[4]);
 			}
 		});
-		/* extra graphics */
-		c.save(); {
-			graphics3D.extraGraphics.filter(graphic => graphic.type === "polygon").forEach(graphic => {
-				c.globalAlpha = 0.5;
-				c.fillStyle = graphic.col;
-				c.fillPoly(graphic.loc);
-			});
-		} c.restore();
 	},
 
-	extraGraphics: [],
 	boxFronts: []
 };
 var collisions = {
@@ -1386,16 +1377,15 @@ var game = {
 		if(game.onScreen === "play") {
 			game.dungeon[game.theRoom].renderingObjects = [];
 			/* load enemies in other rooms */
-			var unseenEnemy = game.dungeon.some((room, index) => room.content.containsInstanceOf(Enemy) && index !== game.inRoom);
 			p.update();
 
 			game.dungeon[game.inRoom].displayBackground();
 
 			for(var i = 0; i < game.dungeon.length; i ++) {
 				var room = game.dungeon[i];
-				if(game.inRoom === i && (!unseenEnemy || true)) {
+				if((game.inRoom === i) || room.getInstancesOf(Enemy).some(enemy => enemy.seesPlayer)) {
 					game.theRoom = i;
-					room.exist(i);
+					room.update(i);
 				}
 			};
 
@@ -1421,6 +1411,7 @@ var game = {
 				};
 			}
 
+			game.theRoom = game.inRoom;
 			game.dungeon[game.inRoom].display();
 			game.dungeon[game.inRoom].displayShadowEffect();
 
@@ -1759,7 +1750,7 @@ var game = {
 			game.inRoom = 0, game.theRoom = 0;
 			p.update();
 			game.dungeon.onlyItem().renderingObjects = [];
-			game.dungeon.onlyItem().exist(0);
+			game.dungeon.onlyItem().update(0);
 			game.dungeon.onlyItem().display();
 
 			game.dungeon[game.inRoom].displayShadowEffect();
