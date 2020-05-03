@@ -74,12 +74,6 @@ Spider.method("update", function(dest) {
 		if(this.legs <= 0) {
 			this.legDir = 2;
 		}
-		else {
-			this.legDir = (this.legs < 8) ? 2 : -2;
-			if(Math.dist(this.legs, 8) <= 2) {
-				this.legs = 8;
-			}
-		}
 		this.legs += this.legDir;
 		if(this.canJump && Math.dist(this.x, p.x) <= 130 && Math.dist(this.x, p.x) >= 120) {
 			this.velocity.y = -4;

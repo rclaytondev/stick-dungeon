@@ -1315,3 +1315,17 @@ Object.watch = function(object, property) {
 		set: function(newValue) { debugger; value = newValue; }
 	});
 };
+Object.watchLog = function(object, property) {
+	/* similar to Object.watch(), this logs to the console every time a property is changed. */
+	var value = object[property];
+	Object.defineProperty(object, property, {
+		get: function() { return value; },
+		set: function(newValue) {
+			console.log("property '" + property + "' was changed.");
+			console.log("    previous value: ", value);
+			console.log("    new value: ", newValue);
+			console.trace();
+			value = newValue;
+		}
+	});
+};
