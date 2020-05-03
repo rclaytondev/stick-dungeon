@@ -1424,9 +1424,7 @@ var game = {
 			debugging.displayHitboxes();
 
 			p.gui();
-			ui.infoBar.calculateActions();
-			ui.infoBar.display();
-			ui.infoBar.resetActions();
+			ui.infoBar.exist();
 		}
 		else if(game.onScreen === "home") {
 			ui.homeScreen.update();
@@ -1766,6 +1764,7 @@ var game = {
 
 			this.displayInfoText();
 			this.updateTutorialStage();
+			ui.infoBar.exist();
 		},
 		reset: function() {
 			this.stages.forEach(stage => {
@@ -2677,6 +2676,12 @@ var ui = {
 				}
 				this.actions.d = "view items";
 			}
+		},
+
+		exist: function() {
+			this.calculateActions();
+			this.display();
+			this.resetActions();
 		}
 	}
 };
