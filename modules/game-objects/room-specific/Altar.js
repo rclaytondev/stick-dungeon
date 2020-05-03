@@ -22,7 +22,15 @@ Altar.method("update", function() {
 });
 Altar.method("display", function() {
 	for(var i = 0; i < 5; i ++) {
-		this.particles.push(new Particle(this.type === "health" ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)", this.x + Math.randomInRange(-20, 20), this.y + Math.randomInRange(-20, 20), Math.randomInRange(-1, 1), Math.randomInRange(-1, 1), 10));
+		this.particles.push(new Particle(
+			this.x + Math.randomInRange(-20, 20),
+			this.y + Math.randomInRange(-20, 20),
+			{
+				color: (this.type === "health") ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)",
+				velocity: 1,
+				size: 10
+			}
+		));
 	}
 	this.particles.forEach(particle => { particle.display(); });
 });

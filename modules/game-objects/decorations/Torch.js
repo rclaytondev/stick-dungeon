@@ -37,8 +37,18 @@ Torch.method("update", function() {
 		this.lit = true;
 	}
 	if(this.lit) {
-		this.fireParticles.push(new Particle(this.color, this.x, this.y - 27, Math.random(), Math.randomInRange(-3, 0), Math.randomInRange(5, 10)));
-		this.fireParticles.lastItem().z = Math.randomInRange(0.94, 0.96);
+		this.fireParticles.push(new Particle(
+			this.x, this.y - 27,
+			{
+				color: this.color,
+				velocity: {
+					x: Math.random(),
+					y: Math.randomInRange(-3, 0),
+				},
+				size: Math.randomInRange(5, 10),
+				depth: Math.randomInRange(0.94, 0.96)
+			}
+		));
 	}
 	this.fireParticles.forEach(particle => { particle.update(); });
 	this.fireParticles = this.fireParticles.filter(particle => !particle.toBeRemoved);

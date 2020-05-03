@@ -79,12 +79,34 @@ Forge.method("update", function() {
 	this.particles = this.particles.filter(particle => !particle.toBeRemoved);
 	if(!this.used) {
 		for(var i = 0; i < 5; i ++) {
-			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.randomInRange(-50, 50), this.y - 10, Math.randomInRange(-1, 1), Math.randomInRange(-2, 0), 10));
-			this.particles.lastItem().z = Math.randomInRange(this.DEPTH - 0.15, this.DEPTH);
+			this.particles.push(new Particle(
+				this.x + Math.randomInRange(-50, 50),
+				this.y - 10,
+				{
+					color: "rgb(255, 128, 0)",
+					depth: Math.randomInRange(this.DEPTH - 0.15, this.DEPTH),
+					velocity: {
+						x: Math.randomInRange(-1, 1),
+						y: Math.randomInRange(-2, 0),
+					},
+					size: 10
+				}
+			));
 		}
 		for(var i = 0; i < 5; i ++) {
-			this.particles.push(new Particle("rgb(255, 128, 0)", this.x + Math.randomInRange(-50, 50), this.y - 60, Math.randomInRange(-1, 1), Math.randomInRange(-2, 0), 10));
-			this.particles.lastItem().z = Math.randomInRange(this.DEPTH - 0.15, this.DEPTH);
+			this.particles.push(new Particle(
+				this.x + Math.randomInRange(-50, 50),
+				this.y - 60,
+				{
+					color: "rgb(255, 128, 0)",
+					depth: Math.randomInRange(this.DEPTH - 0.15, this.DEPTH),
+					velocity: {
+						x: Math.randomInRange(-1, 1),
+						y: Math.randomInRange(-2, 0)
+					},
+					size: 10
+				}
+			));
 		}
 	}
 });

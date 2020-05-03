@@ -24,8 +24,16 @@ Weapon.method("displayParticles", function() {
 		else if(this.element === "air") {
 			color = "rgb(255, 255, 255)";
 		}
-		this.particles.push(new Particle(color, Math.randomInRange(10, 60), Math.randomInRange(10, 60), Math.randomInRange(-2, 2), Math.randomInRange(-2, 2), Math.randomInRange(5, 6)));
-		this.particles.lastItem().opacity = 0.25;
+		this.particles.push(new Particle(
+			Math.randomInRange(10, 60),
+			Math.randomInRange(10, 60),
+			{
+				color: color,
+				velocity: 2,
+				opacity: 0.25,
+				size: Math.randomInRange(5, 6)
+			}
+		));
 	}
 	game.dungeon[game.theRoom].displayImmediately(function() {
 		this.particles.forEach(particle => {

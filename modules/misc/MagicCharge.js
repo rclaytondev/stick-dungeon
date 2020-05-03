@@ -36,7 +36,14 @@ MagicCharge.method("update", function() {
 		"earth": "rgb(0, 160, 0)",
 		"air": "rgb(170, 170, 170)"
 	};
-	this.particles.push(new Particle(COLORS[this.type], this.x, this.y, Math.randomInRange(-1, 1), Math.randomInRange(-1, 1), 10));
+	this.particles.push(new Particle(
+		this.x, this.y,
+		{
+			color: COLORS[this.type],
+			velocity: 1,
+			size: 10
+		}
+	));
 	/* movement */
 	this.x += this.velocity.x;
 	this.y += this.velocity.y;

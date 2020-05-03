@@ -28,9 +28,31 @@ Wraith.method("display", function() {
 	this.particles = this.particles.filter((particle) => particle.opacity > 0);
 	for(var i = 0; i < 10; i ++) {
 		var pos = Math.randomInRange(0, 50);
-		this.particles.push(new Particle("rgb(0, 0, 0)", this.x + Math.randomInRange(-pos, pos), this.y + 50 - pos * 2, Math.randomInRange(-1, 1), Math.randomInRange(-1, 1), Math.randomInRange(6, 10)));
-		this.particles.push(new Particle("rgb(255, 0, 0)", this.x - 10, this.y - 25, Math.randomInRange(0, 0.5), Math.randomInRange(0, 0.5), Math.randomInRange(2, 4)));
-		this.particles.push(new Particle("rgb(255, 0, 0)", this.x + 10, this.y - 25, Math.randomInRange(0, 0.5), Math.randomInRange(0, 0.5), Math.randomInRange(2, 4)));
+		this.particles.push(new Particle(
+			this.x + Math.randomInRange(-pos, pos),
+			this.y + 50 - (pos * 2),
+			{
+				color: "rgb(0, 0, 0)",
+				velocity: 1,
+				size: Math.randomInRange(6, 10)
+			}
+		));
+		this.particles.push(new Particle(
+			this.x - 10, this.y - 25,
+			{
+				color: "rgb(255, 0, 0)",
+				velocity: 0.5,
+				size: Math.randomInRange(2, 4)
+			}
+		));
+		this.particles.push(new Particle(
+			this.x + 10, this.y - 25,
+			{
+				color: "rgb(255, 0, 0)",
+				velocity: 0.5,
+				size: Math.randomInRange(2, 4)
+			}
+		));
 	}
 });
 Wraith.method("update", function(dest) {

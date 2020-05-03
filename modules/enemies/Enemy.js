@@ -95,7 +95,18 @@ Enemy.method("update", function() {
 		this.y += this.velocity.y;
 	}
 	if(this.timeBurning > 0) {
-		this.particles.push(new Particle("rgb(255, 128, 0)", Math.randomInRange(this.hitbox.left, this.hitbox.right), Math.randomInRange(this.hitbox.top, this.hitbox.bottom), Math.randomInRange(-2, 2), Math.randomInRange(-3, 1), Math.randomInRange(3, 5)));
+		this.particles.push(new Particle(
+			Math.randomInRange(this.hitbox.left, this.hitbox.right),
+			Math.randomInRange(this.hitbox.top, this.hitbox.bottom),
+			{
+				color: "rgb(255, 128, 0)",
+				velocity: {
+					x: Math.randomInRange(-2, 2),
+					y: Math.randomInRange(-3, 1)
+				},
+				size: Math.randomInRange(3, 5)
+			}
+		));
 		this.timeBurning --;
 		if(this.timeBurning % 60 === 0) {
 			this.health -= this.burnDmg;
