@@ -671,6 +671,7 @@ Player.method("useItem", function() {
 		}
 		game.dungeon[game.inRoom].content.push(arrow);
 		/* remove arrows from inventory */
+		this.removeArrow();
 	}
 	this.aimingBefore = this.aiming;
 	this.facingBefore = this.facing;
