@@ -58,7 +58,9 @@ Wraith.method("attack", function() {
 		var velocity = Math.normalize(p.x - (this.x), p.y - (this.y));
 		velocity.x *= 10;
 		velocity.y *= 10;
-		game.dungeon[game.theRoom].content.push(new MagicCharge(this.x, this.y, velocity.x, velocity.y, "shadow", Math.randomInRange(this.damLow, this.damHigh)));
+		var magicCharge = new MagicCharge(this.x, this.y, velocity.x, velocity.y, "shadow", Math.randomInRange(this.damLow, this.damHigh));
+		magicCharge.shotBy = "enemy";
+		game.dungeon[game.theRoom].content.push(magicCharge);
 		this.timeSinceAttack = 0;
 	}
 });
