@@ -514,23 +514,28 @@ Player.method("useItem", function() {
 			if(this.aimRot === null) {
 				this.aimRot = 0;
 				this.attackingWith = this.invSlots[this.activeSlot].content;
-				if(this.attackingWith instanceof MagicWeapon && (this.mana >= this.attackingWith.manaCost || this.attackingWith instanceof ChaosStaff) && !(this.attackingWith instanceof ElementalStaff && this.attackingWith.element === "none")) {
-					var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
-					if(this.facing === "right") {
-						game.dungeon[game.inRoom].content.push(new MagicCharge(this.x + 50, this.y, 0, 0, this.attackingWith.chargeType, damage));
-						game.dungeon[game.inRoom].content.lastItem().beingAimed = true;
+				if(this.attackingWith instanceof MagicWeapon && !(this.attackingWith instanceof ElementalStaff && this.attackingWith.element === "none")) {
+					if(this.mana >= this.attackingWith.manaCost || this.attackingWith instanceof ChaosStaff) {
+						var damage = Math.round(Math.randomInRange(this.invSlots[this.activeSlot].content.damLow, this.invSlots[this.activeSlot].content.damHigh));
+						if(this.facing === "right") {
+							game.dungeon[game.inRoom].content.push(new MagicCharge(this.x + 50, this.y, 0, 0, this.attackingWith.chargeType, damage));
+							game.dungeon[game.inRoom].content.lastItem().beingAimed = true;
+						}
+						else {
+							game.dungeon[game.inRoom].content.push(new MagicCharge(this.x - 50, this.y, 0, 0, this.attackingWith.chargeType, damage));
+							game.dungeon[game.inRoom].content.lastItem().beingAimed = true;
+						}
+						if(this.attackingWith instanceof ChaosStaff) {
+							this.hurt(this.attackingWith.hpCost, "meddling with arcane magic", true);
+						}
+						else {
+							this.mana -= this.attackingWith.manaCost;
+						}
+						this.chargeLoc = Math.rotate((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 					}
 					else {
-						game.dungeon[game.inRoom].content.push(new MagicCharge(this.x - 50, this.y, 0, 0, this.attackingWith.chargeType, damage));
-						game.dungeon[game.inRoom].content.lastItem().beingAimed = true;
+						this.manaBarAnimation = 1;
 					}
-					if(this.attackingWith instanceof ChaosStaff) {
-						this.hurt(this.attackingWith.hpCost, "meddling with arcane magic", true);
-					}
-					else {
-						this.mana -= this.attackingWith.manaCost;
-					}
-					this.chargeLoc = Math.rotate((this.facing === "right") ? 50 : -50, 0, this.aimRot * ((this.facing === "right") ? 1 : -1));
 				}
 			}
 			this.aiming = true;
