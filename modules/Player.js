@@ -14,6 +14,8 @@ function Player() {
 	this.enteringDoor = false;
 	this.op = 1;
 	this.fallDmg = 0;
+	this.healthBarAnimation = 0;
+	this.manaBarAnimation = 0;
 	/* Health, mana, etc... bars */
 	this.health = 100;
 	this.maxHealth = 100;
@@ -255,13 +257,17 @@ Player.method("display", function(straightArm) {
 	}
 	/* Status Bars */
 	if(game.onScreen === "play") {
+		const HEALTH_BAR_ANIMATION_SPEED = 1/20;
+		this.healthBarAnimation -= HEALTH_BAR_ANIMATION_SPEED;
+		this.manaBarAnimation -= HEALTH_BAR_ANIMATION_SPEED;
+
 		c.textAlign = "center";
 		c.globalAlpha = 1;
 		/* Health */
-		this.displayHealthBar(550, 12.5, "Health", this.health, this.maxHealth, "rgb(255, 0, 0)", this.visualHealth);
+		this.displayHealthBar(550, 12.5, "Health", this.health, this.maxHealth, "rgb(255, 0, 0)", this.visualHealth, "rgb(255, 128, 0)", this.healthBarAnimation);
 		this.visualHealth += ((this.health / this.maxHealth) - this.visualHealth) / 10;
 		/* Mana */
-		this.displayHealthBar(550, 50, "Mana", this.mana, this.maxMana, "rgb(20, 20, 255)", this.visualMana);
+		this.displayHealthBar(550, 50, "Mana", this.mana, this.maxMana, "rgb(20, 20, 255)", this.visualMana, "rgb(20, 200, 255)", this.manaBarAnimation);
 		this.visualMana += ((this.mana / this.maxMana) - this.visualMana) / 10;
 		/* gold bar */
 		this.displayHealthBar(550, 87.5, "Gold", this.gold, Infinity, "rgb(255, 255, 0)", this.visualGold);
@@ -310,9 +316,11 @@ Player.method("display", function(straightArm) {
 	c.lineCap = "butt";
 	c.globalAlpha = 1;
 });
-Player.method("displayHealthBar", function(x, y, txt, num, max, col, percentFull) {
+Player.method("displayHealthBar", function(x, y, txt, num, max, col, percentFull, animationColor, animationRatio) {
 	/*
 	Displays a health bar w/ top left at ('x', 'y') and color 'col'. Labeled as 'txt: num / max'.
+
+	`animationColor` and `animationRatio` are used to display the health bar flashing animations. `animationColor` is the color that the health bar should flash in, `animationRatio` (between 0 and 1) is how much the color should be close to the special animation color.
 	*/
 	/* Health Bar (gray background) */
 	c.fillStyle = "rgb(150, 150, 150)";
@@ -321,7 +329,8 @@ Player.method("displayHealthBar", function(x, y, txt, num, max, col, percentFull
 	c.fillCircle(x, y + 12, 12);
 	c.fillCircle(x + 225, y + 12, 12);
 	/* Health Bar (colored part) */
-	c.fillStyle = col;
+	var color = (typeof animationColor === "string") ? utils.color.mix(col, animationColor, animationRatio) : col;
+	c.fillStyle = color;
 	c.fillRect(x, y, percentFull * 225, 25);
 	/* Rounded Corners (colored part) */
 	c.fillCircle(x, y + 12, 12);

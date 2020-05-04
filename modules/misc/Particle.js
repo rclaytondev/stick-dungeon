@@ -69,6 +69,7 @@ function Particle(x, y, settings) {
 	this.sizeDecay = settings.sizeDecay || 0;
 	this.shape = settings.shape || "circle";
 	this.movement = settings.movement || "drift";
+	this.destination = settings.destination || null;
 	this.depth = settings.depth || 1;
 	this.gravity = settings.gravity || 0.1;
 };
@@ -110,6 +111,16 @@ Particle.method("update", function() {
 		this.movement();
 	}
 	else {
+		if(this.movement === "seek" && this.destination !== null && !Math.arePointsCollinear(
+			{ x: this.x, y: this.y },
+			{ x: this.x + this.velocity.x, y: this.velocity.y },
+			this.destination
+		)) {
+			var speed = Math.dist(0, 0, this.velocity.x, this.velocity.y);
+			var velocity = Math.normalize(this.destination.x - this.x, this.destination.y - this.y);
+			velocity.x *= speed, velocity.y *= speed;
+			this.velocity = velocity;
+		}
 		this.x += this.velocity.x;
 		this.y += this.velocity.y;
 		if(this.movement === "fall") {

@@ -31,7 +31,7 @@ Room.method("update", function(index) {
 		else if(typeof obj.update === "function") {
 			obj.update();
 		}
-		if(obj.toBeRemoved) {
+		if(obj.toBeRemoved || (typeof obj.removalCriteria === "function" && obj.removalCriteria())) {
 			if(typeof obj.remove === "function") {
 				obj.remove();
 			}
@@ -49,7 +49,7 @@ Room.method("update", function(index) {
 Room.method("display", function() {
 	c.fillCanvas("rgb(100, 100, 100)");
 
-	this.content.forEach(obj => {
+	this.content.filter(obj => !obj.absolutePosition).forEach(obj => {
 		if(typeof obj.translate === "function") {
 			obj.translate(game.camera.getOffsetX(), game.camera.getOffsetY());
 		}
@@ -58,7 +58,7 @@ Room.method("display", function() {
 			obj.y += game.camera.getOffsetY();
 		}
 	});
-	this.content.forEach(
+	this.content.filter(obj => !obj.absolutePosition).forEach(
 		function(obj) {
 			if(obj instanceof Item) {
 				Item.prototype.display.call(obj);
@@ -71,33 +71,28 @@ Room.method("display", function() {
 			}
 		}
 	);
-	/* Displays the objects in the room in order. */
-	var sorter = function(a, b) {
-		if(a.depth === b.depth) {
-			return utils.sortAscending(a.zOrder, b.zOrder);
+	this.renderAll();
+
+	/* display absolutely positioned objects in front of everything else */
+	this.renderingObjects = [];
+	this.content.filter(obj => obj.absolutePosition).forEach(obj => {
+		if(obj instanceof Item) {
+			Item.prototype.display.call(obj);
 		}
-		else {
-			return utils.sortAscending(a.depth, b.depth);
+		else if(obj instanceof Enemy) {
+			Enemy.prototype.display.call(obj);
 		}
-	};
-	this.renderingObjects = this.renderingObjects.sort(sorter);
-	c.reset();
-	this.renderingObjects.forEach(obj => {
-		c.save(); {
-			if(typeof obj.transform === "function") {
-				obj.transform();
-			}
-			if(typeof obj.renderingStyle === "function") {
-				obj.renderingStyle();
-			}
+		else if(typeof obj.display === "function") {
 			obj.display();
-		} c.restore();
+		}
 	});
+	this.renderAll();
+
 
 	/* add player hitbox + display hitboxes */
 	p.displayHitbox();
 
-	this.content.forEach(obj => {
+	this.content.filter(obj => !obj.absolutePosition).forEach(obj => {
 		if(typeof obj.translate === "function") {
 			obj.translate(-game.camera.getOffsetX(), -game.camera.getOffsetY());
 		}
@@ -142,6 +137,30 @@ Room.method("render", function(object) {
 		this.renderingObjects.push(object);
 	}
 	this.renderingObjects.lastItem().renderingStyle = this.renderingStyle;
+});
+Room.method("renderAll", function() {
+	/* Displays the objects in the room in order. */
+	var sorter = function(a, b) {
+		if(a.depth === b.depth) {
+			return utils.sortAscending(a.zOrder, b.zOrder);
+		}
+		else {
+			return utils.sortAscending(a.depth, b.depth);
+		}
+	};
+	this.renderingObjects = this.renderingObjects.sort(sorter);
+	c.reset();
+	this.renderingObjects.forEach(obj => {
+		c.save(); {
+			if(typeof obj.transform === "function") {
+				obj.transform();
+			}
+			if(typeof obj.renderingStyle === "function") {
+				obj.renderingStyle();
+			}
+			obj.display();
+		} c.restore();
+	});
 });
 Room.method("beginRenderingGroup", function() {
 	this.groupingRenderedObjects = true;

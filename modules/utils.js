@@ -971,6 +971,31 @@ testing.addTest({
 	unit: "Math.findPointsLinear()",
 	name: "vertical lines"
 });
+Math.arePointsCollinear = function(points) {
+	if(points.length < 3) {
+		return true;
+	}
+	for(var i = 0; i < arguments.length; i ++) {
+		var currentPoint = arguments[i];
+		var nextPoint = arguments[(i + 1) % arguments.length];
+		var previousPoint = arguments[i === 0 ? arguments.length - 1 : i - 1];
+
+		var slope1 = (currentPoint.y - previousPoint.y) / (currentPoint.x - previousPoint.x);
+		var slope2 = (nextPoint.y - currentPoint.y) / (nextPoint.x - currentPoint.x);
+		if(Math.dist(slope1, slope2) > 0.000000001) {
+			return false;
+		}
+	}
+	return true;
+};
+testing.addTest({
+	run: function() {
+		testing.assert(Math.arePointsCollinear({ x: 1, y: 1 }, { x: 2, y: 2 }, { x: -15, y: -15 }));
+		testing.assert(Math.arePointsCollinear({ x: 0, y: 0 }, { x: -2, y: 4 }, { x: -4, y: 8 }));
+	},
+	unit: "Math.arePointsCollinear()",
+	name: "all functionality"
+})
 Math.calculateDegrees = function(x, y) {
 	/*
 	Returns the corrected arctangent of ('x', 'y').

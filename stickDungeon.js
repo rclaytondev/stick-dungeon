@@ -202,6 +202,31 @@ var utils = {
 		.method("clone", function() {
 			return new utils.geom.Rectangle({ x: this.x, y: this.y, w: this.w, h: this.h });
 		})
+	},
+	color: {
+		mix: function(color1RGB, color2RGB, percentage) {
+			var EXTRACT_NUMBERS = /(\d|\.)+/g;
+			/*
+			Returns the color that is 'percentage' between the two other colors. ('percentage' isn't really a percentage; its value must be between 0 and 1. 0 = entirely color1, 1 = entirely color2).
+			*/
+			if(typeof percentage !== "number") {
+				percentage = 0.5;
+			}
+			var color1 = color1RGB.match(EXTRACT_NUMBERS);
+			var color2 = color2RGB.match(EXTRACT_NUMBERS);
+			if(color1.length !== 3 || color2.length !== 3) {
+				throw new Error("Invalid rgb color code: must contain exactly 3 numbers");
+			}
+			var result = [];
+			for(var i = 0; i < color1.length; i ++) {
+				result.push(Math.map(
+					percentage,
+					0, 1,
+					parseFloat(color1[i]), parseFloat(color2[i])
+				))
+			}
+			return "rgb(" + result[0] + ", " + result[1] + ", " + result[2] + ")";
+		}
 	}
 };
 var graphics3D = {
