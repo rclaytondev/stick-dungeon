@@ -15,45 +15,6 @@ function Door(x, y, dest, noEntry, invertEntries, type) {
 		this.containingRoomID = game.dungeon.length;
 	}
 };
-Door.method("getInfo", function() {
-	/* returns the text to display when the user is holding a map */
-	if(!(p.invSlots[p.activeSlot].content instanceof Map)) {
-		return ""; //not holding a map -> no explanatory text
-	}
-	if(typeof this.dest === "object") {
-		return "?"; //unexplored -> "?"
-	}
-	var isDeadEnd = (game.dungeon[this.dest].getInstancesOf(Door).length > 0);
-	if(isDeadEnd) {
-		return "x"; // "x" if no doors in the room
-	}
-	var indices = [game.theRoom];
-	function isUnknown(index) {
-		if(indices.includes(index)) {
-			return false;
-		}
-		indices.push(index);
-		var containsUnknown = false;
-		game.dungeon[index].getInstancesOf(Door).forEach(door => {
-			if(typeof door.dest === "object") {
-				return true;
-			}
-			else {
-				var leadsToUnknown = isUnknown(door.dest);
-				if(leadsToUnknown) {
-					return true;
-				}
-			}
-		})
-		return false;
-	};
-	var leadsToUnexplored = isUnknown(this.dest);
-	if(leadsToUnexplored) {
-		return "^";
-	}
-	game.dungeon.forEach(room => { delete room.pathScore; });
-	return "x";
-});
 Door.method("display", function() {
 	/* Graphics */
 	var self = this;
@@ -97,25 +58,6 @@ Door.method("display", function() {
 							} c.restore();
 						}
 					} c.restore();
-				}
-				if(p.invSlots[p.activeSlot].content instanceof Map) {
-					/* Symbols for maps */
-					var symbol = self.getInfo();
-					var mapSymbolLocation = graphics3D.point3D(self.x, self.y - 40, 0.9);
-					c.font = "15pt monospace";
-					c.fillStyle = "rgb(255, 255, 255)";
-					c.textAlign = "center";
-					if(symbol !== ">" || true) {
-						c.fillText(symbol, mapSymbolLocation.x, mapSymbolLocation.y);
-					}
-					else {
-						if(p.x > this.x) {
-							c.fillText("<", mapSymbolLocation.x, mapSymbolLocation.y);
-						}
-						else {
-							c.fillText(">", mapSymbolLocation.x, mapSymbolLocation.y);
-						}
-					}
 				}
 			},
 			0.9,

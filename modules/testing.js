@@ -181,6 +181,14 @@ var testing = {
 	},
 	utils: {
 		emptyRoom: function(width, height) {
+			if(arguments[0] === "floor-only") {
+				return new Room(
+					"testing",
+					[
+						new Border("floor", { y: 0 })
+					]
+				);
+			}
 			width = width || 800;
 			height = height || 800;
 			var room = new Room(
@@ -193,6 +201,13 @@ var testing = {
 				]
 			);
 			return room;
+		},
+		addRoomFromDoor: function(roomID, entranceDoor) {
+			testing.resetter.initialGameState.game.rooms[roomID].add();
+			var addedRoom = game.dungeon.lastItem();
+			entranceDoor.dest = addedRoom.index;
+			var exitDoor = addedRoom.getInstancesOf(Door).randomItem();
+			exitDoor.dest = entranceDoor.containingRoomID;
 		},
 		exit: function() {
 			/*

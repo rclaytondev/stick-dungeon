@@ -72,6 +72,7 @@ function Particle(x, y, settings) {
 	this.destination = settings.destination || null;
 	this.depth = settings.depth || 1;
 	this.gravity = settings.gravity || 0.1;
+	this.rotation = settings.rotation || 0;
 };
 Particle.method("display", function() {
 	var self = this;
@@ -84,7 +85,7 @@ Particle.method("display", function() {
 				var radius = self.size * self.depth;
 				if(typeof self.shape === "function") {
 					c.translate(location.x, location.y);
-					c.scale(self.depth);
+					c.scale(self.depth, self.depth);
 					c.rotate(Math.rad(self.rotation));
 					self.shape();
 				}

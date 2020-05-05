@@ -498,6 +498,9 @@ Player.method("useItem", function() {
 		}
 	}
 	/* Begin Attacking + Use Non-weapon Items */
+	if(typeof this.invSlots[this.activeSlot].content.whenItemHeld === "function") {
+		this.invSlots[this.activeSlot].content.whenItemHeld();
+	}
 	if(io.keys.KeyA && this.invSlots[this.activeSlot].content !== "empty") {
 		if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon) {
 			this.invSlots[this.activeSlot].content.attack();

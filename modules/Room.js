@@ -207,3 +207,7 @@ Room.method("reflect", function() {
 		}
 	});
 });
+Room.method("containsUnexploredDoor", function() {
+	var unexploredDoor = this.getInstancesOf(Door).find(door => typeof door.dest !== "number");
+	return unexploredDoor !== undefined;
+});
