@@ -81,6 +81,31 @@ ShotArrow.method("update", function() {
 			this.toBeRemoved = true;
 		}
 	}
+
+	if(
+		typeof this.ORIGINAL_X === "number" &&
+		Math.dist(this.x, this.ORIGINAL_X) % 50 <= Math.abs(this.velocity.x) &&
+		!this.hitSomething && Math.dist(this.x, this.ORIGINAL_X > 50) &&
+		game.dungeon[game.inRoom].getInstancesOf(Particle).filter(particle => particle.source === "longbow" && particle.age < 5).length === 0
+	) {
+		const PARTICLE_DISTANCE_BEHIND_ARROW = 15;
+		var arrowTrajectory = Math.normalize(this.velocity.x, this.velocity.y);
+		game.dungeon[game.theRoom].content.push(
+			new Particle(
+				this.x - (arrowTrajectory.x * PARTICLE_DISTANCE_BEHIND_ARROW), this.y - (arrowTrajectory.y * PARTICLE_DISTANCE_BEHIND_ARROW),
+				{
+					color: "white",
+					noFill: true,
+					shape: "circle",
+					velocity: 0,
+					size: 7,
+					sizeDecay: -1/2,
+					source: "longbow",
+					depth: 0.99
+				}
+			)
+		);
+	}
 });
 ShotArrow.method("handleCollision", function(direction, collision) {
 	this.hitSomething = true;

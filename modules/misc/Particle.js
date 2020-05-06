@@ -73,6 +73,9 @@ function Particle(x, y, settings) {
 	this.depth = settings.depth || 1;
 	this.gravity = settings.gravity || 0.1;
 	this.rotation = settings.rotation || 0;
+	this.noFill = settings.noFill || false;
+	this.source = settings.source || null;
+	this.age = 0;
 };
 Particle.method("display", function() {
 	var self = this;
@@ -80,6 +83,7 @@ Particle.method("display", function() {
 		function() {
 			c.save(); {
 				c.fillStyle = self.color;
+				c.strokeStyle = self.color;
 				c.globalAlpha = self.opacity;
 				var location = graphics3D.point3D(self.x, self.y, self.depth);
 				var radius = self.size * self.depth;
@@ -90,7 +94,12 @@ Particle.method("display", function() {
 					self.shape();
 				}
 				else if(self.shape === "circle") {
-					c.fillCircle(location.x, location.y, radius);
+					if(self.noFill) {
+						c.strokeCircle(location.x, location.y, radius);
+					}
+					else {
+						c.fillCircle(location.x, location.y, radius);
+					}
 				}
 				else if(self.shape.startsWith("polygon")) {
 					var numSides = parseInt(/^polygon-(\d+)/g.exec(self.shape)[1]);
@@ -100,7 +109,12 @@ Particle.method("display", function() {
 					}
 					c.translate(location.x, location.y);
 					c.rotate(Math.rad(self.rotation));
-					c.fillPoly(points);
+					if(self.noFill) {
+						c.fillPoly(points);
+					}
+					else {
+						c.strokePoly(points);
+					}
 				}
 			} c.restore();
 		},
@@ -108,6 +122,7 @@ Particle.method("display", function() {
 	));
 });
 Particle.method("update", function() {
+	this.age ++;
 	if(typeof this.movement === "function") {
 		this.movement();
 	}
