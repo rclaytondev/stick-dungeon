@@ -30,12 +30,6 @@ FallBlock.method("update", function() {
 		this.velocity.y += 0.1;
 		this.y += this.velocity.y;
 	}
-	if(game.transitions.opacity >= 0.9 && p.enteringDoor) {
-		this.y = this.ORIGINAL_Y;
-		this.velocity.y = 0;
-		this.falling = false;
-		this.allDone = false;
-	}
 });
 FallBlock.method("display", function() {
 	var shakeX = Math.randomInRange(-this.timeShaking, this.timeShaking);
@@ -58,4 +52,13 @@ FallBlock.method("display", function() {
 			}
 		]
 	);
+});
+FallBlock.method("reset", function() {
+	this.y = this.ORIGINAL_Y;
+	this.velocity.y = 0;
+	this.falling = false;
+	this.allDone = false;
+});
+FallBlock.method("onRoomExit", function() {
+	this.reset();
 });

@@ -89,6 +89,11 @@ Door.method("update", function() {
 		ui.infoBar.actions.s = "enter door";
 	}
 	if(game.transitions.opacity > 0.95 && this.entering && !this.barricaded && !p.exitingDoor) {
+		game.dungeon[game.inRoom].content.forEach(object => {
+			if(typeof object.onRoomExit === "function") {
+				object.onRoomExit();
+			}
+		});
 		p.doorType = this.type;
 		if(typeof this.dest !== "number") {
 			game.generateNewRoom(this);
