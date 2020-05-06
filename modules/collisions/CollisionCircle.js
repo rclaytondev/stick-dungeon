@@ -44,7 +44,9 @@ CollisionCircle.method("collide", function(obj) {
 				this.collide(obj);
 			}
 		});
-		this.collide(p);
+		if(game.inRoom === game.theRoom) {
+			this.collide(p);
+		}
 	}
 });
 CollisionCircle.method("getIntersectionPoint", function(obj) {
