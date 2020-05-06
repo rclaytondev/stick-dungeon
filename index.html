@@ -7,7 +7,7 @@
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Oxygen">
 		<link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Germania+One">
 	</head>
-	<body id="body" onmousemove="getMousePos(event);" onmousedown="mouseIsPressed = true;" onmouseup="mouseIsPressed = false;" onkeydown="keys[event.which] = true;" onkeyup="keys[event.which] = false;">
+	<body id="body">
 		<div id="content">
 			<div id="info">
 				<h1>
@@ -24,9 +24,87 @@
 					<li>D to view your items</li>
 				</ul>
 			</div>
-			<div id="game">
-				<canvas id="theCanvas" width="800" height="800" style="left: 15%"></canvas>
+			<div id="game"><canvas id="theCanvas" style="position:absolute;" width="800px" height="800px"></canvas>
+				<script src="modules/testing.js"></script>
+				<script src="modules/utils.js"></script>
+				<script src="modules/player.js"></script>
+				<script src="modules/collisions/collisionRect.js"></script>
+				<script src="modules/collisions/collisionCircle.js"></script>
+				<script src="modules/rendering/renderingOrderObject.js"></script>
+				<script src="modules/rendering/renderingOrderShape.js"></script>
+				<script src="modules/rendering/renderingOrderGroup.js"></script>
+				<script src="modules/game-objects/block.js"></script>
+				<script src="modules/game-objects/border.js"></script>
+				<script src="modules/game-objects/platform.js"></script>
+				<script src="modules/room.js"></script>
+				<script src="modules/game-objects/door.js"></script>
+				<script src="modules/game-objects/roof.js"></script>
+				<script src="modules/game-objects/decorations/torch.js"></script>
+				<script src="modules/game-objects/decorations/decoration.js"></script>
+				<script src="modules/game-objects/decorations/banner.js"></script>
+				<script src="modules/game-objects/decorations/glassWindow.js"></script>
+				<script src="modules/game-objects/room-specific/lightRay.js"></script>
+				<script src="modules/game-objects/room-specific/tree.js"></script>
+				<script src="modules/game-objects/room-specific/fountain.js"></script>
+				<script src="modules/game-objects/room-specific/fallBlock.js"></script>
+				<script src="modules/game-objects/room-specific/pulley.js"></script>
+				<script src="modules/game-objects/room-specific/movingWall.js"></script>
+				<script src="modules/game-objects/room-specific/tiltPlatform.js"></script>
+				<script src="modules/game-objects/room-specific/pillar.js"></script>
+				<script src="modules/game-objects/room-specific/bridge.js"></script>
+				<script src="modules/game-objects/room-specific/altar.js"></script>
+				<script src="modules/game-objects/room-specific/forge.js"></script>
+				<script src="modules/game-objects/room-specific/statue.js"></script>
+				<script src="modules/game-objects/item-objects/boulder.js"></script>
+				<script src="modules/game-objects/item-objects/boulderVoid.js"></script>
+				<script src="modules/game-objects/item-objects/windBurst.js"></script>
+				<script src="modules/game-objects/item-objects/shotArrow.js"></script>
+				<script src="modules/game-objects/chest.js"></script>
+				<script src="modules/game-objects/stairs.js"></script>
+				<script src="modules/items/item.js"></script>
+				<script src="modules/items/weapon.js"></script>
+				<script src="modules/items/weapons/meleeWeapon.js"></script>
+				<script src="modules/items/weapons/melee/dagger.js"></script>
+				<script src="modules/items/weapons/melee/sword.js"></script>
+				<script src="modules/items/weapons/melee/spear.js"></script>
+				<script src="modules/items/weapons/rangedWeapon.js"></script>
+				<script src="modules/items/weapons/ranged/arrow.js"></script>
+				<script src="modules/items/weapons/ranged/woodBow.js"></script>
+				<script src="modules/items/weapons/ranged/metalBow.js"></script>
+				<script src="modules/items/weapons/ranged/mechBow.js"></script>
+				<script src="modules/items/weapons/ranged/longBow.js"></script>
+				<script src="modules/items/weapons/magicWeapon.js"></script>
+				<script src="modules/items/weapons/magic/energyStaff.js"></script>
+				<script src="modules/items/weapons/magic/elementalStaff.js"></script>
+				<script src="modules/items/weapons/magic/chaosStaff.js"></script>
+				<script src="modules/items/equipable.js"></script>
+				<script src="modules/items/equipables/wizardHat.js"></script>
+				<script src="modules/items/equipables/magicQuiver.js"></script>
+				<script src="modules/items/equipables/helmet.js"></script>
+				<script src="modules/items/extra.js"></script>
+				<script src="modules/items/extras/crystal.js"></script>
+				<script src="modules/items/extras/crystals/fireCrystal.js"></script>
+				<script src="modules/items/extras/crystals/waterCrystal.js"></script>
+				<script src="modules/items/extras/crystals/earthCrystal.js"></script>
+				<script src="modules/items/extras/crystals/airCrystal.js"></script>
+				<script src="modules/items/extras/map.js"></script>
+				<script src="modules/items/extras/barricade.js"></script>
+				<script src="modules/items/extras/coin.js"></script>
+				<script src="modules/enemies/randomEnemy.js"></script>
+				<script src="modules/enemies/enemy.js"></script>
+				<script src="modules/enemies/spider.js"></script>
+				<script src="modules/enemies/bat.js"></script>
+				<script src="modules/enemies/skeleton.js"></script>
+				<script src="modules/enemies/skeletonWarrior.js"></script>
+				<script src="modules/enemies/skeletonArcher.js"></script>
+				<script src="modules/enemies/wraith.js"></script>
+				<script src="modules/enemies/troll.js"></script>
+				<script src="modules/enemies/dragonling.js"></script>
+				<script src="modules/misc/particle.js"></script>
+				<script src="modules/misc/magicCharge.js"></script>
+				<script src="modules/misc/rock.js"></script>
 				<script src="stickDungeon.js"></script>
+				<script src="modules/debugging.js"></script>
 			</div>
 		</div>
 		<div id="header">
