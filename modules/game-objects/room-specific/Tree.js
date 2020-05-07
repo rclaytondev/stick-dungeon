@@ -1,44 +1,52 @@
-function Tree(x, y) {
+function Tree(x, y, settings) {
 	/*
-	dead tree, comes with the planter and everything
+	This object represents a dead tree (drawn as a fractal) plus the tree's planter box.
 	*/
 	this.x = x;
 	this.y = y;
+	this.maxDepth = settings.maxDepth || 3;
+	this.branchLengths = settings.branchLengths || [40, 30, 20, 10];
+	this.branchAngles = settings.branchAngles || [-60, 0, 60];
+	this.branchWidths = settings.branchWidths || [3, 2, 1];
+	this.trunkHeight = settings.trunkHeight || 60;
+	this.planterWidth = settings.planterWidth || 200;
+	this.planterHeight = settings.planterHeight || 40;
 };
-Tree.method("update", function() {
-	var loc = graphics3D.point3D(this.x + game.camera.getOffsetX(), this.y + game.camera.getOffsetY(), 0.95);
-	loc.x -= game.camera.getOffsetX();
-	loc.y -= game.camera.getOffsetY();
-	collisions.solids.line(loc.x - 6, loc.y - 100, loc.x - 150, loc.y - 100, {walls: ["top"]});
-	collisions.solids.line(loc.x + 6, loc.y - 120, loc.x + 150, loc.y - 120, {walls: ["top"]});
-	collisions.solids.line(loc.x - 5, loc.y - 170, loc.x - 100, loc.y - 180, {walls: ["top"]});
-	collisions.solids.line(loc.x + 5, loc.y - 190, loc.x + 100, loc.y - 200, {walls: ["top"]});
-	collisions.solids.line(loc.x, loc.y - 220, loc.x - 60, loc.y - 230, {walls: ["top"]});
-});
 Tree.method("display", function() {
+	var self = this;
+	function fractalTree(location, initialAngle, angles, depth) {
+		var length = self.branchLengths[depth];
+		angles.forEach(angle => {
+			angle += initialAngle;
+			var branchEnd = Math.rotate(0, -length, angle);
+			c.lineWidth = self.branchWidths[depth];
+			c.strokeLine(location.x, location.y, location.x + branchEnd.x, location.y + branchEnd.y);
+			if(depth + 1 < self.maxDepth) {
+				fractalTree(
+					{ x: location.x + branchEnd.x, y: location.y + branchEnd.y },
+					angle,
+					self.branchAngles[depth + 1],
+					depth + 1
+				);
+			}
+		});
+	}
 	var loc = graphics3D.point3D(this.x, this.y, 0.95);
-		game.dungeon[game.theRoom].render(
-			new RenderingOrderObject(
-				function() {
-					c.fillStyle = "rgb(139, 69, 19)";
-					c.save(); {
-						c.translate(loc.x, loc.y);
-						/* Tree trunk */
-						c.fillPoly(-10, -40, 10, -40, 0, -350);
-						/* 1st branch on left */
-						c.fillPoly(-5, -80, -6, -100, -150, -100);
-						/* 1st branch on right */
-						c.fillPoly(7, -100, 6, -120, 150, -120);
-						/* 2nd branch on left */
-						c.fillPoly(-6, -150, -5, -170, -100, -180);
-						/* 2nd branch on right */
-						c.fillPoly(6, -170, 5, -190, 100, -200);
-						/* 3rd branch on left */
-						c.fillPoly(0, -200, 0, -220, -60, -230);
-					} c.restore();
-				},
-				0.95
-			)
-		);
-	graphics3D.cube(this.x - 100, this.y - 40, 200, 40, 0.91, 1);
+	game.dungeon[game.theRoom].render(
+		new RenderingOrderObject(
+			function() {
+				c.lineWidth = 5;
+				c.strokeStyle = "rgb(139, 69, 19)";
+				c.strokeLine(loc.x, loc.y - self.planterHeight, loc.x, loc.y - self.planterHeight - self.trunkHeight);
+				fractalTree(
+					{ x: loc.x, y: loc.y - self.planterHeight - self.trunkHeight },
+					0,
+					self.branchAngles[0],
+					0
+				);
+			},
+			0.95
+		)
+	);
+	graphics3D.cube(this.x - (this.planterWidth / 2), this.y - this.planterHeight, 200, this.planterHeight, 0.91, 1);
 });

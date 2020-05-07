@@ -925,17 +925,45 @@ var game = {
 					new Room(
 						"ambient6",
 						[
-							new Border("wall-to-left", { x: -450 }),
-							new Border("wall-to-right", { x: 450 }),
+							new Border("wall-to-left", { x: -350 }),
+							new Border("wall-to-right", { x: 350 }),
 							new Border("floor", { y: 0 }),
-							new Border("ceiling-to-left", { x: -250, y: -400 }),
-							new Border("ceiling-to-right", { x: 250, y: -400 }),
+							new Border("ceiling-to-left", { x: -150, y: -400 }),
+							new Border("ceiling-to-right", { x: 150, y: -400 }),
 
-							new Door(-350, 0, ["ambient", "combat", "parkour"]),
-							new Door(350, 0, ["ambient", "combat", "parkour"]),
+							new Door(-250, 0, ["ambient", "combat", "parkour"]),
+							new Door(250, 0, ["ambient", "combat", "parkour"]),
 
-							new LightRay(-250, 500, 0),
-							new Tree(0, 0)
+							new LightRay(-150, 300, 0),
+							new Tree(0, 0,
+								{
+									maxDepth: 3,
+									branchLengths: [40, 30, 20, 10],
+									branchAngles: function() {
+										var angles = [];
+										for(var i = 0; i < 3; i ++) {
+											const MIN_ANGLE = 15;
+											const MAX_ANGLE = 75;
+											var angleSet = [];
+											if(Math.random() < 0.5) {
+												angleSet = [Math.randomInRange(MIN_ANGLE, MAX_ANGLE)];
+											}
+											else {
+												while(angleSet.length === 0 || Math.dist(angleSet[0], angleSet[1]) < 25) {
+													angleSet = [Math.randomInRange(MIN_ANGLE, MAX_ANGLE), Math.randomInRange(MIN_ANGLE, MAX_ANGLE)];
+												}
+											}
+											angleSet = angleSet.concat(angleSet.map(angle => -angle));
+											if(Math.random() < 0.5 || i === 0) {
+												angleSet.push(0);
+											}
+											angles.push(angleSet);
+										}
+										return angles;
+									} (),
+									trunkHeight: Math.randomInRange(45, 75) * 0 + 75
+								}
+							)
 						]
 					)
 				);
