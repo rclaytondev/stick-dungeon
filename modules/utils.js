@@ -1014,6 +1014,13 @@ testing.addTest({
 Math.randomInRange = function(min, max) {
 	return Math.random() * (max - min) + min;
 };
+Math.randomPointInCircle = function(x, y, radius) {
+	var direction = Math.randomInRange(0, 360);
+	var magnitude = Math.randomInRange(0, radius);
+	var point = Math.rotate(0, magnitude, direction);
+	point.x += x, point.y += y;
+	return point;
+};
 Array.method("min", function(func, thisArg) {
 	/*
 	Returns the lowest item, or the item for which func() returns the lowest value.

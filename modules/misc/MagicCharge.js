@@ -40,8 +40,13 @@ MagicCharge.method("update", function() {
 		this.x, this.y,
 		{
 			color: COLORS[this.type],
+			colorVariance: (this.type === "shadow") ? 0 : 50,
+			brightnessVariance: (this.type === "shadow") ? 30 : 0,
 			velocity: 1,
-			size: 10
+			size: 15,
+			shape: "polygon-3",
+			rotation: Math.randomInRange(0, 360),
+			sizeDecay: 1/2
 		}
 	));
 	/* movement */

@@ -57,13 +57,15 @@ Altar.method("update", function() {
 Altar.method("display", function() {
 	if(!this.used) {
 		for(var i = 0; i < 5; i ++) {
+			var location = Math.randomPointInCircle(this.x, this.y, 30)
 			this.particles.push(new Particle(
-				this.x + Math.randomInRange(-20, 20),
-				this.y + Math.randomInRange(-20, 20),
+				location.x, location.y,
 				{
 					color: (this.type === "health") ? "rgb(255, 0, 0)" : "rgb(0, 0, 255)",
+					brightnessVariance: 30,
+					shape: "polygon-3",
 					velocity: 1,
-					size: 10
+					size: 15
 				}
 			));
 		}

@@ -1,37 +1,3 @@
-function Particle(color, x, y, velX, velY, size) {
-	this.color = color;
-	this.x = x;
-	this.y = y;
-	this.z = 1;
-	this.velocity = { x: velX, y: velY };
-	this.size = size;
-	this.opacity = 1;
-};
-Particle.method("display", function() {
-	var self = this;
-	var center = graphics3D.point3D(this.x, this.y, this.z);
-	var radius = this.size * this.z;
-	var display = function() {
-		c.save(); {
-			c.fillStyle = self.color;
-			c.globalAlpha = Math.max(self.opacity, 0);
-			c.fillCircle(center.x, center.y, radius);
-		} c.restore();
-	};
-	game.dungeon[game.theRoom].render(
-		new RenderingOrderObject(
-			display,
-			this.z
-		)
-	);
-});
-Particle.method("update", function() {
-	this.x += this.velocity.x;
-	this.y += this.velocity.y;
-	this.opacity -= 0.05;
-	this.toBeRemoved = (this.opacity <= 0);
-});
-
 /*
 Particle constructor - settings object properties:
  - `color`: an rgb string for the color of the particle.
@@ -72,10 +38,33 @@ function Particle(x, y, settings) {
 	this.destination = settings.destination || null;
 	this.depth = settings.depth || 1;
 	this.gravity = settings.gravity || 0.1;
-	this.rotation = settings.rotation || 0;
+	this.rotation = settings.rotation || Math.randomInRange(0, 360);
 	this.noFill = settings.noFill || false;
 	this.source = settings.source || null;
 	this.age = 0;
+	if(typeof settings.colorVariance === "number" || typeof settings.brightnessVariance === "number") {
+		var color = settings.color;
+		if(color.startsWith("hsl")) {
+			color = utils.color.hslToRGB(color);
+			var red = color[0], green = color[1], blue = color[2];
+		}
+		else {
+			var colorRGB = utils.color.parseRGB(settings.color);
+			var red = colorRGB.red, green = colorRGB.green, blue = colorRGB.blue;
+		}
+		if(typeof settings.colorVariance === "number") {
+			red += Math.randomInRange(-settings.colorVariance, settings.colorVariance);
+			green += Math.randomInRange(-settings.colorVariance, settings.colorVariance);
+			blue += Math.randomInRange(-settings.colorVariance, settings.colorVariance);
+		}
+		if(typeof settings.brightnessVariance === "number") {
+			var brightnessOffset = Math.randomInRange(-settings.brightnessVariance, settings.brightnessVariance);
+			red += brightnessOffset;
+			green += brightnessOffset;
+			blue += brightnessOffset;
+		}
+		this.color = "rgb(" + red + ", " + green + ", " + blue + ")";
+	}
 };
 Particle.method("display", function() {
 	var self = this;
@@ -110,10 +99,10 @@ Particle.method("display", function() {
 					c.translate(location.x, location.y);
 					c.rotate(Math.rad(self.rotation));
 					if(self.noFill) {
-						c.fillPoly(points);
+						c.strokePoly(points);
 					}
 					else {
-						c.strokePoly(points);
+						c.fillPoly(points);
 					}
 				}
 			} c.restore();
@@ -146,7 +135,7 @@ Particle.method("update", function() {
 	this.size -= this.sizeDecay;
 	this.opacity -= this.opacityDecay;
 	this.opacity = Math.constrain(this.opacity, 0, 1);
-	if(this.opacity <= 0) {
+	if(this.opacity <= 0 || this.size <= 0) {
 		this.toBeRemoved = true;
 	}
 });

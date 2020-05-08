@@ -226,6 +226,81 @@ var utils = {
 				))
 			}
 			return "rgb(" + result[0] + ", " + result[1] + ", " + result[2] + ")";
+		},
+		hslToRGB: Function.overload({
+			"number, number, number": function(h, s, l) {
+			    var r, g, b;
+
+			    if(s == 0){
+			        r = g = b = l; // achromatic
+			    }
+				else {
+			        var hue2rgb = function (p, q, t) {
+			            if(t < 0) { t += 1; }
+			            if(t > 1) { t -= 1; }
+			            if(t < 1/6) {
+							return p + (q - p) * 6 * t;
+						}
+			            if(t < 1/2) {
+							return q;
+						}
+			            if(t < 2/3) {
+							return p + (q - p) * (2/3 - t) * 6
+						};
+			            return p;
+			        }
+
+			        var q = (l < 0.5) ? (l * (1 + s)) : (l + s - l * s);
+			        var p = 2 * (l - q);
+			        r = hue2rgb(p, q, h + 1/3);
+			        g = hue2rgb(p, q, h);
+			        b = hue2rgb(p, q, h - 1/3);
+			    }
+
+			    return [Math.round(r * 255), Math.round(g * 255), Math.round(b * 255)];
+			},
+			"string": function(string) {
+				var hsl = utils.color.parseHSL(string);
+				return utils.color.hslToRGB(
+					Math.map(hsl.hue, 0, 360, 0, 1),
+					Math.map(hsl.saturation, 0, 100, 0, 1),
+					Math.map(hsl.brightness, 0, 100, 0, 1)
+				);
+			}
+		}),
+		PARSE_HSL: /^hsl\(([\d.]+), ([\d.]+)%, ([\d.]+)%\)$/g,
+		parseHSL: function(string) {
+			this.PARSE_HSL.lastIndex = 0;
+			if(this.PARSE_HSL.test(string)) {
+				this.PARSE_HSL.lastIndex = 0;
+				var numbers = this.PARSE_HSL.exec(string);
+				var hue = numbers[1], saturation = numbers[2], brightness = numbers[3];
+				return {
+					hue: parseFloat(hue),
+					saturation: parseFloat(saturation),
+					brightness: parseFloat(brightness)
+				};
+			}
+			else {
+				throw new Error("Invalid HSL string; did not match HSL syntax.");
+			}
+		},
+		PARSE_RGB: /^rgb\(([\d.]+), ([\d.]+), ([\d.]+)\)$/g,
+		parseRGB: function(string) {
+			this.PARSE_RGB.lastIndex = 0;
+			if(this.PARSE_RGB.test(string)) {
+				this.PARSE_RGB.lastIndex = 0;
+				var numbers = this.PARSE_RGB.exec(string);
+				var red = numbers[1], green = numbers[2], blue = numbers[3];
+				return {
+					red: parseFloat(red),
+					green: parseFloat(green),
+					blue: parseFloat(blue)
+				};
+			}
+			else {
+				throw new Error("Invalid RGB string; did not match RGB syntax.");
+			}
 		}
 	}
 };

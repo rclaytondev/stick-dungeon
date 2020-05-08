@@ -7,7 +7,7 @@ function Wraith(x, y) {
 	this.hitbox = new utils.geom.Rectangle({
 		left: -50,
 		right: 50,
-		top: -50,
+		top: -60,
 		bottom: 50
 	});
 
@@ -33,8 +33,12 @@ Wraith.method("display", function() {
 			this.y + 50 - (pos * 2),
 			{
 				color: "rgb(0, 0, 0)",
+				brightnessVariance: 20,
 				velocity: 1,
-				size: Math.randomInRange(6, 10)
+				size: Math.randomInRange(6, 10),
+				shape: "polygon-3",
+				size: 13,
+				sizeDecay: 1/20
 			}
 		));
 		this.particles.push(new Particle(
@@ -42,7 +46,8 @@ Wraith.method("display", function() {
 			{
 				color: "rgb(255, 0, 0)",
 				velocity: 0.5,
-				size: Math.randomInRange(2, 4)
+				size: Math.randomInRange(2, 4),
+				shape: "polygon-3"
 			}
 		));
 		this.particles.push(new Particle(
@@ -50,7 +55,8 @@ Wraith.method("display", function() {
 			{
 				color: "rgb(255, 0, 0)",
 				velocity: 0.5,
-				size: Math.randomInRange(2, 4)
+				size: Math.randomInRange(2, 4),
+				shape: "polygon-3"
 			}
 		));
 	}
