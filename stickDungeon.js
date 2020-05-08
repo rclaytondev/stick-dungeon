@@ -893,7 +893,7 @@ var game = {
 		},
 		ambient5: {
 			name: "ambient5",
-			colorScheme: "blue",
+			colorScheme: "all",
 			difficulty: 0,
 			add: function() {
 				game.addRoom(
