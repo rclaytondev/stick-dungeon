@@ -433,7 +433,7 @@ Player.method("update", function() {
 		}
 	});
 	var manaRegen = this.calculateStat("manaRegen") / 100; // `manaRegen` variable is a decimal representing the increase (e.g. 0.15 for 115%)
-	if(utils.frameCount % Math.floor(18 * (1 - this.manaRegen)) === 0 && this.mana < this.maxMana) {
+	if(utils.frameCount % Math.floor(18 * (1 - manaRegen)) === 0 && this.mana < this.maxMana) {
 		this.mana ++;
 	}
 	for(var i = 0; i < this.invSlots.length; i ++) {
