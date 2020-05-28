@@ -1507,8 +1507,6 @@ var game = {
 			/* load enemies in other rooms */
 			p.update();
 
-			game.dungeon[game.inRoom].displayBackground();
-
 			for(var i = 0; i < game.dungeon.length; i ++) {
 				var room = game.dungeon[i];
 				if((game.inRoom === i) || room.getInstancesOf(Enemy).some(enemy => enemy.seesPlayer)) {

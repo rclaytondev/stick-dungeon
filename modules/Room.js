@@ -10,7 +10,7 @@ function Room(type, content, background) {
 };
 Room.method("update", function(index) {
 	if(this.background === null) {
-		this.background = ["plain", "bricks"].randomItem();
+		this.background = ["plain", "bricks-1", "bricks-2", "bricks-3", "bricks-4"].randomItem();
 	}
 	graphics3D.boxFronts = [];
 	debugging.hitboxes = [];
@@ -48,6 +48,9 @@ Room.method("update", function(index) {
 });
 Room.method("display", function() {
 	c.fillCanvas("rgb(100, 100, 100)");
+	if(this.background.startsWith("bricks")) {
+		this.displayBackground();
+	}
 
 	this.content.filter(obj => !obj.absolutePosition).forEach(obj => {
 		if(typeof obj.translate === "function") {
@@ -103,19 +106,111 @@ Room.method("display", function() {
 	});
 });
 Room.method("displayBackground", function() {
-	if(this.background === "bricks") {
-		c.save(); {
-			c.translate((-game.camera.x * 0.9) % 100, (-game.camera.y * 0.9) % 100);
-			c.strokeStyle = "rgb(110, 110, 110)";
-			c.lineWidth = 4;
-			for(var y = -100; y < 900; y += 50) {
-				c.strokeLine(-100, y, 900, y);
-				for(var x = (y % 100 === 0) ? -100 : -50; x < 900; x += 100) {
-					c.strokeLine(x, y, x, y + 50);
-				}
+	const BRICK_SIZE = 20;
+	const BRICK_PATTERNS = [
+		{
+			/* standard interlocking bricks (all 1x2 horizontal) */
+			id: "bricks-1",
+			width: BRICK_SIZE * 4,
+			height: BRICK_SIZE * 2,
+			getPattern: function(patternCanvas) {
+				/* horizontal lines */
+				patternCanvas.strokeLine(0, 0, 4, 0);
+				patternCanvas.strokeLine(0, 1, 4, 1);
+				/* vertical lines - top layer */
+				patternCanvas.strokeLine(1, 0, 1, 1);
+				patternCanvas.strokeLine(3, 0, 3, 1);
+				/* vertical lines - bottom layer */
+				patternCanvas.strokeLine(2, 1, 2, 2);
+				patternCanvas.strokeLine(4, 1, 4, 2);
+				return patternCanvas;
 			}
-		} c.restore();
+		},
+		{
+			/* wide (1x3 units) and square (1x1 units) bricks in rows ("flemish bond" brick pattern) */
+			id: "bricks-2",
+			width: BRICK_SIZE * 4,
+			height: BRICK_SIZE * 2,
+			getPattern: function(patternCanvas) {
+				/* horizontal lines */
+				patternCanvas.strokeLine(0, 0, 4, 0);
+				patternCanvas.strokeLine(0, 1, 4, 1);
+				/* vertical lines - top layer */
+				patternCanvas.strokeLine(1, 0, 1, 1);
+				patternCanvas.strokeLine(4, 0, 4, 1);
+				/* vertical lines - bottom layer */
+				patternCanvas.strokeLine(2, 1, 2, 2);
+				patternCanvas.strokeLine(3, 1, 3, 2);
+				return patternCanvas;
+			}
+		},
+		{
+			/* tiled 3x3 grids of 2x1 / 1x2 bricks rotated around a central 1x1 brick ("spanish bond" brick pattern) */
+			id: "bricks-3",
+			width: BRICK_SIZE * 3,
+			height: BRICK_SIZE * 3,
+			getPattern: function(patternCanvas) {
+				patternCanvas.strokeRect(0, 0, 2, 1);
+				patternCanvas.strokeRect(2, 0, 1, 2);
+				patternCanvas.strokeRect(0, 1, 1, 2);
+				patternCanvas.strokeRect(1, 2, 2, 1);
+				return patternCanvas;
+			}
+		},
+		{
+			/* 4x4 patterns, tiled to fill screen - "boxed basketweave" brick pattern */
+			id: "bricks-4",
+			width: BRICK_SIZE * 8,
+			height: BRICK_SIZE * 8,
+			getPattern: function(patternCanvas) {
+				function displayPatternUnit(x, y, rotated) {
+					patternCanvas.save(); {
+						patternCanvas.translate(x + 2, y + 2);
+						if(rotated) {
+							patternCanvas.rotate(Math.rad(90));
+						}
+						patternCanvas.translate(-2, -2);
+						patternCanvas.strokeRect(0, 0, 2, 1);
+						patternCanvas.strokeRect(2, 0, 2, 1);
+						patternCanvas.strokeRect(0, 1, 1, 2);
+						patternCanvas.strokeRect(3, 1, 1, 2);
+						patternCanvas.strokeRect(1, 1, 2, 1);
+						patternCanvas.strokeRect(1, 2, 2, 1);
+						patternCanvas.strokeRect(0, 3, 2, 1);
+						patternCanvas.strokeRect(2, 3, 2, 1);
+					} patternCanvas.restore();
+				};
+				displayPatternUnit(0, 0, false);
+				displayPatternUnit(4, 0, true);
+				displayPatternUnit(0, 4, true);
+				displayPatternUnit(4, 4, false);
+				return patternCanvas;
+			}
+		}
+	];
+	var pattern = BRICK_PATTERNS.find(pattern => pattern.id === this.background);
+	if(pattern == undefined) {
+		throw new Error("Invalid room background value of '" + this.background + "'.");
 	}
+	var patternCanvasElement = document.createElement("canvas");
+	patternCanvasElement.width = pattern.width;
+	patternCanvasElement.height = pattern.height;
+	var patternCanvas = patternCanvasElement.getContext("2d");
+	patternCanvas.fillCanvas("rgb(100, 100, 100)");
+	patternCanvas.strokeStyle = "rgb(110, 110, 110)";
+	patternCanvas.lineWidth = 2 / BRICK_SIZE;
+	patternCanvas.scale(BRICK_SIZE, BRICK_SIZE);
+	patternCanvas = pattern.getPattern(patternCanvas);
+	var patternObject = c.createPattern(patternCanvasElement, "repeat");
+	var patternOffset = {
+		x: (-game.camera.x * 0.9) % pattern.width,
+		y: (-game.camera.y * 0.9) % pattern.height
+	};
+	c.fillStyle = patternObject;
+	c.save(); {
+		c.translate(patternOffset.x, patternOffset.y);
+		c.fillRect(-patternOffset.x, -patternOffset.y, canvas.width, canvas.height);
+	} c.restore();
 });
 Room.method("displayShadowEffect", function() {
 	var gradient = c.createRadialGradient(400, 400, 0, 400, 400, 600);
