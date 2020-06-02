@@ -175,11 +175,12 @@ var debugging = {
 	},
 	keyAbilities: {
 		/*
-		This object is used for special abilities given while testing. (You have to enable SPECIAL_KEYBINDS to turn these on)
+		This object is used for special abilities given while testing. (You have to enable ABILITY_KEYS to turn these on)
 		 - Ability to cycle through all the doors in a room, teleporting the player to the next / previous door
 		 - Ability to enter a door and skip the fading screen animation
 		 - Ability to kill all enemies in the room
 		 - Ability to kill all enemies in all rooms
+		Plus some others, not listed here.
 		To add a new key ability, define a method on the `keyBinds` object below to return whether or not to activate the key ability for a given keyset. Then define a function on this object (with the same name) that should be run when the keys are pressed.
 		*/
 		keyBinds: {
@@ -187,7 +188,9 @@ var debugging = {
 			goToPreviousDoor: (keySet) => keySet.Tab && (keySet.ShiftLeft || keySet.ShiftRight),
 			enterDoorWithoutTransition: (keySet) => keySet.KeyQ,
 			killEnemiesInRoom: (keySet) => keySet.KeyW && !(keySet.ShiftLeft || keySet.ShiftRight),
-			killAllEnemies: (keySet) => keySet.KeyW && (keySet.ShiftLeft || keySet.ShiftRight)
+			killAllEnemies: (keySet) => keySet.KeyW && (keySet.ShiftLeft || keySet.ShiftRight),
+			toggleFlight: (keySet) => keySet.KeyF,
+			openAllChests: (keySet) => (keySet === io.keys) ? keySet.KeyC : false
 		},
 
 		checkForKeyAbilities: function() {
@@ -239,6 +242,22 @@ var debugging = {
 			game.dungeon.forEach((room) => {
 				room.content.filter(obj => obj instanceof Enemy).forEach((enemy) => { enemy.hurt(10000); });
 			});
+		},
+
+		toggleFlight: function() {
+			debugging.keyAbilities.isFlying = !debugging.keyAbilities.isFlying;
+			p.velocity = { x: 0, y: 0 };
+		},
+		isFlying: false,
+		HORIZONTAL_FLIGHT_SPEED: 8,
+		VERTICAL_FLIGHT_SPEED: 10,
+
+		openAllChests: function() {
+			var chests = game.dungeon[game.inRoom].getInstancesOf(Chest);
+			chests = chests.filter(chest => !chest.opening);
+			if(chests.length !== 0) {
+				chests[0].opening = true;
+			}
 		}
 	}
 };

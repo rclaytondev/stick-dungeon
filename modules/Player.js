@@ -373,18 +373,34 @@ Player.method("update", function() {
 		}
 	}
 	/* Movement + Jumping */
-	if(this.guiOpen === "none") {
-		if(io.keys.ArrowLeft) {
-			this.velocity.x -= 0.1;
+	if(debugging.keyAbilities.isFlying) {
+		if(io.keys.ArrowUp) {
+			this.y -= debugging.keyAbilities.VERTICAL_FLIGHT_SPEED;
 		}
-		else if(io.keys.ArrowRight) {
-			this.velocity.x += 0.1;
+		if(io.keys.ArrowDown) {
+			this.y += debugging.keyAbilities.VERTICAL_FLIGHT_SPEED;
+		}
+		if(io.keys.ArrowLeft) {
+			this.x -= debugging.keyAbilities.HORIZONTAL_FLIGHT_SPEED;
+		}
+		if(io.keys.ArrowRight) {
+			this.x += debugging.keyAbilities.HORIZONTAL_FLIGHT_SPEED;
 		}
 	}
-	this.x += this.velocity.x;
-	this.y += this.velocity.y;
-	if(io.keys.ArrowUp && this.canJump && !this.aiming) {
-		this.velocity.y = -10;
+	else {
+		if(this.guiOpen === "none") {
+			if(io.keys.ArrowLeft) {
+				this.velocity.x -= 0.1;
+			}
+			else if(io.keys.ArrowRight) {
+				this.velocity.x += 0.1;
+			}
+		}
+		this.x += this.velocity.x;
+		this.y += this.velocity.y;
+		if(io.keys.ArrowUp && this.canJump && !this.aiming) {
+			this.velocity.y = -10;
+		}
 	}
 	/* Velocity Cap */
 	if(this.velocity.x > 4) {
@@ -400,7 +416,9 @@ Player.method("update", function() {
 	if(this.invSlots[this.activeSlot].content instanceof MeleeWeapon && !(this.invSlots[this.activeSlot].content instanceof Dagger) && this.class !== "warrior") {
 		this.velocity.x *= 0.965; // non-warriors walk slower when holding a melee weapon
 	}
-	this.velocity.y += 0.3;
+	if(!debugging.keyAbilities.isFlying) {
+		this.velocity.y += 0.3;
+	}
 	/* Screen Transitions */
 	if(this.enteringDoor) {
 		this.op -= 0.05;
