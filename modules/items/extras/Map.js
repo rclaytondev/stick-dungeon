@@ -44,6 +44,9 @@ Map.method("getDesc", function() {
 });
 Map.method("whenItemHeld", function() {
 	var highlighedDoor = Map.getHighlightedDoor();
+	if(highlighedDoor === null) {
+		return;
+	}
 	const DOOR_PARTICLE_MARGIN = 5; // distance between particles and door
 	if(highlighedDoor.type === "arch") {
 		var particleLocations = [];
@@ -194,11 +197,15 @@ Map.method("whenItemHeld", function() {
 Map.getHighlightedDoor = function() {
 	var room = game.dungeon[game.inRoom];
 	var doors = room.getInstancesOf(Door);
-	if(doors.length === 1) {
-		return doors.onlyItem();
+	var unBarricaded = doors.filter(door => !door.barricaded);
+	if(unBarricaded.length === 1) {
+		return unBarricaded.onlyItem();
+	}
+	else if(unBarricaded.length === 0) {
+		return null;
 	}
 	if(room.containsUnexploredDoor()) {
-		var unexplored = doors.filter(door => typeof door.dest !== "number");
+		var unexplored = unBarricaded.filter(door => typeof door.dest !== "number");
 		var rewardDoors = unexplored.filter(door => door.dest.includes("reward"));
 		if(rewardDoors.length > 0) {
 			return rewardDoors.min(door => Math.dist(door.x, door.y, p.x, p.y));
@@ -208,11 +215,11 @@ Map.getHighlightedDoor = function() {
 		}
 	}
 	else {
-		doors.forEach(door => {
+		unBarricaded.forEach(door => {
 			var destinationRoom = door.getDestinationRoom();
 			destinationRoom.mapDistance = Map.calculatePaths(destinationRoom, door);
 		});
-		return doors.min(door => Math.dist(door.x, door.y, p.x, p.y) + door.getDestinationRoom().mapDistance);
+		return unBarricaded.min(door => Math.dist(door.x, door.y, p.x, p.y) + door.getDestinationRoom().mapDistance);
 	}
 };
 Map.calculatePaths = function(room, entrance) {
