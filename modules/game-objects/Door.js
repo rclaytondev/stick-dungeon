@@ -33,6 +33,37 @@ Door.method("display", function() {
 					c.fillStyle = "rgb(20, 20, 20)";
 					c.fillRect(topLeft.x, topLeft.y - (30 * 0.9), bottomRight.x - topLeft.x, (bottomRight.y - topLeft.y) + (30 * 0.9));
 				}
+
+				/* display fading-back effect with floor behind door */
+				c.save(); {
+					c.beginPath();
+					if(self.type === "arch") {
+						c.rect(topLeft.x, topLeft.y, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y);
+						c.circle(middle.x, topLeft.y, 27);
+					}
+					else if(self.type === "lintel") {
+						c.rect(topLeft.x, topLeft.y - (30 * 0.9), bottomRight.x - topLeft.x, (bottomRight.y - topLeft.y) + (30 * 0.9));
+					}
+					c.clip();
+
+					c.fillStyle = "rgb(150, 150, 150)";
+					var backLeft = graphics3D.point3D(self.x - 30, self.y, 0.75);
+					var backRight = graphics3D.point3D(self.x + 30, self.y, 0.75);
+					c.fillPoly(
+						{ x: topLeft.x - 1, y: bottomRight.y + 1 },
+						backLeft,
+						backRight,
+						{ x: bottomRight.x + 1, y: bottomRight.y + 1 }
+					);
+					var gradient = c.createLinearGradient(middle.x, middle.y, middle.x, graphics3D.point3D(self.x, self.y, 0.75).y);
+					gradient.addColorStop(0, "rgba(20, 20, 20, 0)");
+					gradient.addColorStop(0.5, "rgba(20, 20, 20, 0.6)");
+					gradient.addColorStop(0.7, "rgba(20, 20, 20, 0.8)");
+					gradient.addColorStop(1, "rgb(20, 20, 20)");
+					c.fillStyle = gradient;
+					c.fillRect(topLeft.x, topLeft.y - 30, bottomRight.x - topLeft.x, bottomRight.y - topLeft.y + 30);
+				} c.restore();
+
 				if(self.barricaded) {
 					c.save(); {
 						c.lineWidth = 2;
