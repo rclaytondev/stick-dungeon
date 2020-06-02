@@ -49,6 +49,24 @@ Bridge.method("display", function() {
 			1.1
 		)
 	);
+
+	/* add lighting shadows */
+	var points = [];
+	for(var angle = 180 + (18 * 2); angle <= 360 - (18 * 2); angle += (180 / 20)) {
+		var point = Math.rotate(500, 0, angle);
+		point = graphics3D.point3D(
+			point.x + this.x,
+			point.y + this.y + 500,
+			1.1
+		);
+		points.push(point);
+	}
+	game.dungeon[game.inRoom].lightingObjects.push({
+		type: "polygon",
+		vertices: points,
+		nonCyclic: true,
+		obscurity: 1
+	});
 });
 Bridge.method("update", function() {
 	collisions.solids.circle(this.x, this.y + 500, 500);

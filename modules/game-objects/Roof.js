@@ -32,7 +32,7 @@ Roof.method("update", function() {
 });
 Roof.method("display", function() {
 	if(this.type === "flat") {
-		graphics3D.cube(-100, this.y - 1100, 1000, 1000, 0.9, 1.1);
+		graphics3D.cube(this.x - this.w, this.y - 1100, this.w * 2, 1000, 0.9, 1.1, null, null, { obscuresLight: true });
 	}
 	else if(this.type === "sloped") {
 		graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, [
@@ -68,7 +68,7 @@ Roof.method("display", function() {
 				x: 900,
 				y: -100
 			}
-		]);
+		], { obscuresLight: true });
 	}
 	else if(this.type === "curved") {
 		if(this.points === undefined) {
@@ -90,7 +90,7 @@ Roof.method("display", function() {
 		array.push({x: this.x + this.w, y: this.y});
 		array.push({x: canvas.width + 100, y: this.y});
 		array.push({x: canvas.width + 100, y: -100});
-		graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, array);
+		graphics3D.polygon3D("rgb(110, 110, 110)", "rgb(150, 150, 150)", 0.9, 1.1, array, { obscuresLight: true });
 	}
 });
 Roof.method("translate", function(x, y) {

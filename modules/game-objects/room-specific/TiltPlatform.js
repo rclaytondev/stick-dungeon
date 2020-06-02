@@ -30,7 +30,7 @@ TiltPlatform.method("display", function() {
 			x: -(this.p2.x) + this.platformX,
 			y: -(this.p2.y) + this.platformY
 		}
-	]);
+	], { obscuresLight: true });
 });
 TiltPlatform.method("update", function() {
 	this.p1 = Math.rotate(-75, -10, Math.floor(this.tilt));

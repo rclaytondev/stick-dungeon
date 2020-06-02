@@ -1,4 +1,4 @@
-function RenderingOrderShape(type, location, color, depth, zOrder) {
+function RenderingOrderShape(type, location, color, depth, zOrder, settings) {
 	this.type = type;
 	if(this.type === "poly") {
 		this.type = "polygon";
@@ -13,6 +13,12 @@ function RenderingOrderShape(type, location, color, depth, zOrder) {
 	this.color = color;
 	this.depth = depth;
 	this.zOrder = zOrder || 0; // only used when 2 polygons have the same depth
+	settings = settings || {};
+	this.obscuresLight = settings.obscuresLight || false;
+	this.lightBlockingEdges = settings.lightBlockingEdges || ["left", "right", "top", "bottom"]; // only used for rectangles
+	this.rayVertices = settings.rayVertices || ["top-left", "top-right", "bottom-left", "bottom-right"]; // only used for rectangles
+	this.obscurity = (typeof settings.obscurity === "number") ? settings.obscurity : 1;
+	this.isBeingDebugged = settings.isBeingDebugged || false;
 };
 RenderingOrderShape.method("display", function() {
 	c.fillStyle = this.color;

@@ -7,5 +7,5 @@ Platform.method("update", function() {
 	collisions.solids.rect(this.x, this.y, this.w, 3, {walls: ["top"]});
 });
 Platform.method("display", function() {
-	graphics3D.cube(this.x, this.y, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39");
+	graphics3D.cube(this.x, this.y, this.w, 3, 0.9, 1.1, "rgb(139, 69, 19)", "rgb(159, 89, 39", { obscuresLight: true });
 });

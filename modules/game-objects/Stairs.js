@@ -6,14 +6,34 @@ function Stairs(x, y, numSteps, dir) {
 	if(this.dir === "right") {
 		this.steps = [];
 		for(var x = 0; x < this.numSteps * 20; x += 20) {
-			this.steps.push(new Block(x + this.x, -this.numSteps * 20 + x + this.y, 21, this.numSteps * 20 - x + 1));
+			this.steps.push(new Block(
+				x + this.x, -this.numSteps * 20 + x + this.y,
+				21, this.numSteps * 20 - x + 1,
+				{
+					obscuresLight: true,
+					lightBlockingEdges: ["right", "top"],
+					rayVertices: ["top-right", "top-left"]
+				}
+			));
 		}
+		this.steps[0].rayVertices.remove("top-left");
+		this.steps.lastItem().rayVertices.push("bottom-right");
 	}
 	else {
 		this.steps = [];
 		for(var x = 0; x > -this.numSteps * 20; x -= 20) {
-			this.steps.push(new Block(x - 20 + this.x, -this.numSteps * 20 - x + this.y, 21, this.numSteps * 20 + x + 1));
+			this.steps.push(new Block(
+				x - 20 + this.x, -this.numSteps * 20 - x + this.y,
+				21, this.numSteps * 20 + x + 1,
+				{
+					obscuresLight: true,
+					lightBlockingEdges: ["left", "top"],
+					rayVertices: ["top-right", "top-left"]
+				}
+			));
 		}
+		this.steps[0].rayVertices.remove("top-right");
+		this.steps.lastItem().rayVertices.push("bottom-left");
 	}
 };
 Stairs.method("display", function() {

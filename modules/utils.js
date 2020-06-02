@@ -622,6 +622,9 @@ Math.normalize = function(x, y) {
 	/*
 	Scales the point ('x', 'y') so that it is 1 pixel away from the origin.
 	*/
+	if(x === 0 && y === 0) {
+		return { x: 0, y: 0 };
+	}
 	var dist = Math.dist(0, 0, x, y);
 	return {
 		x: x / dist,
@@ -1200,8 +1203,17 @@ Array.method("randomItem", function() {
 Array.method("randomIndex", function() {
 	return Math.floor(Math.random() * this.length);
 });
-Array.method("removeAll", function(item) {
-	return this.filter(currentItem => currentItem !== item);
+Array.method("remove", function(item) {
+	for(var i = 0; i < this.length; i ++) {
+		if(this[i] === item) {
+			this.splice(i, 1);
+			return;
+		}
+	}
+});
+Array.method("removeAll", function(items) {
+	var args = Array.from(arguments);
+	return this.filter(item => !args.includes(item));
 });
 String.method("startsWith", function(substring) {
 	return this.substring(0, substring.length) === substring;
@@ -1361,3 +1373,10 @@ Object.watchLog = function(object, property) {
 		}
 	});
 };
+Number.method("isBetween", function(num1, num2) {
+	return (num1 <= this && this <= num2) || (num2 <= this && this <= num1);
+});
+Number.method("isApproxBetween", function(num1, num2, buffer) {
+	buffer = buffer || 0.00000001;
+	return (num1 - buffer <= this && this <= num2 + buffer) || (num2 - buffer <= this && this <= num1 + buffer);
+});

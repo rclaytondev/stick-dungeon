@@ -50,7 +50,8 @@ FallBlock.method("display", function() {
 				x: this.x + shakeX,
 				y: this.y + shakeY + 60
 			}
-		]
+		],
+		{ obscuresLight: true }
 	);
 });
 FallBlock.method("reset", function() {

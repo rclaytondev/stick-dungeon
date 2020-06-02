@@ -10,6 +10,12 @@ var debugging = {
 		SHOW_HITBOXES: false,
 		SHOW_FPS: false,
 
+		SHOW_LIGHTING_POLYGONS: false,
+		SHOW_LIGHTING_ALGORITHM: false, // used for miscellaneous lighting algorithm info
+		SHOW_LIGHTING_RAYS: false,
+		DISABLE_LIGHTING_SHADOW: false,
+		DISABLE_RADIAL_SHADOWS: false,
+
 		START_SCREEN: "home",
 		START_ROOM_ID: "ambient1",
 		PLAYER_CLASS: "warrior",

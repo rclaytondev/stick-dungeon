@@ -3,9 +3,9 @@ function Player() {
 	this.x = 500;
 	this.y = 300;
 	this.hitbox = new utils.geom.Rectangle({
-		left: -5,
-		right: 5,
-		top: -7,
+		left: -10,
+		right: 10,
+		top: -3,
 		bottom: 46
 	});
 	/* Animation */

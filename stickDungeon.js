@@ -320,6 +320,10 @@ var graphics3D = {
 		settings = settings || {};
 		settings.noFrontExtended = settings.noFrontExtended || false;
 		settings.sideColors = settings.sideColors || {left: sideCol, right: sideCol, top: sideCol, bottom: sideCol};
+		settings.obscuresLight = settings.obscuresLight || false;
+		settings.lightBlockingEdges = settings.lightBlockingEdges || ["left", "right", "top", "bottom"];
+		settings.rayVertices = settings.rayVertices || ["top-left", "top-right", "bottom-left", "bottom-right"];
+		settings.obscurity = (typeof settings.obscurity === "number") ? settings.obscurity : 1;
 		if(frontDepth < backDepth) {
 			throw new Error("frontDepth (" + frontDepth + ") must be greater than backDepth (" + backDepth + ")");
 		}
@@ -383,7 +387,15 @@ var graphics3D = {
 						h: bottomRightF.y - topLeftF.y
 					},
 					frontCol,
-					frontDepth
+					frontDepth,
+					null,
+					{
+						obscuresLight: settings.obscuresLight,
+						lightBlockingEdges: settings.lightBlockingEdges,
+						rayVertices: settings.rayVertices,
+						obscurity: settings.obscurity,
+						isBeingDebugged: settings.isBeingDebugged
+					}
 				)
 			);
 		}
@@ -420,6 +432,8 @@ var graphics3D = {
 		);
 	},
 	polygon3D: function(frontCol, sideCol, backDepth, frontDepth, points, settings) {
+		settings = settings || {};
+		settings.obscuresLight = (typeof settings.obscuresLight === "boolean") ? settings.obscuresLight : false;
 		/*
 		Draws a sideways polygonal prism w/ base defined by 'points' array, w/ front color 'frontCol' and side color 'sideCol' going from 'frontDepth' to 'backDepth'.
 		*/
@@ -448,6 +462,10 @@ var graphics3D = {
 				frontVertices,
 				frontCol,
 				frontDepth,
+				0,
+				{
+					obscuresLight: settings.obscuresLight
+				}
 			)
 		);
 	},
@@ -659,6 +677,143 @@ var collisions = {
 		}
 		return collisions.pointIntersectsCircle(point, circle);
 	},
+	lineIntersectsLine: function(line1A, line1B, line2A, line2B) {
+		/*
+		Finds the intersection of two lines (infinitely long), one going through the points line1A and line1B, and another going through the points line2A and line2B.
+		*/
+
+		/* special cases for vertical lines */
+		if(line1B.x === line1A.x || line2B.x === line2A.x) {
+			if(line1B.x === line1A.x && line2B.y === line2A.y) {
+				/* line 1 is vertical and line 2 is horizontal */
+				return { x: line1A.x, y: line2B.y };
+			}
+			if(line2B.x === line2A.x && line1B.y === line1A.y) {
+				/* line 2 is vertical and line 1 is horizontal */
+				return { x: line2A.x, y: line1B.y };
+			}
+			/* a line is vertical (undefined slope). switch x and y values (making it horizontal), calculate, and then switch x and y again to cancel out. */
+			[line1A.x, line1A.y] = [line1A.y, line1A.x];
+			[line1B.x, line1B.y] = [line1B.y, line1B.x];
+			[line2A.x, line2A.y] = [line2A.y, line2A.x];
+			[line2B.x, line2B.y] = [line2B.y, line2B.x];
+			var result = this.lineIntersectsLine(line1A, line1B, line2A, line2B);
+			if(result === null) { return result; }
+			[result.x, result.y] = [result.y, result.x];
+			return result;
+		}
+
+		/* convert to slope-intercept form to make calculations easier */
+		var slope1 = (line1B.y - line1A.y) / (line1B.x - line1A.x);
+		var slope2 = (line2B.y - line2A.y) / (line2B.x - line2A.x);
+		if(slope1 === slope2) {
+			return null; // lines are paralell - no intersection
+		}
+		var intercept1 = line1A.y - (slope1 * line1A.x);
+		var intercept2 = line2A.y - (slope2 * line2A.x);
+
+		/* solve equations */
+		var xValue = (intercept2 - intercept1) / (slope1 - slope2)
+		return {
+			x: xValue,
+			y: (slope1 * xValue) + intercept1
+		};
+	},
+	rayIntersectsRectangle: function(rayOrigin, rayDirection, rect, sides) {
+		sides = sides || ["left", "right", "top", "bottom"];
+		var intersections = [
+			(sides.includes("left")
+				? this.rayIntersectsSegment(
+					rayOrigin, rayDirection,
+					{ x: rect.x, y: rect.y },
+					{ x: rect.x, y: rect.y + rect.h }
+				)
+				: null
+			),
+			(sides.includes("right")
+				? this.rayIntersectsSegment(
+					rayOrigin, rayDirection,
+					{ x: rect.x + rect.w, y: rect.y },
+					{ x: rect.x + rect.w, y: rect.y + rect.h }
+				)
+				: null
+			),
+			(sides.includes("top")
+				? this.rayIntersectsSegment(
+					rayOrigin, rayDirection,
+					{ x: rect.x, y: rect.y },
+					{ x: rect.x + rect.w, y: rect.y }
+				)
+				: null
+			),
+			(sides.includes("bottom")
+				? this.rayIntersectsSegment(
+					rayOrigin, rayDirection,
+					{ x: rect.x, y: rect.y + rect.h },
+					{ x: rect.x + rect.w, y: rect.y + rect.h }
+				)
+				: null
+			),
+		].filter(intersection => intersection !== null);
+		if(intersections.length === 0) { return null; }
+		return intersections.min(intersection => Math.distSq(intersection.x, intersection.y, rayOrigin.x, rayOrigin.y));
+	},
+	rayIntersectsSegment: function(rayOrigin, rayDirection, endPoint1, endPoint2) {
+		var pointOnRay = {
+			x: rayOrigin.x + rayDirection.x,
+			y: rayOrigin.y + rayDirection.y
+		};
+
+		// RAY in parametric: Point + Delta*T1
+		var r_px = rayOrigin.x;
+		var r_py = rayOrigin.y;
+		var r_dx = pointOnRay.x-rayOrigin.x;
+		var r_dy = pointOnRay.y-rayOrigin.y;
+
+		// SEGMENT in parametric: Point + Delta*T2
+		var s_px = endPoint1.x;
+		var s_py = endPoint1.y;
+		var s_dx = endPoint2.x-endPoint1.x;
+		var s_dy = endPoint2.y-endPoint1.y;
+
+		// Are they parallel? If so, no intersect
+		var r_mag = Math.sqrt(r_dx*r_dx+r_dy*r_dy);
+		var s_mag = Math.sqrt(s_dx*s_dx+s_dy*s_dy);
+		if(r_dx/r_mag==s_dx/s_mag && r_dy/r_mag==s_dy/s_mag){
+			// Unit vectors are the same.
+			return null;
+		}
+
+		// SOLVE FOR t1 & t2
+		// r_px+r_dx*t1 = s_px+s_dx*t2 && r_py+r_dy*t1 = s_py+s_dy*t2
+		// ==> t1 = (s_px+s_dx*t2-r_px)/r_dx = (s_py+s_dy*t2-r_py)/r_dy
+		// ==> s_px*r_dy + s_dx*t2*r_dy - r_px*r_dy = s_py*r_dx + s_dy*t2*r_dx - r_py*r_dx
+		// ==> t2 = (r_dx*(s_py-r_py) + r_dy*(r_px-s_px))/(s_dx*r_dy - s_dy*r_dx)
+		var t2 = (r_dx*(s_py-r_py) + r_dy*(r_px-s_px))/(s_dx*r_dy - s_dy*r_dx);
+		var t1 = (s_px+s_dx*t2-r_px)/r_dx;
+
+		if(t1<0) return null;
+		if(t2<0 || t2>1) return null;
+
+		// Return the POINT OF INTERSECTION
+		return {
+			x: r_px+r_dx*t1,
+			y: r_py+r_dy*t1,
+			param: t1
+		};
+	},
+	segmentIntersectsSegment: function(line1A, line1B, line2A, line2B) {
+		var intersection = this.lineIntersectsLine(line1A.clone(), line1B.clone(), line2A.clone(), line2B.clone());
+		if(
+			!intersection.x.isApproxBetween(line1A.x, line1B.x) ||
+			!intersection.y.isApproxBetween(line1A.y, line1B.y) ||
+			!intersection.x.isApproxBetween(line2A.x, line2B.x) ||
+			!intersection.y.isApproxBetween(line2A.y, line2B.y)
+		) {
+			return null;
+		}
+		return intersection;
+	},
 
 	objectIntersectsObject: function(obj1, obj2) {
 		if(!(obj1.hitbox instanceof utils.geom.Rectangle && obj2.hitbox instanceof utils.geom.Rectangle)) {
@@ -687,7 +842,137 @@ var collisions = {
 	},
 	objectIntersectsCircle: function(obj, circle) {
 		return collisions.rectangleIntersectsCircle(obj.hitbox.translate(obj.x, obj.y), circle);
-	}
+	},
+
+	initializedCollisionTests: function() {
+		testing.addTest({
+			run: function() {
+				var result1 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: 0, y: 0 },
+					{ x: 1, y: 1 },
+					/* line 2 */
+					{ x: 0, y: 0 },
+					{ x: -1, y: 1 }
+				);
+				testing.assert(result1.x === 0 && result1.y === 0);
+				var result2 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: 0, y: 0 },
+					{ x: 10, y: 10 },
+					/* line 2 */
+					{ x: 0, y: 10 },
+					{ x: 10, y: 0 }
+				);
+				testing.assert(result2.x === 5 && result2.y === 5);
+				var result3 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: -5, y: 0 },
+					{ x: -4, y: 2 },
+					/* line 2 */
+					{ x: 5, y: 0 },
+					{ x: 4, y: 2 }
+				);
+				testing.assert(result3.x === 0 && result3.y === 10);
+			},
+			unit: "collisions.lineIntersectsLine()",
+			name: "basic functionality"
+		});
+		testing.addTest({
+			run: function() {
+				var result1 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: 0, y: 0 },
+					{ x: 1, y: 1 },
+					/* line 2 */
+					{ x: 0, y: 0 },
+					{ x: -1, y: -1 }
+				);
+				testing.assert(result1 === null);
+				var result2 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: 0, y: 0 },
+					{ x: 1, y: 1 },
+					/* line 2 */
+					{ x: 10, y: 10 },
+					{ x: 11, y: 11 }
+				);
+				testing.assert(result2 === null);
+			},
+			unit: "collisions.lineIntersectsLine()",
+			name: "return null for paralell lines"
+		});
+		testing.addTest({
+			run: function() {
+				var result1 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: 7, y: -100 },
+					{ x: 7, y: 100 },
+					/* line 2 */
+					{ x: 0, y: 0 },
+					{ x: 1, y: 1 }
+				);
+				testing.assert(result1.x === 7 && result1.y === 7);
+				var result2 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: 7, y: -100 },
+					{ x: 7, y: 100 },
+					/* line 2 */
+					{ x: 5, y: -100 },
+					{ x: 5, y: 100 }
+				);
+				testing.assert(result2 === null);
+				var result3 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: 7, y: -100 },
+					{ x: 7, y: 100 },
+					/* line 2 */
+					{ x: -100, y: 4 },
+					{ x: 100, y: 4 }
+				);
+				testing.assert(result3.x === 7 && result3.y === 4);
+				var result4 = collisions.lineIntersectsLine(
+					/* line 1 */
+					{ x: -100, y: 4 },
+					{ x: 100, y: 4 },
+					/* line 2 */
+					{ x: 7, y: -100 },
+					{ x: 7, y: 100 }
+				);
+				testing.assert(result4.x === 7 && result4.y === 4);
+			},
+			unit: "collisions.lineIntersectsLine()",
+			name: "correctly handle vertical lines"
+		});
+
+		testing.addTest({
+			run: function() {
+				var intersection = collisions.rayIntersectsSegment(
+					{ x: 0, y: 0 },
+					{ x: 1, y: 1 },
+					{ x: 0, y: 10 },
+					{ x: 10, y: 0 }
+				);
+				testing.assert(intersection.x === 5 && intersection.y === 5);
+			},
+			unit: "collisions.rayIntersectsSegment()",
+			name: "works correctly for points on ray and line"
+		});
+		testing.addTest({
+			run: function() {
+				var intersection = collisions.rayIntersectsSegment(
+					{ x: 0, y: 0 },
+					{ x: 1, y: 1 },
+					{ x: -10, y: 0 },
+					{ x: 0, y: -10 }
+				);
+				testing.assert(intersection === null);
+			},
+			unit: "collisions.rayIntersectsSegment()",
+			name: "works correctly for points on line but not on ray"
+		});
+		return true;
+	} ()
 };
 var game = {
 	initializedTests: function() {
@@ -1372,11 +1657,11 @@ var game = {
 							new Door(-150, 0, ["combat", "parkour"], false, true),
 							new Door(150, 0, ["combat", "parkour"], false, true),
 
-							new Block(-40, -40, 80, 40),
+							new Block(-40, -40, 80, 40, { lightBlockingEdges: ["top"], rayVertices: [] }),
 							new Stairs(-40, 0, 2, "left"),
 							new Stairs(40, 0, 2, "right"),
 
-							new Block(-60, -201, 120, 41),
+							new Block(-60, -180, 120, 20),
 							new Block(-80, -200, 160, 20),
 
 							new Altar(0, -100, chooser < 0.5 ? "health" : "mana")
@@ -1539,7 +1824,6 @@ var game = {
 
 			game.theRoom = game.inRoom;
 			game.dungeon[game.inRoom].display();
-			game.dungeon[game.inRoom].displayShadowEffect();
 
 			var locationBeforeOffset = { x: p.x, y: p.y };
 			p.x += game.camera.getOffsetX();
@@ -1877,7 +2161,6 @@ var game = {
 			game.dungeon.onlyItem().update(0);
 			game.dungeon.onlyItem().display();
 
-			game.dungeon[game.inRoom].displayShadowEffect();
 			p.x += game.camera.getOffsetX();
 			p.y += game.camera.getOffsetY();
 			p.display();
