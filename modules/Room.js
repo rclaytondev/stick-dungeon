@@ -13,6 +13,12 @@ Room.method("update", function(index) {
 	if(this.background === null) {
 		this.background = ["plain", "bricks-1", "bricks-2", "bricks-3", "bricks-4"].randomItem();
 	}
+	else if(this.background === "simple-bricks") {
+		this.background = ["bricks-1", "bricks-2"].randomItem();
+	}
+	else if(this.background === "detailed-bricks") {
+		this.background = ["bricks-3", "bricks-4"].randomItem();
+	}
 	graphics3D.boxFronts = [];
 	debugging.hitboxes = [];
 	collisions.collisions = [];

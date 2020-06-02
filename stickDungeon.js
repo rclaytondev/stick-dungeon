@@ -1164,7 +1164,8 @@ var game = {
 							new Pillar(-100, 0, 200),
 							new Pillar(100, 0, 200),
 							new Pillar(300, 0, 200)
-						]
+						],
+						"simple-bricks"
 					)
 				);
 			}
@@ -1191,7 +1192,8 @@ var game = {
 							new Torch(-50, -60),
 							new Torch(50, -60),
 							new Torch(150, -60),
-						]
+						],
+						"simple-bricks"
 					)
 				);
 			}
@@ -1216,7 +1218,8 @@ var game = {
 
 							new Border("floor-to-left", { x: 200, y: -200 }),
 							new Stairs(200, 0, 10, "right"),
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1247,6 +1250,7 @@ var game = {
 							new FallBlock(80, 0),
 							new FallBlock(120, 0),
 						],
+						"simple-bricks"
 					)
 				);
 			}
@@ -1270,7 +1274,7 @@ var game = {
 
 							new Fountain(0, 0)
 						],
-						"plain"
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1324,7 +1328,8 @@ var game = {
 									trunkHeight: Math.randomInRange(45, 75) * 0 + 75
 								}
 							)
-						]
+						],
+						"simple-bricks"
 					)
 				);
 			}
@@ -1361,7 +1366,8 @@ var game = {
 							new Statue(0, -130),
 							new Decoration(-100, -50),
 							new Decoration(100, -50)
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			},
@@ -1396,7 +1402,8 @@ var game = {
 							new RandomEnemy(0, 0),
 							new Decoration(300, -50), new Decoration(-300, -50),
 							new Decoration(150, -50), new Decoration(-150, -50)
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1425,7 +1432,8 @@ var game = {
 							new Stairs(100, 0, 10, "right"),
 							new RandomEnemy(-400, 0),
 							new RandomEnemy(400, 0)
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1482,7 +1490,8 @@ var game = {
 							new Pillar(-150, 0, 200),
 							new Pillar(150, 0, 200),
 							new Pillar(400, Border.LARGE_NUMBER, Border.LARGE_NUMBER - 50)
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1516,7 +1525,8 @@ var game = {
 							new FallBlock(300, -50),
 							new FallBlock(400, -25),
 							new Roof(0, -300, 700)
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1542,7 +1552,8 @@ var game = {
 
 							new Block(-100, 200, 200, Border.LARGE_NUMBER),
 							new Pulley(-350, 150, 200, 150, 200, 150),
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1568,7 +1579,8 @@ var game = {
 							new TiltPlatform(400, -200),
 							new TiltPlatform(600, -100),
 							new Roof(500, -500, 500)
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1597,7 +1609,8 @@ var game = {
 							new Block(500, -400, 200, 100),
 							new Pulley(-400, 200, 200, 200, -150, 150),
 							new TiltPlatform(0, -100)
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}
@@ -1619,7 +1632,8 @@ var game = {
 							new Chest(-100, 0),
 							new Chest(100, 0),
 							new Door(0, 0, "")
-						]
+						],
+						"simple-bricks"
 					)
 				)
 			}
@@ -1665,7 +1679,8 @@ var game = {
 							new Block(-80, -200, 160, 20),
 
 							new Altar(0, -100, chooser < 0.5 ? "health" : "mana")
-						]
+						],
+						"simple-bricks"
 					)
 				);
 				game.dungeon.lastItem().colorScheme = (chooser < 0.5) ? "red" : "blue";
@@ -1689,7 +1704,8 @@ var game = {
 						new Door(200, 0, ["combat", "parkour"], false, true),
 
 						new Forge(0, 0)
-					]
+					],
+					"simple-bricks"
 				));
 			}
 		},
@@ -1714,7 +1730,8 @@ var game = {
 							new Stairs(200, 0, 10, "right"),
 							new Chest(500, 0),
 							new Decoration(500, -100),
-						]
+						],
+						"detailed-bricks"
 					)
 				);
 			}

@@ -3,9 +3,6 @@ function GlassWindow(x, y) {
 	this.y = y;
 	this.color = game.dungeon[game.theRoom].colorScheme;
 };
-GlassWindow.method("update", function() {
-	game.dungeon[game.theRoom].background = "plain";
-});
 GlassWindow.method("display", function() {
 	c.save(); {
 		var center = graphics3D.point3D(this.x, this.y, 0.9);
@@ -16,6 +13,7 @@ GlassWindow.method("display", function() {
 			c.circle(center.x, center.y - 100, 25);
 			c.clip();
 		};
+		clip();
 		c.fillStyle = "rgb(100, 100, 100)";
 		c.fillCanvas();
 		/* background */
