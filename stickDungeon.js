@@ -1860,7 +1860,7 @@ var game = {
 		game.transitions.display();
 
 		if(game.onScreen !== "play" && game.onScreen !== "how") {
-			(new Room()).displayShadowEffect();
+			(new Room()).displayRadialShadow();
 		}
 	},
 
@@ -2551,8 +2551,7 @@ var ui = {
 			game.camera.y = 0;
 			game.inRoom = 0;
 			game.dungeon = [new Room(null, [])];
-			new Block(-100, 600, 1000, 200).display();
-			game.dungeon[0].display();
+			game.dungeon[0].displayImmediately(function() { new Block(-100, 600, 1000, 200).display(); });
 			/* title */
 			c.fillStyle = "rgb(0, 0, 0)";
 			c.font = "80px Cursive";

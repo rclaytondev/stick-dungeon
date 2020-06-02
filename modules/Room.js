@@ -50,7 +50,7 @@ Room.method("update", function(index) {
 Room.method("display", function() {
 	this.lightingObjects = [];
 	c.fillCanvas("rgb(100, 100, 100)");
-	if(this.background.startsWith("bricks")) {
+	if(this.background !== null && this.background.startsWith("bricks")) {
 		this.displayBackground();
 	}
 
@@ -534,7 +534,7 @@ Room.method("displayShadowEffect", function() {
 					x: p.x + game.camera.getOffsetX() + location.x,
 					y: p.y + game.camera.getOffsetY() + location.y
 				};
-				while((location.x !== 0 || location.y !== 0) && collisions.pointIntersectsRectangle(originPos, { x: collisionPos.x, y: collisionPos.y, w: collision.w, h: collision.h })) {
+				while((Math.dist(location.x, 0) > 0.1 || Math.dist(location.y, 0) > 0.1) && collisions.pointIntersectsRectangle(originPos, { x: collisionPos.x, y: collisionPos.y, w: collision.w, h: collision.h })) {
 					/* move light source toward player */
 					var direction = Math.normalize(location.x, location.y);
 					location.x -= direction.x, location.y -= direction.y;
@@ -560,13 +560,16 @@ Room.method("displayShadowEffect", function() {
 
 
 	if(!debugging.settings.DISABLE_RADIAL_SHADOWS) {
-		var gradient = c.createRadialGradient(400, 400, 0, 400, 400, 450);
-		c.globalAlpha = 1;
-		gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
-		gradient.addColorStop(1, "rgba(0, 0, 0, 255)");
-		c.fillStyle = gradient;
-		c.fillCanvas();
+		this.displayRadialShadow();
 	}
+});
+Room.method("displayRadialShadow", function() {
+	var gradient = c.createRadialGradient(400, 400, 0, 400, 400, 450);
+	c.globalAlpha = 1;
+	gradient.addColorStop(0, "rgba(0, 0, 0, 0)");
+	gradient.addColorStop(1, "rgba(0, 0, 0, 255)");
+	c.fillStyle = gradient;
+	c.fillCanvas();
 });
 Room.method("getBorderLightBoundaries", function() {
 	/*
