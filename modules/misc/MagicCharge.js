@@ -53,8 +53,9 @@ MagicCharge.method("update", function() {
 	this.x += this.velocity.x;
 	this.y += this.velocity.y;
 	/* collision with enemies + objects */
+	var room = game.dungeon[game.theRoom];
 	if(this.shotBy !== "enemy") {
-		game.dungeon[game.theRoom].getInstancesOf(Enemy).forEach(enemy => {
+		room.getInstancesOf(Enemy).forEach((enemy) => {
 			if(collisions.objectIntersectsObject(this, enemy)) {
 				this.toBeRemoved = true;
 				enemy.hurt(this.damage);
@@ -63,14 +64,11 @@ MagicCharge.method("update", function() {
 				}
 				if(this.type === "chaos") {
 					var hp = enemy.health;
-					game.dungeon[game.theRoom].content[i] = new RandomEnemy(enemy.x, enemy.y + enemy.hitbox.bottom, enemy.constructor);
-					game.dungeon[game.theRoom].content[i].generate();
-					game.dungeon[game.theRoom].content[i].health = hp;
-					if(game.dungeon[game.theRoom].content[i].health > game.dungeon[game.theRoom].content[i].maxHealth) {
-						game.dungeon[game.theRoom].content[i].health = game.dungeon[game.theRoom].content[i].maxHealth;
-					}
-					game.dungeon[game.theRoom].content.splice(game.dungeon[game.theRoom].content.length - 1, 1);
-					return;
+					var index = room.content.indexOf(enemy);
+					room.content[index] = new RandomEnemy(enemy.x, enemy.y + enemy.hitbox.bottom, enemy.constructor); // replace enemy with RandomEnemy object
+					room.content[index].generate();
+					var newEnemy = room.content.lastItem();
+					newEnemy.health = Math.min(hp, newEnemy.maxHealth);
 				}
 			}
 		});
