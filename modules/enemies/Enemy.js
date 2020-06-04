@@ -56,7 +56,7 @@ Enemy.method("update", function() {
 				var destinationRoom = door.getDestinationRoom();
 				if(destinationRoom !== null && destinationRoom.pathScore < game.dungeon[game.theRoom].pathScore) {
 					this.update({ x: door.x, y: door.y });
-					if(door.isEnemyNear(this)) {
+					if(door.isEnemyNear(this) && !door.barricaded) {
 						door.enter(this);
 					}
 				}
