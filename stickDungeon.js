@@ -2480,14 +2480,17 @@ var ui = {
 			var stickFigure = new Player();
 			stickFigure.x = this.x;
 			stickFigure.y = this.y + this.offsetY - stickFigure.hitbox.bottom;
+			var self = this;
 			if(this.player === "warrior") {
 				game.dungeon[game.theRoom].render(new RenderingOrderObject(
 					function() {
 						stickFigure.display(true);
-						c.translate(this.x + 15, this.y + this.offsetY - 30);
-						c.scale(1, 0.65);
-						c.rotate(Math.rad(180));
-						new Sword().display("attacking");
+						c.save(); {
+							c.translate(self.x + 15, self.y + self.offsetY - 30);
+							c.scale(1, 0.65);
+							c.rotate(Math.rad(180));
+							new Sword().display("attacking");
+						} c.restore();
 					},
 					1
 				));
@@ -2645,15 +2648,17 @@ var ui = {
 			game.inRoom = 0;
 			game.dungeon = [new Room(null, [])];
 			game.dungeon[game.inRoom].renderingObjects = [];
-			new Block(-100, 600, 1000, 200).display();
 			/* buttons */
-			this.warriorButton.displayPlatform();
-			this.archerButton.displayPlatform();
-			this.mageButton.displayPlatform();
-			this.warriorButton.displayStickFigure();
-			this.archerButton.displayStickFigure();
-			this.mageButton.displayStickFigure();
-			game.dungeon[game.inRoom].display();
+			var self = this;
+			game.dungeon[game.inRoom].displayImmediately(function() {
+				new Block(-100, 600, 1000, 200).display();
+				self.warriorButton.displayPlatform();
+				self.archerButton.displayPlatform();
+				self.mageButton.displayPlatform();
+				self.warriorButton.displayStickFigure();
+				self.archerButton.displayStickFigure();
+				self.mageButton.displayStickFigure();
+			});
 
 
 			c.fillStyle = "rgb(150, 150, 150)";

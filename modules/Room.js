@@ -634,8 +634,7 @@ Room.method("render", function(object) {
 	}
 	this.renderingObjects.lastItem().renderingStyle = this.renderingStyle;
 });
-Room.method("renderAll", function() {
-	/* Displays the objects in the room in order. */
+Room.method("sortRenderingObjects", function() {
 	var sorter = function(a, b) {
 		if(a.depth === b.depth) {
 			return utils.sortAscending(a.zOrder, b.zOrder);
@@ -645,6 +644,10 @@ Room.method("renderAll", function() {
 		}
 	};
 	this.renderingObjects = this.renderingObjects.sort(sorter);
+});
+Room.method("renderAll", function() {
+	/* Displays the objects in the room in order. */
+	this.sortRenderingObjects();
 	c.reset();
 	this.renderingObjects.forEach(obj => {
 		c.save(); {
@@ -686,8 +689,9 @@ Room.method("displayImmediately", function(func, thisArg) {
 	*/
 	var previousLength = this.renderingObjects.length;
 	func.call(thisArg);
+	this.sortRenderingObjects();
 	while(this.renderingObjects.length > previousLength) {
-		var renderingObject = this.renderingObjects.pop();
+		var renderingObject = this.renderingObjects.shift();
 		renderingObject.display();
 	}
 });
