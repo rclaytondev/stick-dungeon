@@ -80,22 +80,12 @@ MagicCharge.method("remove", function() {
 MagicCharge.method("handleCollision", function(direction, collision) {
 	this.toBeRemoved = true;
 	/* teleport player to position for chaos charges */
-	if(this.type === "chaos" && !p.aiming) {
+	if(this.type === "chaos" && !this.beingAimed && game.inRoom === game.theRoom) {
 		p.x = this.x;
-		p.y = this.y;
-		for(var j = 0; j < collisions.length; j ++) {
-			while(p.x + p.hitbox.right > collisions.collisions[i].x && p.x + p.hitbox.left < collisions.collisions[i].x + 10 && p.y + p.hitbox.bottom > collisions.collisions[i].y && p.y + p.hitbox.top < collisions.collisions[i].y + collisions.collisions[i].h) {
-				p.x --;
-			}
-			while(p.x + p.hitbox.left < collisions.collisions[i].x + collisions.collisions[i].w && p.x + p.hitbox.right > collisions.collisions[i].x + collisions.collisions[i].w - 10 && p.y + p.hitbox.bottom > collisions.collisions[i].y && p.y + p.hitbox.top < collisions.collisions[i].y + collisions.collisions[i].h) {
-				p.x ++;
-			}
-			while(p.x + p.hitbox.right > collisions.collisions[i].x && p.x + p.hitbox.left < collisions.collisions[i].x + collisions.collisions[i].w && p.y + p.hitbox.top < collisions.collisions[i].y + collisions.collisions[i].h && p.y + p.hitbox.bottom > collisions.collisions[i].y + collisions.collisions[i].h - 10) {
-				p.y ++;
-			}
-			while(p.x + p.hitbox.right > collisions.collisions[i].x && p.x + p.hitbox.left < collisions.collisions[i].x + collisions.collisions[i].w && p.y + p.hitbox.bottom > collisions.collisions[i].y && p.y + p.hitbox.top < collisions.collisions[i].y + 10) {
-				p.y --;
-			}
+		p.y = this.y - p.hitbox.bottom;
+		while(game.dungeon[game.theRoom].rectIntersectsCollision(p.x + p.hitbox.left, p.y + p.hitbox.top, p.hitbox.w, p.hitbox.h)) {
+			/* move player backwards along trajectory of magic charge */
+			p.x -= this.velocity.x, p.y -= this.velocity.y;
 		}
 	}
 });

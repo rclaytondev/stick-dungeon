@@ -61,3 +61,10 @@ CollisionCircle.method("getIntersectionPoint", function(obj) {
 		return null;
 	}
 });
+CollisionCircle.method("intersectsRect", function(x, y, w, h) {
+	var point = {
+		x: Math.constrain(this.x, x, x + w),
+		y: Math.constrain(this.y, y, y + h)
+	};
+	return Math.distSq(this.x, this.y, point.x, point.y) < this.r * this.r;
+});

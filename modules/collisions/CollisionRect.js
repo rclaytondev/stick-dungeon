@@ -87,3 +87,6 @@ CollisionRect.method("collide", function(obj) {
 		}
 	}
 });
+CollisionRect.method("intersectsRect", function(x, y, w, h) {
+	return (x + w > this.x && x < this.x + this.w && y + h > this.y && y < this.y + this.h);
+});

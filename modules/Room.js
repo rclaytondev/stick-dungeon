@@ -711,3 +711,6 @@ Room.method("containsUnexploredDoor", function() {
 	var unexploredDoor = this.getInstancesOf(Door).find(door => typeof door.dest !== "number");
 	return unexploredDoor !== undefined;
 });
+Room.method("rectIntersectsCollision", function(x, y, w, h) {
+	return collisions.collisions.some(collision => collision.intersectsRect(x, y, w, h));
+});
