@@ -26,39 +26,42 @@ Wraith.method("display", function() {
 	/* particle graphics */
 	this.particles.forEach((particle) => { particle.display(); });
 	this.particles = this.particles.filter((particle) => particle.opacity > 0);
-	for(var i = 0; i < 10; i ++) {
-		var pos = Math.randomInRange(0, 50);
-		this.particles.push(new Particle(
-			this.x + Math.randomInRange(-pos, pos),
-			this.y + 50 - (pos * 2),
-			{
-				color: "rgb(0, 0, 0)",
-				brightnessVariance: 20,
-				velocity: 1,
-				size: Math.randomInRange(6, 10),
-				shape: "polygon-3",
-				size: 13,
-				sizeDecay: 1/20
-			}
-		));
-		this.particles.push(new Particle(
-			this.x - 10, this.y - 25,
-			{
-				color: "rgb(255, 0, 0)",
-				velocity: 0.5,
-				size: Math.randomInRange(2, 4),
-				shape: "polygon-3"
-			}
-		));
-		this.particles.push(new Particle(
-			this.x + 10, this.y - 25,
-			{
-				color: "rgb(255, 0, 0)",
-				velocity: 0.5,
-				size: Math.randomInRange(2, 4),
-				shape: "polygon-3"
-			}
-		));
+	if(this.timeFrozen < 0) {
+		for(var i = 0; i < 10; i ++) {
+			var pos = Math.randomInRange(0, 50);
+			this.particles.push(new Particle(
+				this.x + Math.randomInRange(-pos, pos),
+				this.y + 50 - (pos * 2),
+				{
+					color: "rgb(0, 0, 0)",
+					brightnessVariance: 20,
+					velocity: 1,
+					size: Math.randomInRange(6, 10),
+					shape: "polygon-3",
+					size: 13,
+					sizeDecay: 1/20
+				}
+			));
+			this.particles.push(new Particle(
+				this.x - 10, this.y - 25,
+				{
+					color: "rgb(255, 0, 0)",
+					velocity: 0.5,
+					size: Math.randomInRange(2, 4),
+					shape: "polygon-3"
+				}
+			));
+			this.particles.push(new Particle(
+				this.x + 10, this.y - 25,
+				{
+					color: "rgb(255, 0, 0)",
+					velocity: 0.5,
+					size: Math.randomInRange(2, 4),
+					shape: "polygon-3"
+				}
+			));
+		}
+	
 	}
 });
 Wraith.method("update", function(dest) {
