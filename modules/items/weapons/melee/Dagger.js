@@ -19,7 +19,7 @@ Dagger.method("getDesc", function() {
 		{
 			content: "Damage: " + this.damLow + "-" + this.damHigh,
 			font: "10pt monospace",
-			color: (this.modifier === "none") ? "rgb(255, 255, 255)" : (this.modifier === "light" ? "rgb(255, 0, 0)" : "rgb(50, 255, 50)")
+			color: "rgb(255, 255, 255)"
 		},
 		{
 			content: "Range: Very Short",
