@@ -683,17 +683,20 @@ Room.method("clearRenderingStyle", function(func) {
 Room.method("getInstancesOf", function(type) {
 	return this.content.filter(obj => obj instanceof type);
 });
-Room.method("displayImmediately", function(func, thisArg) {
+Room.method("displayImmediately", function(func, thisArg, noSort) {
 	/*
 	This is used to immediately display things - basically, it just skips the steps of requesting the render and then sorting by depth.
 	*/
+	noSort = noSort || false;
 	var previousLength = this.renderingObjects.length;
 	func.call(thisArg);
-	this.sortRenderingObjects();
-	while(this.renderingObjects.length > previousLength) {
-		var renderingObject = this.renderingObjects.shift();
-		renderingObject.display();
+	if(!noSort) {
+		this.sortRenderingObjects();
 	}
+	var newObjects = this.renderingObjects.slice(previousLength);
+	newObjects.forEach(object => {
+		object.display();
+	});
 });
 Room.method("reflect", function() {
 	this.content = this.content.map((obj) => {

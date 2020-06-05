@@ -13,7 +13,7 @@ Torch.method("display", function() {
 			function() {
 				game.dungeon[game.theRoom].displayImmediately(function() {
 					self.fireParticles.forEach(particle => { particle.display(); });
-				});
+				}, null, true);
 			},
 			0.97,
 			1
