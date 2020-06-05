@@ -63,6 +63,6 @@ Weapon.applyElementalEffect = function(element, enemy, direction, location, bonu
 		EarthCrystal.addBoulderAbove(enemy.x, enemy.y);
 	}
 	else if(element === "air") {
-		game.dungeon[game.theRoom].content.push(new WindBurst(location.x, location.y, direction, true));
+		game.dungeon[game.theRoom].content.push(new WindBurst(location.x, location.y + 10, direction, true));
 	}
 };

@@ -45,6 +45,13 @@ WindBurst.method("update", function() {
 		if(collisions.objectIntersectsObject(this, enemy)) {
 			enemy.velocity.x = (this.dir === "left") ? -3 : 3;
 			enemy.x += this.velocity.x;
+			collisions.collisions.filter(collision => collision.settings.creator !== enemy).forEach(collision => {
+				while(collision.intersectsRect(enemy.x + enemy.hitbox.left, enemy.y + enemy.hitbox.top, enemy.hitbox.right - enemy.hitbox.left, enemy.hitbox.bottom - enemy.hitbox.top, 5)) {
+					var oppositeDirection = Math.normalize(this.velocity.x, this.velocity.y);
+					oppositeDirection.x *= -1, oppositeDirection.y *= -1;
+					enemy.x += oppositeDirection.x, enemy.y += oppositeDirection.y;
+				}
+			});
 		}
 	});
 	if(this.opacity < 0) {

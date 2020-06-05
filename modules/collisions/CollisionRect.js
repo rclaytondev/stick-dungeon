@@ -14,6 +14,7 @@ function CollisionRect(x, y, w, h, settings) {
 	this.settings.onCollision = settings.onCollision || function() {}; // a function to be run when an object hits a side of the rectangle
 	this.settings.collisionCriteria = settings.collisionCriteria || function(obj) { return true; }; // a function to determine which objects this should collide with
 	this.settings.noPositionLimits = settings.noPositionLimits || false; // whether or not to move the object until it no longer intersects the rectangle
+	this.settings.creator = settings.creator || null; // which object created this CollisionRect (e.g. a `Block` or a `Platform` etc)
 };
 CollisionRect.method("collide", function(obj) {
 	if(Object.typeof(obj) === "object" || Object.typeof(obj) === "instance") {
@@ -87,6 +88,7 @@ CollisionRect.method("collide", function(obj) {
 		}
 	}
 });
-CollisionRect.method("intersectsRect", function(x, y, w, h) {
-	return (x + w > this.x && x < this.x + this.w && y + h > this.y && y < this.y + this.h);
+CollisionRect.method("intersectsRect", function(x, y, w, h, buffer) {
+	buffer = buffer || 0;
+	return (x + w > this.x + buffer && x < this.x + this.w - buffer && y + h > this.y + buffer && y < this.y + this.h - buffer);
 });

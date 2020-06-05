@@ -84,7 +84,8 @@ Enemy.method("update", function() {
 					obj.velocity.x = 3;
 				}
 			},
-			noPositionLimits: true
+			noPositionLimits: true,
+			creator: this
 		}
 	);
 	/* update effects */

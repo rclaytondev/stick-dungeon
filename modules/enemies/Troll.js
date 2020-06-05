@@ -254,7 +254,7 @@ Troll.method("update", function(dest) {
 			}
 		}
 	}
-	collisions.solids.rect(this.x - 40, this.y - 20, 80, 60);
+	collisions.solids.rect(this.x - 40, this.y - 20, 80, 60, { creator: this });
 });
 Troll.method("handleCollision", function(direction, collision) {
 
